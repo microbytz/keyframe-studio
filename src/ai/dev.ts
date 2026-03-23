@@ -1,4 +1,4 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/ai-creative-inspirer-flow.ts';
+// AI flow registrations removed as per request

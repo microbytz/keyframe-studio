@@ -6,7 +6,6 @@ import { SketchCanvas } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
-import { AIPanel } from '@/components/editor/AIPanel';
 
 export default function Home() {
   const {
@@ -99,8 +98,6 @@ export default function Home() {
             />
           </div>
         </div>
-        
-        <AIPanel />
       </div>
 
       {/* Footer / Timeline Area */}
