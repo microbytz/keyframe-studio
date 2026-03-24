@@ -42,9 +42,9 @@ export default function Home() {
   const nextFrame = currentFrameIndex < project.frames.length - 1 ? project.frames[currentFrameIndex + 1] : undefined;
 
   return (
-    <main className="h-screen flex flex-col items-center bg-background overflow-hidden">
-      {/* Header Area - Compacted and holds more controls now */}
-      <div className="w-full flex items-center justify-between max-w-7xl h-14 px-4 bg-white/30 backdrop-blur-sm border-b border-foreground/10">
+    <main className="min-h-screen flex flex-col items-center bg-background overflow-y-auto">
+      {/* Header Area - Compacted and holds more controls */}
+      <div className="w-full flex items-center justify-between max-w-7xl h-14 px-4 bg-white/30 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-bold italic tracking-tighter text-primary">
             SketchFlow <span className="text-accent">Studio</span>
@@ -79,7 +79,7 @@ export default function Home() {
 
           <div className="h-6 w-px bg-foreground/10 mx-1" />
 
-          {/* Color & Size shifted to header to save sidebar space */}
+          {/* Color & Size in header to save sidebar space */}
           <div className="flex items-center gap-3 bg-white px-2 py-1 sketch-border">
             <div className="flex items-center gap-1.5">
               <div 
@@ -121,9 +121,9 @@ export default function Home() {
       </div>
 
       {/* Workspace Area */}
-      <div className="flex flex-1 w-full max-w-7xl items-stretch overflow-hidden">
-        {/* Sidebar - Now very short and clean */}
-        <div className="p-4 flex-none">
+      <div className="flex flex-1 w-full max-w-7xl items-start py-6">
+        {/* Sidebar - Tools Only */}
+        <div className="px-4 flex-none sticky top-20">
           <Toolbar 
             currentTool={tool}
             setTool={setTool}
@@ -135,8 +135,8 @@ export default function Home() {
         </div>
 
         {/* Drawing & Timeline Area */}
-        <div className="flex-1 flex flex-col items-center p-4 overflow-hidden gap-4">
-          <div className="flex-none shadow-xl">
+        <div className="flex-1 flex flex-col items-center px-4 gap-6 pb-20">
+          <div className="flex-none shadow-xl bg-white sketch-border overflow-hidden">
             <SketchCanvas 
               width={project.width}
               height={project.height}
@@ -166,7 +166,7 @@ export default function Home() {
       </div>
 
       {/* Footer Info */}
-      <div className="h-6 flex items-center justify-center w-full text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5">
+      <div className="mt-auto h-8 flex items-center justify-center w-full text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
         Tip: Press 'S' to save, 'L' to load projects locally.
       </div>
     </main>
