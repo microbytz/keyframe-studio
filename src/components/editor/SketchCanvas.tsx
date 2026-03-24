@@ -31,31 +31,35 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   isPlaying,
 }) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
+  const prevCanvasRef = useRef<HTMLCanvasElement>(null);
+  const nextCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
 
-  // Draw onion skin layers
-  const drawOnionSkins = useCallback((ctx: CanvasRenderingContext2D) => {
+  // Draw onion skin layers on separate canvases
+  useEffect(() => {
+    const prevCtx = prevCanvasRef.current?.getContext('2d');
+    const nextCtx = nextCanvasRef.current?.getContext('2d');
+
+    if (prevCtx) prevCtx.clearRect(0, 0, width, height);
+    if (nextCtx) nextCtx.clearRect(0, 0, width, height);
+
     if (!onionSkinEnabled || isPlaying) return;
 
-    const drawSkin = (frame: Frame | undefined, opacity: number, tintColor: string) => {
+    const drawSkin = (ctx: CanvasRenderingContext2D, frame: Frame | undefined) => {
       if (!frame || !frame.imageData) return;
       const img = new Image();
       img.src = frame.imageData;
       img.onload = () => {
-        ctx.save();
-        ctx.globalAlpha = opacity;
-        // Optional: Tint the onion skin (e.g., prev is red, next is green)
         ctx.drawImage(img, 0, 0);
-        ctx.restore();
       };
     };
 
-    drawSkin(prevFrame, 0.3, '#FF0000');
-    drawSkin(nextFrame, 0.15, '#00FF00');
-  }, [onionSkinEnabled, prevFrame, nextFrame, isPlaying]);
+    if (prevCtx) drawSkin(prevCtx, prevFrame);
+    if (nextCtx) drawSkin(nextCtx, nextFrame);
+  }, [onionSkinEnabled, prevFrame, nextFrame, isPlaying, width, height]);
 
-  // Load current frame data onto canvas
+  // Load current frame data onto main canvas
   useEffect(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
@@ -64,10 +68,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 
     ctx.clearRect(0, 0, width, height);
     
-    // Draw background (paper effect)
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, width, height);
-
     if (currentFrame.imageData) {
       const img = new Image();
       img.src = currentFrame.imageData;
@@ -75,16 +75,14 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.drawImage(img, 0, 0);
       };
     }
-
-    drawOnionSkins(ctx);
-  }, [currentFrame.id, currentFrame.imageData, width, height, drawOnionSkins]);
+  }, [currentFrame.id, currentFrame.imageData, width, height]);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    const clientX = 'touches' in e ? (e as React.TouchEvent).touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.MouseEvent).clientY;
     return {
       x: (clientX - rect.left) * (width / rect.width),
       y: (clientY - rect.top) * (height / rect.height)
@@ -113,8 +111,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     
     if (tool === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
-      // To erase to white instead of transparency if preferred:
-      // ctx.strokeStyle = '#FFFFFF';
     } else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = color;
@@ -132,11 +128,11 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     setIsDrawing(false);
     const canvas = mainCanvasRef.current;
     if (canvas) {
+      // This only saves the drawing layer, NOT the onion skins
       onFrameUpdate(canvas.toDataURL());
     }
   };
 
-  // Simplified Bucket Fill (Flood Fill)
   const handleBucketFill = (e: React.MouseEvent) => {
     if (tool !== 'bucket' || isPlaying) return;
     const canvas = mainCanvasRef.current;
@@ -161,6 +157,24 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 
   return (
     <div className="relative sketch-border shadow-lg bg-white overflow-hidden" style={{ width, height }}>
+      {/* Background Layer (Paper) */}
+      <div className="absolute inset-0 bg-white" />
+
+      {/* Onion Skin Layers (Separated to prevent saving them) */}
+      <canvas
+        ref={prevCanvasRef}
+        width={width}
+        height={height}
+        className="absolute inset-0 pointer-events-none opacity-30"
+      />
+      <canvas
+        ref={nextCanvasRef}
+        width={width}
+        height={height}
+        className="absolute inset-0 pointer-events-none opacity-15"
+      />
+
+      {/* Main Drawing Layer */}
       <canvas
         ref={mainCanvasRef}
         width={width}
@@ -176,10 +190,11 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         onTouchStart={startDrawing}
         onTouchMove={draw}
         onTouchEnd={stopDrawing}
-        className="touch-none block"
+        className="absolute inset-0 touch-none block z-10"
       />
+      
       {isPlaying && (
-        <div className="absolute top-2 right-2 px-2 py-1 bg-accent text-xs font-bold uppercase tracking-wider sketch-border">
+        <div className="absolute top-2 right-2 px-2 py-1 bg-accent text-xs font-bold uppercase tracking-wider sketch-border z-20">
           Preview Mode
         </div>
       )}
