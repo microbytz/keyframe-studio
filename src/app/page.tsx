@@ -1,3 +1,4 @@
+
 "use client"
 
 import React from 'react';
@@ -41,17 +42,15 @@ export default function Home() {
   const nextFrame = currentFrameIndex < project.frames.length - 1 ? project.frames[currentFrameIndex + 1] : undefined;
 
   return (
-    <main className="h-screen flex flex-col items-center p-2 md:p-4 bg-background">
-      {/* Header Area - Compacted */}
-      <div className="w-full flex items-center justify-between max-w-6xl mb-2 px-2">
+    <main className="h-screen flex flex-col items-center bg-background overflow-hidden">
+      {/* Header Area - Compacted and holds more controls now */}
+      <div className="w-full flex items-center justify-between max-w-7xl h-14 px-4 bg-white/30 backdrop-blur-sm border-b border-foreground/10">
         <div className="flex items-center gap-4">
-          <div className="flex flex-col">
-            <h1 className="text-xl font-bold italic tracking-tighter text-primary">
-              SketchFlow <span className="text-accent">Studio</span>
-            </h1>
-          </div>
+          <h1 className="text-lg font-bold italic tracking-tighter text-primary">
+            SketchFlow <span className="text-accent">Studio</span>
+          </h1>
           
-          <div className="flex items-center gap-1 bg-white/50 p-1 sketch-border">
+          <div className="flex items-center gap-1 bg-white p-1 sketch-border">
             <button 
               onClick={toggleOnionSkin}
               className={cn(
@@ -60,23 +59,52 @@ export default function Home() {
               )}
               title="Onion Skinning"
             >
-              <Layers size={18} />
+              <Layers size={16} />
             </button>
-            <div className="w-px h-6 bg-foreground/20 mx-1" />
             <button 
               onClick={saveProject}
               className="p-1.5 hover:bg-accent transition-all rounded"
               title="Save Project"
             >
-              <Save size={18} />
+              <Save size={16} />
             </button>
             <button 
               onClick={loadProject}
               className="p-1.5 hover:bg-accent transition-all rounded"
               title="Load Project"
             >
-              <FolderOpen size={18} />
+              <FolderOpen size={16} />
             </button>
+          </div>
+
+          <div className="h-6 w-px bg-foreground/10 mx-1" />
+
+          {/* Color & Size shifted to header to save sidebar space */}
+          <div className="flex items-center gap-3 bg-white px-2 py-1 sketch-border">
+            <div className="flex items-center gap-1.5">
+              <div 
+                className="w-5 h-5 sketch-border cursor-pointer overflow-hidden relative"
+                style={{ backgroundColor: color }}
+              >
+                <input 
+                  type="color" 
+                  value={color} 
+                  onChange={(e) => setColor(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input 
+                type="range" 
+                min="1" 
+                max="50" 
+                value={brushSize} 
+                onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                className="w-20 h-1 accent-accent cursor-pointer"
+              />
+              <span className="text-[10px] font-bold w-6">{brushSize}px</span>
+            </div>
           </div>
         </div>
         
@@ -93,15 +121,12 @@ export default function Home() {
       </div>
 
       {/* Workspace Area */}
-      <div className="flex flex-1 w-full max-w-6xl items-start gap-4 relative overflow-hidden">
-        <div className="pt-2">
+      <div className="flex flex-1 w-full max-w-7xl items-stretch overflow-hidden">
+        {/* Sidebar - Now very short and clean */}
+        <div className="p-4 flex-none">
           <Toolbar 
             currentTool={tool}
             setTool={setTool}
-            color={color}
-            setColor={setColor}
-            brushSize={brushSize}
-            setBrushSize={setBrushSize}
             undo={undo}
             redo={redo}
             canUndo={canUndo}
@@ -109,8 +134,9 @@ export default function Home() {
           />
         </div>
 
-        <div className="flex-1 flex flex-col items-center h-full overflow-hidden">
-          <div className="flex-none">
+        {/* Drawing & Timeline Area */}
+        <div className="flex-1 flex flex-col items-center p-4 overflow-hidden gap-4">
+          <div className="flex-none shadow-xl">
             <SketchCanvas 
               width={project.width}
               height={project.height}
@@ -126,7 +152,7 @@ export default function Home() {
             />
           </div>
           
-          <div className="w-full mt-2 flex-1 min-h-0">
+          <div className="w-full max-w-[800px] flex-none">
             <Timeline 
               frames={project.frames}
               currentFrameIndex={currentFrameIndex}
@@ -140,7 +166,7 @@ export default function Home() {
       </div>
 
       {/* Footer Info */}
-      <div className="mt-1 text-[10px] opacity-40 uppercase font-bold text-center">
+      <div className="h-6 flex items-center justify-center w-full text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5">
         Tip: Press 'S' to save, 'L' to load projects locally.
       </div>
     </main>
