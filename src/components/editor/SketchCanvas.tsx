@@ -1,6 +1,7 @@
+
 "use client"
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { ToolType, Frame } from '@/lib/types';
 
 interface SketchCanvasProps {
@@ -33,6 +34,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const prevCanvasRef = useRef<HTMLCanvasElement>(null);
   const nextCanvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
 
@@ -83,6 +85,8 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     const rect = canvas.getBoundingClientRect();
     const clientX = 'touches' in e ? (e as React.TouchEvent).touches[0].clientX : (e as React.MouseEvent).clientX;
     const clientY = 'touches' in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.MouseEvent).clientY;
+    
+    // Calculate normalized position relative to the visual display size vs internal resolution
     return {
       x: (clientX - rect.left) * (width / rect.width),
       y: (clientY - rect.top) * (height / rect.height)
@@ -128,7 +132,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     setIsDrawing(false);
     const canvas = mainCanvasRef.current;
     if (canvas) {
-      // This only saves the drawing layer, NOT the onion skins
       onFrameUpdate(canvas.toDataURL());
     }
   };
@@ -156,22 +159,25 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   };
 
   return (
-    <div className="relative sketch-border shadow-lg bg-white overflow-hidden" style={{ width, height }}>
+    <div 
+      ref={containerRef}
+      className="relative sketch-border shadow-lg bg-white overflow-hidden w-full aspect-video"
+    >
       {/* Background Layer (Paper) */}
       <div className="absolute inset-0 bg-white" />
 
-      {/* Onion Skin Layers (Separated to prevent saving them) */}
+      {/* Onion Skin Layers */}
       <canvas
         ref={prevCanvasRef}
         width={width}
         height={height}
-        className="absolute inset-0 pointer-events-none opacity-30"
+        className="absolute inset-0 pointer-events-none opacity-30 w-full h-full"
       />
       <canvas
         ref={nextCanvasRef}
         width={width}
         height={height}
-        className="absolute inset-0 pointer-events-none opacity-15"
+        className="absolute inset-0 pointer-events-none opacity-15 w-full h-full"
       />
 
       {/* Main Drawing Layer */}
@@ -190,12 +196,12 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         onTouchStart={startDrawing}
         onTouchMove={draw}
         onTouchEnd={stopDrawing}
-        className="absolute inset-0 touch-none block z-10"
+        className="absolute inset-0 touch-none block z-10 w-full h-full"
       />
       
       {isPlaying && (
-        <div className="absolute top-2 right-2 px-2 py-1 bg-accent text-xs font-bold uppercase tracking-wider sketch-border z-20">
-          Preview Mode
+        <div className="absolute top-1 right-1 md:top-2 md:right-2 px-1 py-0.5 md:px-2 md:py-1 bg-accent text-[8px] md:text-xs font-bold uppercase tracking-wider sketch-border z-20">
+          Preview
         </div>
       )}
     </div>

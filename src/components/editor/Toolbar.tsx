@@ -40,8 +40,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   ];
 
   return (
-    <div className="flex flex-col gap-4 p-2 sketch-card w-14 items-center bg-white">
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-center bg-white overflow-x-auto">
+      <div className="flex flex-row md:flex-col gap-2">
         {tools.map((t) => (
           <button
             key={t.id}
@@ -52,17 +52,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             )}
             title={t.label}
           >
-            <t.icon size={18} />
-            <span className="hidden group-hover:block absolute left-full ml-2 px-2 py-1 bg-primary text-white text-[10px] rounded whitespace-nowrap z-50">
+            <t.icon size={16} className="md:w-[18px] md:h-[18px]" />
+            <span className="hidden md:group-hover:block absolute left-full ml-2 px-2 py-1 bg-primary text-white text-[10px] rounded whitespace-nowrap z-50">
               {t.label}
             </span>
           </button>
         ))}
       </div>
 
-      <div className="w-full h-px bg-foreground opacity-10" />
+      <div className="hidden md:block w-full h-px bg-foreground opacity-10" />
+      <div className="block md:hidden w-px h-8 bg-foreground opacity-10 mx-1" />
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-row md:flex-col gap-2">
         <button 
           onClick={undo}
           disabled={!canUndo}
@@ -71,7 +72,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           )}
           title="Undo"
         >
-          <Undo2 size={18} />
+          <Undo2 size={16} className="md:w-[18px] md:h-[18px]" />
         </button>
         <button 
           onClick={redo}
@@ -81,7 +82,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           )}
           title="Redo"
         >
-          <Redo2 size={18} />
+          <Redo2 size={16} className="md:w-[18px] md:h-[18px]" />
         </button>
       </div>
     </div>
