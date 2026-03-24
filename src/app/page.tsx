@@ -27,7 +27,11 @@ export default function Home() {
     toggleOnionSkin,
     saveProject,
     loadProject,
-    setProject
+    setProject,
+    undo,
+    redo,
+    canUndo,
+    canRedo
   } = useAnimationState();
 
   const currentFrame = project.frames[currentFrameIndex];
@@ -70,6 +74,10 @@ export default function Home() {
           onLoad={loadProject}
           onionSkinEnabled={project.onionSkinEnabled}
           toggleOnionSkin={toggleOnionSkin}
+          undo={undo}
+          redo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
         />
 
         <div className="flex-1 flex flex-col items-center justify-center h-full">

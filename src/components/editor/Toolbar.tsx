@@ -2,7 +2,18 @@
 
 import React from 'react';
 import { ToolType } from '@/lib/types';
-import { Pencil, Eraser, PaintBucket, Scissors, Type, Save, FolderOpen, Play, Pause, Square, Trash2, Copy, Plus, Layers } from 'lucide-react';
+import { 
+  Pencil, 
+  Eraser, 
+  PaintBucket, 
+  Scissors, 
+  Type, 
+  Save, 
+  FolderOpen, 
+  Layers, 
+  Undo2, 
+  Redo2 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ToolbarProps {
@@ -16,6 +27,10 @@ interface ToolbarProps {
   onLoad: () => void;
   onionSkinEnabled: boolean;
   toggleOnionSkin: () => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -28,7 +43,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onSave,
   onLoad,
   onionSkinEnabled,
-  toggleOnionSkin
+  toggleOnionSkin,
+  undo,
+  redo,
+  canUndo,
+  canRedo
 }) => {
   const tools = [
     { id: 'pen', icon: Pencil, label: 'Pen' },
@@ -61,8 +80,33 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       <div className="w-full h-px bg-foreground opacity-20 my-2" />
 
+      <div className="flex flex-col gap-2">
+        <button 
+          onClick={undo}
+          disabled={!canUndo}
+          className={cn(
+            "p-2 sketch-border bg-white hover:bg-accent transition-all disabled:opacity-30 disabled:hover:bg-white",
+          )}
+          title="Undo"
+        >
+          <Undo2 size={20} />
+        </button>
+        <button 
+          onClick={redo}
+          disabled={!canRedo}
+          className={cn(
+            "p-2 sketch-border bg-white hover:bg-accent transition-all disabled:opacity-30 disabled:hover:bg-white",
+          )}
+          title="Redo"
+        >
+          <Redo2 size={20} />
+        </button>
+      </div>
+
+      <div className="w-full h-px bg-foreground opacity-20 my-2" />
+
       <div className="flex flex-col gap-2 items-center">
-        <label className="text-[10px] font-bold uppercase">Color</label>
+        <label className="text-[10px] font-bold uppercase text-center">Color</label>
         <div 
           className="w-8 h-8 sketch-border cursor-pointer overflow-hidden relative"
           style={{ backgroundColor: color }}
