@@ -80,7 +80,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       };
     }
 
-    // Clear temp feedback canvas on frame change
     const tCtx = tempCanvasRef.current?.getContext('2d');
     if (tCtx) tCtx.clearRect(0, 0, width, height);
   }, [currentFrame.id, currentFrame.imageData, width, height]);
@@ -107,6 +106,11 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     if (tool === 'lasso') {
       setLassoPoints([pos]);
     }
+
+    // Handle single point brushes immediately
+    if (tool === 'pixel' || tool === 'calligraphy' || tool === 'airbrush') {
+      draw(e);
+    }
   };
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
@@ -118,23 +122,63 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     const tCtx = tempCanvas.getContext('2d')!;
 
     const pos = getPos(e);
+    ctx.save();
 
-    if (tool === 'pen' || tool === 'eraser') {
-      ctx.beginPath();
-      ctx.lineWidth = brushSize;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      
+    const brushes = ['pen', 'brush', 'pixel', 'calligraphy', 'airbrush', 'eraser'];
+    
+    if (brushes.includes(tool)) {
       if (tool === 'eraser') {
         ctx.globalCompositeOperation = 'destination-out';
       } else {
         ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = color;
+        ctx.fillStyle = color;
       }
 
-      ctx.moveTo(lastPos.x, lastPos.y);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+      if (tool === 'pen' || tool === 'eraser' || tool === 'brush') {
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        if (tool === 'brush' && tool !== 'eraser') {
+          ctx.shadowBlur = brushSize / 2;
+          ctx.shadowColor = color;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(lastPos.x, lastPos.y);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+      } else if (tool === 'pixel') {
+        const size = Math.max(1, Math.floor(brushSize / 2));
+        const px = Math.floor(pos.x / size) * size;
+        const py = Math.floor(pos.y / size) * size;
+        ctx.fillRect(px, py, size, size);
+      } else if (tool === 'calligraphy') {
+        // Draw a slanted flat line for every segment
+        const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
+        const steps = Math.max(1, Math.ceil(dist / 2));
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const x = lastPos.x + (pos.x - lastPos.x) * t;
+          const y = lastPos.y + (pos.y - lastPos.y) * t;
+          
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(Math.PI / 4); // 45 degree angle
+          ctx.fillRect(-brushSize, -1, brushSize * 2, 2);
+          ctx.restore();
+        }
+      } else if (tool === 'airbrush') {
+        const density = 15;
+        for (let i = 0; i < density; i++) {
+          const r = Math.random() * brushSize * 2;
+          const angle = Math.random() * Math.PI * 2;
+          const x = pos.x + r * Math.cos(angle);
+          const y = pos.y + r * Math.sin(angle);
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
     } else if (tool === 'lasso') {
       const newPoints = [...lassoPoints, pos];
       setLassoPoints(newPoints);
@@ -149,6 +193,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       tCtx.setLineDash([]);
     }
 
+    ctx.restore();
     setLastPos(pos);
   };
 
