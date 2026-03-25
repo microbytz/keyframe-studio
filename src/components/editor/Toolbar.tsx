@@ -1,3 +1,4 @@
+
 "use client"
 
 import React from 'react';
@@ -32,7 +33,8 @@ import {
   Circle as CircleIcon,
   Triangle,
   Settings2,
-  Layers as LayersIcon
+  Layers as LayersIcon,
+  Wand2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -52,6 +54,8 @@ interface ToolbarProps {
   canRedo: boolean;
   color: string;
   onOpenLayers?: () => void;
+  isMultiDrawEnabled?: boolean;
+  setIsMultiDrawEnabled?: (enabled: boolean) => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -63,7 +67,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   canUndo,
   canRedo,
   color,
-  onOpenLayers
+  onOpenLayers,
+  isMultiDrawEnabled,
+  setIsMultiDrawEnabled
 }) => {
   const isMobile = useIsMobile();
   
@@ -206,6 +212,19 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <t.icon size={16} />
           </button>
         ))}
+
+        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
+
+        <button 
+          onClick={() => setIsMultiDrawEnabled?.(!isMultiDrawEnabled)}
+          className={cn(
+            "p-2 sketch-border transition-all hover:bg-accent shrink-0",
+            isMultiDrawEnabled ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
+          )}
+          title="Magic Wand: Multi-Draw Sync"
+        >
+          <Wand2 size={16} />
+        </button>
 
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
         

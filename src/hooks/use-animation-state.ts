@@ -48,6 +48,10 @@ export function useAnimationState() {
   const [dynamicStampingEnabled, setDynamicStampingEnabled] = useState(true);
   const [customBrushColorLink, setCustomBrushColorLink] = useState(true);
   const [customBrushData, setCustomBrushData] = useState<string | null>(null);
+
+  // Multi-draw state
+  const [isMultiDrawEnabled, setIsMultiDrawEnabled] = useState(false);
+  const [multiDrawRange, setMultiDrawRange] = useState(5);
   
   const [history, setHistory] = useState<Frame[][]>([[createNewFrame()]]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -169,34 +173,24 @@ export function useAnimationState() {
       const selectedIndices = [...selectedFrameIndices].sort((a, b) => a - b);
       
       if (!selectedIndices.includes(startIndex)) {
-        // Individual drag
         const [removed] = newFrames.splice(startIndex, 1);
         newFrames.splice(endIndex, 0, removed);
         setCurrentFrameIndex(endIndex);
         setSelectedFrameIndices([endIndex]);
       } else {
-        // Group drag
         const selectedFrames = selectedIndices.map(i => prev.frames[i]);
-        
-        // Remove from old positions (highest first)
         [...selectedIndices].reverse().forEach(i => {
           newFrames.splice(i, 1);
         });
-        
-        // Adjust insert position
         let targetIndex = endIndex;
         const itemsBeforeTarget = selectedIndices.filter(i => i < targetIndex).length;
         targetIndex = Math.max(0, targetIndex - itemsBeforeTarget);
-        
         newFrames.splice(targetIndex, 0, ...selectedFrames);
-        
         const newSelection = Array.from({ length: selectedFrames.length }, (_, i) => targetIndex + i);
         setSelectedFrameIndices(newSelection);
-        // Find which frame of the selection was being dragged to maintain relative active frame
         const relativeActiveIdx = selectedIndices.indexOf(startIndex);
         setCurrentFrameIndex(targetIndex + relativeActiveIdx);
       }
-      
       pushToHistory(newFrames);
       return { ...prev, frames: newFrames };
     });
@@ -224,14 +218,35 @@ export function useAnimationState() {
   const updateLayerData = useCallback((dataUrl: string) => {
     const newFrames = [...project.frames];
     const frame = { ...newFrames[currentFrameIndex] };
-    frame.layers = frame.layers.map(l => 
-      l.id === activeLayerId ? { ...l, imageData: dataUrl } : l
+    
+    const layerIdx = frame.layers.findIndex(l => l.id === activeLayerId);
+    if (layerIdx === -1) return;
+
+    frame.layers = frame.layers.map((l, idx) => 
+      idx === layerIdx ? { ...l, imageData: dataUrl } : l
     );
     newFrames[currentFrameIndex] = frame;
+
+    // Multi-draw logic
+    if (isMultiDrawEnabled && multiDrawRange > 0) {
+      for (let i = 1; i <= multiDrawRange; i++) {
+        const targetIdx = currentFrameIndex + i;
+        if (targetIdx < newFrames.length) {
+          const targetFrame = { ...newFrames[targetIdx] };
+          // Match by index to ensure it affects the "same" layer in the stack
+          if (targetFrame.layers[layerIdx]) {
+            const targetLayers = [...targetFrame.layers];
+            targetLayers[layerIdx] = { ...targetLayers[layerIdx], imageData: dataUrl };
+            targetFrame.layers = targetLayers;
+            newFrames[targetIdx] = targetFrame;
+          }
+        }
+      }
+    }
     
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
-  }, [project.frames, currentFrameIndex, activeLayerId, pushToHistory]);
+  }, [project.frames, currentFrameIndex, activeLayerId, isMultiDrawEnabled, multiDrawRange, pushToHistory]);
 
   const addLayer = useCallback(() => {
     const newFrames = [...project.frames];
@@ -239,7 +254,6 @@ export function useAnimationState() {
     const newLayer = createNewLayer(`Layer ${frame.layers.length + 1}`);
     frame.layers = [newLayer, ...frame.layers]; 
     newFrames[currentFrameIndex] = frame;
-    
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
     setActiveLayerId(newLayer.id);
@@ -260,7 +274,6 @@ export function useAnimationState() {
     newLayer.imageData = copiedLayerData.imageData;
     frame.layers = [newLayer, ...frame.layers];
     newFrames[currentFrameIndex] = frame;
-    
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
     setActiveLayerId(newLayer.id);
@@ -272,7 +285,6 @@ export function useAnimationState() {
     if (frame.layers.length <= 1) return;
     frame.layers = frame.layers.filter(l => l.id !== layerId);
     newFrames[currentFrameIndex] = frame;
-    
     if (activeLayerId === layerId) {
       setActiveLayerId(frame.layers[0].id);
     }
@@ -301,7 +313,6 @@ export function useAnimationState() {
       l.id === layerId ? { ...l, visible: !l.visible } : l
     );
     newFrames[currentFrameIndex] = frame;
-    
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
   }, [project.frames, currentFrameIndex, pushToHistory]);
@@ -314,7 +325,6 @@ export function useAnimationState() {
     const frame = project.frames[currentFrameIndex];
     const layer = frame.layers.find(l => l.id === activeLayerId);
     if (!layer || !layer.imageData) return;
-
     const img = new Image();
     img.src = layer.imageData;
     img.onload = () => {
@@ -323,7 +333,6 @@ export function useAnimationState() {
       canvas.height = project.height;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-
       ctx.save();
       if (axis === 'horizontal') {
         ctx.scale(-1, 1);
@@ -413,7 +422,6 @@ export function useAnimationState() {
       const ctx = canvas.getContext('2d')!;
       ctx.fillStyle = 'white'; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
       const layers = [...frame.layers].reverse();
       for (const layer of layers) {
         if (layer.visible && layer.imageData) {
@@ -430,7 +438,6 @@ export function useAnimationState() {
       }
       return canvas.toDataURL('image/png');
     }));
-
     gifshot.createGIF({
       images,
       interval: 1 / project.fps,
@@ -477,6 +484,10 @@ export function useAnimationState() {
     setCustomBrushColorLink,
     customBrushData,
     setCustomBrushData,
+    isMultiDrawEnabled,
+    setIsMultiDrawEnabled,
+    multiDrawRange,
+    setMultiDrawRange,
     addFrame,
     deleteFrame: deleteSelectedFrames,
     duplicateFrame: duplicateSelectedFrames,

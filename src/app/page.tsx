@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAnimationState } from '@/hooks/use-animation-state';
 import { SketchCanvas } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
@@ -9,7 +9,7 @@ import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { LayersPanel } from '@/components/editor/LayersPanel';
-import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2 } from 'lucide-react';
+import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -18,6 +18,15 @@ import {
 } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export default function Home() {
   const {
@@ -48,6 +57,10 @@ export default function Home() {
     setCustomBrushColorLink,
     customBrushData,
     setCustomBrushData,
+    isMultiDrawEnabled,
+    setIsMultiDrawEnabled,
+    multiDrawRange,
+    setMultiDrawRange,
     addFrame,
     deleteFrame,
     duplicateFrame,
@@ -77,6 +90,8 @@ export default function Home() {
   } = useAnimationState();
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
+  const [isMultiDrawDialogOpen, setIsMultiDrawDialogOpen] = useState(false);
+  const [tempRange, setTempRange] = useState(multiDrawRange.toString());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentFrame = project.frames[currentFrameIndex];
@@ -88,6 +103,21 @@ export default function Home() {
     if (file) {
       uploadProject(file);
     }
+  };
+
+  const handleMultiDrawToggle = (checked: boolean) => {
+    setIsMultiDrawEnabled(checked);
+    if (checked) {
+      setIsMultiDrawDialogOpen(true);
+    }
+  };
+
+  const handleSaveMultiDrawRange = () => {
+    const range = parseInt(tempRange);
+    if (!isNaN(range) && range > 0) {
+      setMultiDrawRange(range);
+    }
+    setIsMultiDrawDialogOpen(false);
   };
 
   return (
@@ -190,6 +220,25 @@ export default function Home() {
                   <Label htmlFor="stabilization-mode" className="text-xs">Line Stabilization</Label>
                   <Switch id="stabilization-mode" checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} />
                 </div>
+                
+                <div className="pt-2 border-t mt-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Sync Tools</h4>
+                  <div className="flex items-center justify-between space-x-2">
+                    <div className="flex flex-col">
+                      <Label htmlFor="multi-draw" className="text-xs">Multi Draw across frames</Label>
+                      {isMultiDrawEnabled && (
+                        <button 
+                          onClick={() => setIsMultiDrawDialogOpen(true)}
+                          className="text-[8px] text-accent uppercase font-bold text-left hover:underline"
+                        >
+                          Extent: {multiDrawRange} Frames
+                        </button>
+                      )}
+                    </div>
+                    <Switch id="multi-draw" checked={isMultiDrawEnabled} onCheckedChange={handleMultiDrawToggle} />
+                  </div>
+                </div>
+
                 <div className="pt-2 border-t mt-2">
                    <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Custom Brush Engine</h4>
                    <div className="space-y-3 mb-4">
@@ -239,6 +288,8 @@ export default function Home() {
             canRedo={canRedo}
             color={color}
             onOpenLayers={() => setIsLayersOpen(true)}
+            isMultiDrawEnabled={isMultiDrawEnabled}
+            setIsMultiDrawEnabled={setIsMultiDrawEnabled}
           />
         </div>
 
@@ -300,8 +351,38 @@ export default function Home() {
         />
       )}
 
+      <Dialog open={isMultiDrawDialogOpen} onOpenChange={setIsMultiDrawDialogOpen}>
+        <DialogContent className="sketch-card sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+              <Sparkles size={16} className="text-accent" />
+              Multi-Draw Sync
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase opacity-60">To what extent? (Number of frames)</Label>
+              <Input 
+                type="number" 
+                value={tempRange} 
+                onChange={(e) => setTempRange(e.target.value)} 
+                min="1" 
+                max="100"
+                className="sketch-border"
+              />
+              <p className="text-[9px] opacity-40 italic">Your drawings will appear on this many subsequent frames.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSaveMultiDrawRange} className="w-full bg-accent hover:bg-accent/90 font-bold uppercase text-xs sketch-border">
+              Apply Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Shift + Click for range select, Ctrl/Cmd + Click to toggle multiple frames!
+        Tip: Use the Magic Wand tool to draw across multiple frames at once!
       </div>
     </main>
   );
