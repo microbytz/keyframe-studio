@@ -39,6 +39,7 @@ interface ToolbarProps {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  color: string;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -47,7 +48,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   undo,
   redo,
   canUndo,
-  canRedo
+  canRedo,
+  color
 }) => {
   const brushTools = [
     { id: 'pen', icon: Pencil, label: 'Standard Pen' },
@@ -76,6 +78,44 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const activeBrush = brushTools.find(t => t.id === currentTool) || brushTools[0];
   const isBrushActive = brushTools.some(t => t.id === currentTool);
 
+  const getBrushPreviewStyle = (toolId: string) => {
+    const base: React.CSSProperties = {
+      backgroundColor: color,
+      height: '6px',
+      width: '100%',
+      borderRadius: '99px',
+    };
+
+    switch (toolId) {
+      case 'pencil':
+        return { ...base, opacity: 0.4, height: '3px', filter: 'contrast(120%)' };
+      case 'brush':
+        return { ...base, boxShadow: `0 0 8px ${color}`, filter: 'blur(1px)' };
+      case 'pixel':
+        return { ...base, borderRadius: '0', height: '8px', backgroundImage: `linear-gradient(90deg, ${color} 50%, transparent 50%)`, backgroundSize: '10px 100%' };
+      case 'calligraphy':
+        return { ...base, transform: 'skewX(-45deg)', height: '10px' };
+      case 'airbrush':
+      case 'spray':
+        return { ...base, backgroundColor: 'transparent', backgroundImage: `radial-gradient(circle, ${color} 1px, transparent 1px)`, backgroundSize: '4px 4px' };
+      case 'highlighter':
+        return { ...base, opacity: 0.5, height: '12px', borderRadius: '2px' };
+      case 'watercolor':
+        return { ...base, opacity: 0.2, height: '15px', filter: 'blur(3px)' };
+      case 'charcoal':
+      case 'chalk':
+        return { ...base, opacity: 0.7, filter: 'contrast(150%) brightness(80%) drop-shadow(1px 1px 1px rgba(0,0,0,0.2))' };
+      case 'crayon':
+        return { ...base, border: `1px dashed ${color}aa`, opacity: 0.9 };
+      case 'technical':
+        return { ...base, height: '1px' };
+      case 'ink':
+        return { ...base, height: '4px', filter: 'drop-shadow(0px 1px 0px rgba(0,0,0,0.1))' };
+      default:
+        return base;
+    }
+  };
+
   return (
     <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-center bg-white overflow-x-auto scrollbar-none">
       <div className="flex flex-row md:flex-col gap-2">
@@ -98,21 +138,31 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <PopoverContent 
             side="right" 
             align="start" 
-            className="w-auto p-2 sketch-card ml-2 grid grid-cols-5 md:grid-cols-3 gap-2 animate-in fade-in zoom-in-95 duration-100"
+            className="w-72 p-3 sketch-card ml-2 animate-in fade-in zoom-in-95 duration-100"
           >
-            {brushTools.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTool(t.id as ToolType)}
-                className={cn(
-                  "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
-                  currentTool === t.id ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
-                )}
-                title={t.label}
-              >
-                <t.icon size={16} />
-              </button>
-            ))}
+            {/* Brush Preview Header */}
+            <div className="mb-4 p-3 sketch-border bg-background/50 flex flex-col items-center justify-center min-h-[64px] overflow-hidden">
+              <span className="text-[10px] font-bold uppercase opacity-60 mb-2 tracking-widest">{activeBrush.label}</span>
+              <div className="w-full px-4">
+                <div style={getBrushPreviewStyle(activeBrush.id)} className="transition-all duration-200" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-5 gap-2">
+              {brushTools.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTool(t.id as ToolType)}
+                  className={cn(
+                    "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0 flex items-center justify-center",
+                    currentTool === t.id ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
+                  )}
+                  title={t.label}
+                >
+                  <t.icon size={16} />
+                </button>
+              ))}
+            </div>
           </PopoverContent>
         </Popover>
 

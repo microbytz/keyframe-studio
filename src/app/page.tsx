@@ -1,4 +1,3 @@
-
 "use client"
 
 import React from 'react';
@@ -131,6 +130,7 @@ export default function Home() {
             redo={redo}
             canUndo={canUndo}
             canRedo={canRedo}
+            color={color}
           />
         </div>
 
