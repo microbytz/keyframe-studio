@@ -1,6 +1,7 @@
+
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAnimationState } from '@/hooks/use-animation-state';
 import { SketchCanvas } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
@@ -8,7 +9,7 @@ import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { LayersPanel } from '@/components/editor/LayersPanel';
-import { Save, FolderOpen, Layers, Settings2, Settings } from 'lucide-react';
+import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -57,6 +58,10 @@ export default function Home() {
     toggleOnionSkin,
     saveProject,
     loadProject,
+    downloadProject,
+    uploadProject,
+    exportToGif,
+    isExporting,
     setProject,
     undo,
     redo,
@@ -66,10 +71,18 @@ export default function Home() {
   } = useAnimationState();
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentFrame = project.frames[currentFrameIndex];
   const prevFrame = currentFrameIndex > 0 ? project.frames[currentFrameIndex - 1] : undefined;
   const nextFrame = currentFrameIndex < project.frames.length - 1 ? project.frames[currentFrameIndex + 1] : undefined;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadProject(file);
+    }
+  };
 
   return (
     <main className="min-h-screen flex flex-col items-center bg-background overflow-x-hidden">
@@ -90,11 +103,29 @@ export default function Home() {
             >
               <Layers size={14} className="md:w-4 md:h-4" />
             </button>
-            <button onClick={saveProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Save Project">
+            <button onClick={saveProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Quick Save (Browser)">
               <Save size={14} className="md:w-4 md:h-4" />
             </button>
-            <button onClick={loadProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Load Project">
+            <button onClick={loadProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Quick Load (Browser)">
               <FolderOpen size={14} className="md:w-4 md:h-4" />
+            </button>
+            <div className="w-px h-4 bg-foreground/10 mx-1" />
+            <button onClick={downloadProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Download Project File">
+              <Download size={14} className="md:w-4 md:h-4" />
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-accent transition-all rounded" title="Upload Project File">
+              <Upload size={14} className="md:w-4 md:h-4" />
+            </button>
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".sketchflow,.json" className="hidden" />
+            <div className="w-px h-4 bg-foreground/10 mx-1" />
+            <button 
+              onClick={exportToGif} 
+              disabled={isExporting}
+              className="p-1.5 hover:bg-accent transition-all rounded flex items-center gap-1 group" 
+              title="Export as GIF"
+            >
+              {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} className="md:w-4 md:h-4" />}
+              <span className="text-[10px] font-bold hidden md:inline uppercase group-hover:text-primary transition-colors">Export GIF</span>
             </button>
           </div>
 
@@ -256,7 +287,7 @@ export default function Home() {
       )}
 
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Work on separate layers to keep your lines and colors clean!
+        Tip: Export your work as a GIF to share your animation with the world!
       </div>
     </main>
   );

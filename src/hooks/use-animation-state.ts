@@ -1,7 +1,9 @@
+
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimationProject, ToolType, Frame, Layer } from '@/lib/types';
+import gifshot from 'gifshot';
 
 const INITIAL_FPS = 12;
 const CANVAS_WIDTH = 800;
@@ -48,6 +50,7 @@ export function useAnimationState() {
   
   const [history, setHistory] = useState<Frame[][]>([[createNewFrame()]]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
   
   const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -239,7 +242,7 @@ export function useAnimationState() {
     const saved = localStorage.getItem('sketchflow_project');
     if (saved) {
       const loadedProject = JSON.parse(saved);
-      // Migration: convert old Frame data to Layer data if needed
+      // Migration logic
       const migratedFrames = loadedProject.frames.map((f: any) => {
         if (f.imageData !== undefined) {
           return {
@@ -258,6 +261,79 @@ export function useAnimationState() {
       setActiveLayerId(loadedProject.frames[0].layers[0].id);
     }
   }, []);
+
+  const downloadProject = useCallback(() => {
+    const data = JSON.stringify(project, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${project.name.replace(/\s+/g, '_')}.sketchflow`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [project]);
+
+  const uploadProject = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const loadedProject = JSON.parse(e.target?.result as string);
+        setProject(loadedProject);
+        setHistory([loadedProject.frames]);
+        setHistoryIndex(0);
+        setCurrentFrameIndex(0);
+        setActiveLayerId(loadedProject.frames[0].layers[0].id);
+      } catch (err) {
+        console.error("Failed to parse project file", err);
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const exportToGif = useCallback(async () => {
+    setIsExporting(true);
+    const images = await Promise.all(project.frames.map(async (frame) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = project.width;
+      canvas.height = project.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = 'white'; // Fill background
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const layers = [...frame.layers].reverse();
+      for (const layer of layers) {
+        if (layer.visible && layer.imageData) {
+          await new Promise((resolve) => {
+            const img = new Image();
+            img.src = layer.imageData;
+            img.onload = () => {
+              ctx.drawImage(img, 0, 0);
+              resolve(null);
+            };
+            img.onerror = () => resolve(null);
+          });
+        }
+      }
+      return canvas.toDataURL('image/png');
+    }));
+
+    gifshot.createGIF({
+      images,
+      interval: 1 / project.fps,
+      gifWidth: project.width,
+      gifHeight: project.height,
+    }, (obj: any) => {
+      setIsExporting(false);
+      if (!obj.error) {
+        const link = document.createElement('a');
+        link.href = obj.image;
+        link.download = `${project.name.replace(/\s+/g, '_')}.gif`;
+        link.click();
+      } else {
+        console.error("GIF generation error:", obj.error);
+      }
+    });
+  }, [project]);
 
   return {
     project,
@@ -297,6 +373,10 @@ export function useAnimationState() {
     toggleOnionSkin,
     saveProject,
     loadProject,
+    downloadProject,
+    uploadProject,
+    exportToGif,
+    isExporting,
     setProject,
     undo,
     redo,
