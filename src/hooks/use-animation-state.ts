@@ -349,31 +349,33 @@ export function useAnimationState() {
 
   useEffect(() => {
     if (!isPlaying) {
-      if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
+      if (playbackTimeoutRef.current) {
+        clearTimeout(playbackTimeoutRef.current);
+        playbackTimeoutRef.current = null;
+      }
       return;
     }
 
-    const scheduleNextFrame = () => {
+    // Determine the FPS for the current frame
+    const group = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
+    const currentFps = group ? group.fps : project.fps;
+
+    // Set a timeout to advance to the next frame
+    playbackTimeoutRef.current = setTimeout(() => {
       setCurrentFrameIndex(prev => {
         const nextIdx = (prev + 1) % project.frames.length;
         setSelectedFrameIndices([nextIdx]);
-        
-        const group = project.groups?.find(g => nextIdx >= g.startIndex && nextIdx <= g.endIndex);
-        const currentFps = group ? group.fps : project.fps;
-        
-        playbackTimeoutRef.current = setTimeout(scheduleNextFrame, 1000 / currentFps);
         return nextIdx;
       });
-    };
-
-    const currentGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
-    const initialFps = currentGroup ? currentGroup.fps : project.fps;
-    playbackTimeoutRef.current = setTimeout(scheduleNextFrame, 1000 / initialFps);
+    }, 1000 / currentFps);
 
     return () => {
-      if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
+      if (playbackTimeoutRef.current) {
+        clearTimeout(playbackTimeoutRef.current);
+        playbackTimeoutRef.current = null;
+      }
     };
-  }, [isPlaying, project.fps, project.frames.length, project.groups]);
+  }, [isPlaying, currentFrameIndex, project.fps, project.frames.length, project.groups]);
 
   const saveProject = useCallback(() => {
     localStorage.setItem('sketchflow_project', JSON.stringify(project));
