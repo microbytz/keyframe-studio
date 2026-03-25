@@ -97,7 +97,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       const framesToRender: { index: number; opacity: number }[] = [];
 
       if (advancedOnionSkinEnabled) {
-        // Multi-frame Advanced Onion Skinning
         for (let i = 1; i <= onionSkinBefore; i++) {
           const idx = currentFrameIndex - i;
           if (idx >= 0) {
@@ -111,7 +110,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
           }
         }
       } else {
-        // Simple Standard Onion Skinning
         if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: 0.3 });
         if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: 0.15 });
       }
@@ -408,6 +406,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       return;
     }
 
+    // Apply stabilization if enabled
     if (stabilizationEnabled) {
       const factor = 0.25; 
       pos.x = lastPos.x + (pos.x - lastPos.x) * factor;
@@ -428,30 +427,39 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       ctx.fillStyle = color;
     }
 
+    // Improved Interpolation and Spacing Logic
+    const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
+    const angle = Math.atan2(pos.y - lastPos.y, pos.x - lastPos.x);
+
     if (tool === 'custom' && customBrushImage) {
-      const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
-      const angle = Math.atan2(pos.y - lastPos.y, pos.x - lastPos.x);
-      
       const drawStamp = (x: number, y: number, r: number) => {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(r);
+        
+        // Creating temporary canvas for color injection if needed
         const offscreen = document.createElement('canvas');
         offscreen.width = effectiveBrushSize * 2;
         offscreen.height = effectiveBrushSize * 2;
         const oCtx = offscreen.getContext('2d')!;
+        
         oCtx.drawImage(customBrushImage, 0, 0, offscreen.width, offscreen.height);
+        
         if (customBrushColorLink) {
           oCtx.globalCompositeOperation = 'source-in';
           oCtx.fillStyle = color;
           oCtx.fillRect(0, 0, offscreen.width, offscreen.height);
         }
+        
         ctx.drawImage(offscreen, -effectiveBrushSize, -effectiveBrushSize);
         ctx.restore();
       };
 
+      // Spacing: Draw a stamp every X pixels (standard spacing is 1/4 of brush size)
+      const spacing = Math.max(1, effectiveBrushSize / 4);
+      
       if (dynamicStampingEnabled) {
-        const steps = Math.max(1, Math.ceil(dist / (effectiveBrushSize / 4)));
+        const steps = Math.max(1, Math.ceil(dist / spacing));
         for (let i = 0; i < steps; i++) {
           const t = i / steps;
           const x = lastPos.x + (pos.x - lastPos.x) * t;
@@ -466,12 +474,14 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       ctx.lineWidth = effectiveBrushSize;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+      
       if (tool === 'highlighter') ctx.globalAlpha *= 0.5;
       if (tool === 'brush') {
         const blurAmount = (1 - (hardness / 100)) * effectiveBrushSize * 1.5;
         ctx.shadowBlur = blurAmount;
         ctx.shadowColor = color;
       }
+      
       ctx.beginPath();
       ctx.moveTo(lastPos.x, lastPos.y);
       ctx.lineTo(pos.x, pos.y);
@@ -493,7 +503,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       ctx.fillRect(px, py, size, size);
     } 
     else if (tool === 'calligraphy') {
-      const steps = Math.max(1, Math.ceil(Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2)) / 2));
+      const steps = Math.max(1, Math.ceil(dist / 2));
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         const x = lastPos.x + (pos.x - lastPos.x) * t;
@@ -508,18 +518,28 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     else if (['airbrush', 'spray', 'charcoal', 'crayon', 'watercolor', 'chalk'].includes(tool)) {
       const density = 20 * (hardness / 100 + 0.5);
       const spread = effectiveBrushSize * 1.5;
-      for (let i = 0; i < density; i++) {
-        const r = Math.random() * spread;
-        const angle = Math.random() * Math.PI * 2;
-        const x = pos.x + r * Math.cos(angle);
-        const y = pos.y + r * Math.sin(angle);
-        if (tool === 'watercolor') {
-            ctx.globalAlpha = (opacity / 200) * Math.random();
-            ctx.beginPath();
-            ctx.arc(x, y, Math.random() * 3, 0, Math.PI * 2);
-            ctx.fill();
-        } else {
-            ctx.fillRect(x, y, 1.5, 1.5);
+      
+      // Distribute density along the stroke for airbrush-style tools
+      const steps = Math.max(1, Math.ceil(dist / 2));
+      for (let s = 0; s < steps; s++) {
+        const t = s / steps;
+        const interpX = lastPos.x + (pos.x - lastPos.x) * t;
+        const interpY = lastPos.y + (pos.y - lastPos.y) * t;
+        
+        for (let i = 0; i < density / 5; i++) { // Lower density per step to balance
+          const r = Math.random() * spread;
+          const rndAngle = Math.random() * Math.PI * 2;
+          const x = interpX + r * Math.cos(rndAngle);
+          const y = interpY + r * Math.sin(rndAngle);
+          
+          if (tool === 'watercolor') {
+              ctx.globalAlpha = (opacity / 200) * Math.random();
+              ctx.beginPath();
+              ctx.arc(x, y, Math.random() * 3, 0, Math.PI * 2);
+              ctx.fill();
+          } else {
+              ctx.fillRect(x, y, 1.5, 1.5);
+          }
         }
       }
     }
