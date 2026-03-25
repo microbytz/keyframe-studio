@@ -39,6 +39,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ToolbarProps {
   currentTool: ToolType;
@@ -61,6 +62,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   canRedo,
   color
 }) => {
+  const isMobile = useIsMobile();
+  
   const brushTools = [
     { id: 'pen', icon: Pencil, label: 'Standard Pen' },
     { id: 'pencil', icon: Pencil, label: 'Graphite Pencil' },
@@ -141,8 +144,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   };
 
   return (
-    <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-center bg-white overflow-x-auto scrollbar-none">
-      <div className="flex flex-row md:flex-col gap-2">
+    <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-start md:justify-center bg-white overflow-x-auto scrollbar-none touch-pan-x">
+      <div className="flex flex-row md:flex-col gap-2 shrink-0">
         <Popover>
           <PopoverTrigger asChild>
             <button
@@ -159,9 +162,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </button>
           </PopoverTrigger>
           <PopoverContent 
-            side="right" 
+            side={isMobile ? "bottom" : "right"} 
             align="start" 
-            className="w-72 p-3 sketch-card ml-2 animate-in fade-in zoom-in-95 duration-100"
+            className="w-72 p-3 sketch-card md:ml-2 animate-in fade-in zoom-in-95 duration-100 z-[100]"
           >
             <div className="mb-4 p-3 sketch-border bg-background/50 flex flex-col items-center justify-center min-h-[64px] overflow-hidden">
               <span className="text-[10px] font-bold uppercase opacity-60 mb-2 tracking-widest">{activeBrush.label}</span>
@@ -204,9 +207,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </button>
           </PopoverTrigger>
           <PopoverContent 
-            side="right" 
+            side={isMobile ? "bottom" : "right"} 
             align="start" 
-            className="w-48 p-3 sketch-card ml-2 animate-in fade-in zoom-in-95 duration-100"
+            className="w-48 p-3 sketch-card md:ml-2 animate-in fade-in zoom-in-95 duration-100 z-[100]"
           >
             <div className="grid grid-cols-2 gap-2">
               {shapeTools.map((t) => (
@@ -228,6 +231,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </Popover>
 
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
+        <div className="md:hidden w-px h-8 bg-foreground opacity-5 mx-1 self-center" />
 
         {utilityTools.map((t) => (
           <button
@@ -244,6 +248,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         ))}
 
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
+        <div className="md:hidden w-px h-8 bg-foreground opacity-5 mx-1 self-center" />
         
         <button
           onClick={() => flip('horizontal')}
@@ -262,9 +267,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       </div>
 
       <div className="hidden md:block w-full h-px bg-foreground opacity-10" />
-      <div className="block md:hidden w-px h-8 bg-foreground opacity-10 mx-1 shrink-0" />
+      <div className="md:hidden w-px h-8 bg-foreground opacity-10 mx-1 shrink-0" />
 
-      <div className="flex flex-row md:flex-col gap-2">
+      <div className="flex flex-row md:flex-col gap-2 shrink-0">
         <button 
           onClick={undo}
           disabled={!canUndo}
