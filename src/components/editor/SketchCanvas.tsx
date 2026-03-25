@@ -82,7 +82,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 
     const drawFrameComposite = (ctx: CanvasRenderingContext2D, frame: Frame | undefined) => {
       if (!frame) return;
-      // Draw all visible layers from bottom to top
       [...frame.layers].reverse().forEach(layer => {
         if (layer.visible && layer.imageData) {
           const img = new Image();
@@ -96,16 +95,12 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     if (nextCtx) drawFrameComposite(nextCtx, nextFrame);
   }, [onionSkinEnabled, prevFrame, nextFrame, isPlaying, width, height]);
 
-  // Composite Rendering (for non-active layers)
+  // Composite Rendering
   useEffect(() => {
     const compositeCtx = compositeCanvasRef.current?.getContext('2d');
     if (!compositeCtx) return;
     compositeCtx.clearRect(0, 0, width, height);
 
-    // Render layers below the active layer
-    const layerIndex = currentFrame.layers.findIndex(l => l.id === activeLayerId);
-    
-    // Reverse because array is top-to-bottom, we draw bottom-to-top
     [...currentFrame.layers].reverse().forEach(layer => {
       if (layer.id !== activeLayerId && layer.visible && layer.imageData) {
         const img = new Image();
@@ -115,7 +110,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     });
   }, [currentFrame, activeLayerId, width, height]);
 
-  // Main canvas initialization for active layer
+  // Main canvas initialization
   useEffect(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
@@ -146,9 +141,98 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     };
   };
 
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+  };
+
+  const floodFill = (ctx: CanvasRenderingContext2D, startX: number, startY: number, fillColor: string) => {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    const { r: fR, g: fG, b: fB } = hexToRgb(fillColor);
+    const fA = Math.floor((opacity / 100) * 255);
+
+    const x = Math.floor(startX);
+    const y = Math.floor(startY);
+    const startPosIdx = (y * width + x) * 4;
+    const sR = data[startPosIdx];
+    const sG = data[startPosIdx + 1];
+    const sB = data[startPosIdx + 2];
+    const sA = data[startPosIdx + 3];
+
+    if (sR === fR && sG === fG && sB === fB && sA === fA) return;
+
+    const stack: [number, number][] = [[x, y]];
+
+    while (stack.length > 0) {
+      let [curX, curY] = stack.pop()!;
+      let pos = (curY * width + curX) * 4;
+
+      while (curY >= 0 && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
+        curY--;
+        pos -= width * 4;
+      }
+      pos += width * 4;
+      curY++;
+
+      let reachLeft = false;
+      let reachRight = false;
+
+      while (curY < height && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
+        data[pos] = fR;
+        data[pos + 1] = fG;
+        data[pos + 2] = fB;
+        data[pos + 3] = fA;
+
+        if (curX > 0) {
+          const leftPos = pos - 4;
+          if (data[leftPos] === sR && data[leftPos + 1] === sG && data[leftPos + 2] === sB && data[leftPos + 3] === sA) {
+            if (!reachLeft) {
+              stack.push([curX - 1, curY]);
+              reachLeft = true;
+            }
+          } else {
+            reachLeft = false;
+          }
+        }
+
+        if (curX < width - 1) {
+          const rightPos = pos + 4;
+          if (data[rightPos] === sR && data[rightPos + 1] === sG && data[rightPos + 2] === sB && data[rightPos + 3] === sA) {
+            if (!reachRight) {
+              stack.push([curX + 1, curY]);
+              reachRight = true;
+            }
+          } else {
+            reachRight = false;
+          }
+        }
+
+        curY++;
+        pos += width * 4;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  };
+
   const startDrawing = (e: React.PointerEvent) => {
     if (isPlaying || !activeLayer.visible) return;
     const pos = getPos(e);
+    
+    if (tool === 'bucket') {
+      const canvas = mainCanvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d')!;
+        floodFill(ctx, pos.x, pos.y, color);
+        onLayerUpdate(canvas.toDataURL());
+      }
+      return;
+    }
+
     setIsDrawing(true);
     setStartPos(pos);
     setLastPos(pos);
@@ -206,6 +290,20 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.clearRect(0, 0, width, height);
         ctx.drawImage(dragStartImage, dx, dy);
       }
+      return;
+    }
+
+    if (tool === 'lasso') {
+      setLassoPoints(prev => [...prev, pos]);
+      tCtx.clearRect(0, 0, width, height);
+      tCtx.beginPath();
+      tCtx.strokeStyle = '#82C9C9';
+      tCtx.setLineDash([5, 5]);
+      tCtx.moveTo(lassoPoints[0]?.x, lassoPoints[0]?.y);
+      lassoPoints.forEach(p => tCtx.lineTo(p.x, p.y));
+      tCtx.lineTo(pos.x, pos.y);
+      tCtx.stroke();
+      tCtx.setLineDash([]);
       return;
     }
 
@@ -320,20 +418,27 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.restore();
       }
     } 
-    else if (tool === 'airbrush' || tool === 'spray') {
-      const density = (tool === 'airbrush' ? 15 : 8) * (hardness / 100 + 0.5);
-      const spread = effectiveBrushSize * 2;
+    else if (['airbrush', 'spray', 'charcoal', 'crayon', 'watercolor', 'chalk'].includes(tool)) {
+      const density = 20 * (hardness / 100 + 0.5);
+      const spread = effectiveBrushSize * 1.5;
       for (let i = 0; i < density; i++) {
         const r = Math.random() * spread;
         const angle = Math.random() * Math.PI * 2;
         const x = pos.x + r * Math.cos(angle);
         const y = pos.y + r * Math.sin(angle);
-        ctx.fillRect(x, y, 1, 1);
+        if (tool === 'watercolor') {
+            ctx.globalAlpha = (opacity / 200) * Math.random();
+            ctx.beginPath();
+            ctx.arc(x, y, Math.random() * 3, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.fillRect(x, y, 1.5, 1.5);
+        }
       }
     }
 
     ctx.restore();
-    if (tool !== 'move' && !shapeTools.includes(tool)) {
+    if (tool !== 'move' && tool !== 'lasso' && !shapeTools.includes(tool)) {
       setLastPos(pos);
     }
   };
@@ -374,6 +479,8 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     }
     
     if (tool === 'move') setDragStartImage(null);
+    const tCtx = tempCanvasRef.current?.getContext('2d');
+    if (tCtx) tCtx.clearRect(0, 0, width, height);
   };
 
   return (
