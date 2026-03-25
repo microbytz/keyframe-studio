@@ -16,7 +16,8 @@ export type ToolType =
   | 'technical'
   | 'eraser' 
   | 'bucket' 
-  | 'lasso';
+  | 'lasso'
+  | 'move';
 
 export interface Frame {
   id: string;

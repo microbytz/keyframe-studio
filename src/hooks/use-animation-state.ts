@@ -27,11 +27,9 @@ export function useAnimationState() {
   const [opacity, setOpacity] = useState(100);
   const [hardness, setHardness] = useState(80);
   
-  // New Input Settings
   const [pressureEnabled, setPressureEnabled] = useState(true);
   const [stabilizationEnabled, setStabilizationEnabled] = useState(true);
   
-  // Undo/Redo History
   const [history, setHistory] = useState<Frame[][]>([[{ id: '1', imageData: '' }]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   
@@ -129,6 +127,32 @@ export function useAnimationState() {
     setProject(prev => ({ ...prev, onionSkinEnabled: !prev.onionSkinEnabled }));
   }, []);
 
+  const flipCurrentFrame = useCallback((axis: 'horizontal' | 'vertical') => {
+    const currentFrame = project.frames[currentFrameIndex];
+    if (!currentFrame.imageData) return;
+
+    const img = new Image();
+    img.src = currentFrame.imageData;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = project.width;
+      canvas.height = project.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.save();
+      if (axis === 'horizontal') {
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, -project.width, 0);
+      } else {
+        ctx.scale(1, -1);
+        ctx.drawImage(img, 0, -project.height);
+      }
+      ctx.restore();
+      updateFrameData(canvas.toDataURL());
+    };
+  }, [project, currentFrameIndex, updateFrameData]);
+
   useEffect(() => {
     if (isPlaying) {
       playbackIntervalRef.current = setInterval(() => {
@@ -187,6 +211,7 @@ export function useAnimationState() {
     setProject,
     undo,
     redo,
+    flipCurrentFrame,
     canUndo: historyIndex > 0,
     canRedo: historyIndex < history.length - 1
   };

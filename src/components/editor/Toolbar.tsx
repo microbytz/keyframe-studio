@@ -23,7 +23,10 @@ import {
   Zap,
   Brush,
   SprayCan,
-  Ghost
+  Ghost,
+  Move,
+  FlipHorizontal,
+  FlipVertical
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -37,6 +40,7 @@ interface ToolbarProps {
   setTool: (tool: ToolType) => void;
   undo: () => void;
   redo: () => void;
+  flip: (axis: 'horizontal' | 'vertical') => void;
   canUndo: boolean;
   canRedo: boolean;
   color: string;
@@ -47,6 +51,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   setTool,
   undo,
   redo,
+  flip,
   canUndo,
   canRedo,
   color
@@ -70,6 +75,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   ];
 
   const utilityTools = [
+    { id: 'move', icon: Move, label: 'Move / Transform' },
     { id: 'eraser', icon: Eraser, label: 'Eraser' },
     { id: 'bucket', icon: PaintBucket, label: 'Fill' },
     { id: 'lasso', icon: Scissors, label: 'Lasso' },
@@ -119,7 +125,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   return (
     <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-center bg-white overflow-x-auto scrollbar-none">
       <div className="flex flex-row md:flex-col gap-2">
-        {/* Brush Group Selector */}
         <Popover>
           <PopoverTrigger asChild>
             <button
@@ -140,7 +145,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             align="start" 
             className="w-72 p-3 sketch-card ml-2 animate-in fade-in zoom-in-95 duration-100"
           >
-            {/* Brush Preview Header */}
             <div className="mb-4 p-3 sketch-border bg-background/50 flex flex-col items-center justify-center min-h-[64px] overflow-hidden">
               <span className="text-[10px] font-bold uppercase opacity-60 mb-2 tracking-widest">{activeBrush.label}</span>
               <div className="w-full px-4">
@@ -168,7 +172,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
 
-        {/* Utility Tools */}
         {utilityTools.map((t) => (
           <button
             key={t.id}
@@ -182,6 +185,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <t.icon size={16} className="md:w-[18px] md:h-[18px]" />
           </button>
         ))}
+
+        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
+        
+        <button
+          onClick={() => flip('horizontal')}
+          className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0"
+          title="Flip Horizontal"
+        >
+          <FlipHorizontal size={16} />
+        </button>
+        <button
+          onClick={() => flip('vertical')}
+          className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0"
+          title="Flip Vertical"
+        >
+          <FlipVertical size={16} />
+        </button>
       </div>
 
       <div className="hidden md:block w-full h-px bg-foreground opacity-10" />

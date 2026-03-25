@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { ToolType, Frame } from '@/lib/types';
 
 interface SketchCanvasProps {
@@ -47,6 +47,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
   const [lassoPoints, setLassoPoints] = useState<{ x: number, y: number }[]>([]);
+  const [dragStartImage, setDragStartImage] = useState<HTMLImageElement | null>(null);
 
   useEffect(() => {
     const prevCtx = prevCanvasRef.current?.getContext('2d');
@@ -118,6 +119,13 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     
     if (tool === 'lasso') {
       setLassoPoints([pos]);
+    } else if (tool === 'move') {
+      const canvas = mainCanvasRef.current;
+      if (canvas) {
+        const img = new Image();
+        img.src = canvas.toDataURL();
+        img.onload = () => setDragStartImage(img);
+      }
     }
 
     const immediateBrushes = ['pixel', 'calligraphy', 'airbrush', 'charcoal', 'crayon', 'watercolor', 'spray', 'chalk'];
@@ -136,14 +144,22 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 
     let pos = getPos(e);
 
-    // Apply Stabilization
+    if (tool === 'move') {
+      if (dragStartImage) {
+        const dx = pos.x - lastPos.x;
+        const dy = pos.y - lastPos.y;
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(dragStartImage, dx, dy);
+      }
+      return;
+    }
+
     if (stabilizationEnabled) {
-      const factor = 0.25; // Smoothing factor
+      const factor = 0.25; 
       pos.x = lastPos.x + (pos.x - lastPos.x) * factor;
       pos.y = lastPos.y + (pos.y - lastPos.y) * factor;
     }
 
-    // Apply Pressure
     const currentPressure = pressureEnabled ? e.pressure || 0.5 : 1;
     const effectiveBrushSize = brushSize * currentPressure;
 
@@ -289,7 +305,9 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     }
 
     ctx.restore();
-    setLastPos(pos);
+    if (tool !== 'move') {
+      setLastPos(pos);
+    }
   };
 
   const stopDrawing = (e: React.PointerEvent) => {
@@ -316,6 +334,9 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       }
       setLassoPoints([]);
       tCtx.clearRect(0, 0, width, height);
+    } else if (tool === 'move') {
+      onFrameUpdate(canvas.toDataURL());
+      setDragStartImage(null);
     } else if (tool !== 'bucket') {
       onFrameUpdate(canvas.toDataURL());
     }
@@ -353,7 +374,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         onPointerLeave={stopDrawing} 
         onClick={handleCanvasClick}
         className="absolute inset-0 touch-none block z-10 w-full h-full"
-        style={{ cursor: isPlaying ? 'default' : 'crosshair' }}
+        style={{ cursor: isPlaying ? 'default' : (tool === 'move' ? 'move' : 'crosshair') }}
       />
       <canvas ref={tempCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-20 w-full h-full" />
       {isPlaying && (

@@ -47,6 +47,7 @@ export default function Home() {
     setProject,
     undo,
     redo,
+    flipCurrentFrame,
     canUndo,
     canRedo
   } = useAnimationState();
@@ -57,7 +58,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col items-center bg-background overflow-x-hidden">
-      {/* Header Area */}
       <div className="w-full flex items-center justify-between max-w-7xl h-auto md:h-14 p-2 md:px-4 bg-white/30 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-50">
         <div className="flex flex-wrap items-center gap-2 md:gap-4">
           <h1 className="text-base md:text-lg font-bold italic tracking-tighter text-primary">
@@ -93,7 +93,6 @@ export default function Home() {
 
           <div className="hidden md:block h-6 w-px bg-foreground/10 mx-1" />
 
-          {/* Color & Brush Settings in header */}
           <div className="flex items-center gap-2 md:gap-3 bg-white px-2 py-1 sketch-border">
             <div className="flex items-center">
               <div 
@@ -164,7 +163,6 @@ export default function Home() {
               </PopoverContent>
             </Popover>
 
-            {/* Input Settings Gear */}
             <Popover>
               <PopoverTrigger asChild>
                 <button className="p-1 hover:bg-accent/10 rounded transition-colors">
@@ -210,22 +208,20 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Workspace Area */}
       <div className="flex flex-col md:flex-row flex-1 w-full max-w-7xl items-center md:items-start py-4 md:py-6">
-        {/* Sidebar */}
         <div className="w-full md:w-auto px-4 mb-4 md:mb-0 md:flex-none md:sticky md:top-20 z-40">
           <Toolbar 
             currentTool={tool}
             setTool={setTool}
             undo={undo}
             redo={redo}
+            flip={flipCurrentFrame}
             canUndo={canUndo}
             canRedo={canRedo}
             color={color}
           />
         </div>
 
-        {/* Drawing & Timeline Area */}
         <div className="flex-1 flex flex-col items-center px-4 gap-4 md:gap-6 pb-20 w-full overflow-hidden">
           <div className="w-full max-w-full flex justify-center">
             <div className="shadow-xl bg-white sketch-border overflow-hidden w-full max-w-[800px]">
@@ -262,9 +258,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer Info */}
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Enable Stabilization in settings for smoother lines.
+        Tip: Use the Move tool in the sidebar to reposition your drawing.
       </div>
     </main>
   );
