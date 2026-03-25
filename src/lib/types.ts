@@ -24,9 +24,17 @@ export type ToolType =
   | 'triangle'
   | 'custom';
 
+export interface Layer {
+  id: string;
+  name: string;
+  imageData: string;
+  visible: boolean;
+  locked?: boolean;
+}
+
 export interface Frame {
   id: string;
-  imageData: string; // Base64 or DataURL of the canvas state
+  layers: Layer[];
 }
 
 export interface AnimationProject {

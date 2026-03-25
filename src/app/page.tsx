@@ -1,12 +1,13 @@
 "use client"
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAnimationState } from '@/hooks/use-animation-state';
 import { SketchCanvas } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
+import { LayersPanel } from '@/components/editor/LayersPanel';
 import { Save, FolderOpen, Layers, Settings2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -22,6 +23,8 @@ export default function Home() {
     project,
     currentFrameIndex,
     setCurrentFrameIndex,
+    activeLayerId,
+    setActiveLayerId,
     isPlaying,
     tool,
     setTool,
@@ -46,7 +49,10 @@ export default function Home() {
     addFrame,
     deleteFrame,
     duplicateFrame,
-    updateFrameData,
+    updateLayerData,
+    addLayer,
+    deleteLayer,
+    toggleLayerVisibility,
     togglePlayback,
     toggleOnionSkin,
     saveProject,
@@ -54,10 +60,12 @@ export default function Home() {
     setProject,
     undo,
     redo,
-    flipCurrentFrame,
+    flipCurrentLayer,
     canUndo,
     canRedo
   } = useAnimationState();
+
+  const [isLayersOpen, setIsLayersOpen] = useState(false);
 
   const currentFrame = project.frames[currentFrameIndex];
   const prevFrame = currentFrameIndex > 0 ? project.frames[currentFrameIndex - 1] : undefined;
@@ -82,36 +90,18 @@ export default function Home() {
             >
               <Layers size={14} className="md:w-4 md:h-4" />
             </button>
-            <button 
-              onClick={saveProject}
-              className="p-1.5 hover:bg-accent transition-all rounded"
-              title="Save Project"
-            >
+            <button onClick={saveProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Save Project">
               <Save size={14} className="md:w-4 md:h-4" />
             </button>
-            <button 
-              onClick={loadProject}
-              className="p-1.5 hover:bg-accent transition-all rounded"
-              title="Load Project"
-            >
+            <button onClick={loadProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Load Project">
               <FolderOpen size={14} className="md:w-4 md:h-4" />
             </button>
           </div>
 
-          <div className="hidden md:block h-6 w-px bg-foreground/10 mx-1" />
-
           <div className="flex items-center gap-2 md:gap-3 bg-white px-2 py-1 sketch-border">
             <div className="flex items-center">
-              <div 
-                className="w-5 h-5 sketch-border cursor-pointer overflow-hidden relative"
-                style={{ backgroundColor: color }}
-              >
-                <input 
-                  type="color" 
-                  value={color} 
-                  onChange={(e) => setColor(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
+              <div className="w-5 h-5 sketch-border cursor-pointer overflow-hidden relative" style={{ backgroundColor: color }}>
+                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
               </div>
             </div>
             
@@ -128,44 +118,21 @@ export default function Home() {
                     <label className="text-[10px] font-bold uppercase tracking-tighter">Size</label>
                     <span className="text-[10px] font-mono">{brushSize}px</span>
                   </div>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="100" 
-                    value={brushSize} 
-                    onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                    className="w-full h-1 accent-accent cursor-pointer"
-                  />
+                  <input type="range" min="1" max="100" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
                 </div>
-
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-tighter">Opacity</label>
                     <span className="text-[10px] font-mono">{opacity}%</span>
                   </div>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="100" 
-                    value={opacity} 
-                    onChange={(e) => setOpacity(parseInt(e.target.value))}
-                    className="w-full h-1 accent-accent cursor-pointer"
-                  />
+                  <input type="range" min="1" max="100" value={opacity} onChange={(e) => setOpacity(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
                 </div>
-
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-tighter">Hardness</label>
                     <span className="text-[10px] font-mono">{hardness}%</span>
                   </div>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="100" 
-                    value={hardness} 
-                    onChange={(e) => setHardness(parseInt(e.target.value))}
-                    className="w-full h-1 accent-accent cursor-pointer"
-                  />
+                  <input type="range" min="1" max="100" value={hardness} onChange={(e) => setHardness(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
                 </div>
               </PopoverContent>
             </Popover>
@@ -178,51 +145,31 @@ export default function Home() {
               </PopoverTrigger>
               <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="end">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">Editor Settings</h4>
-                
                 <div className="flex items-center justify-between space-x-2">
                   <Label htmlFor="pressure-mode" className="text-xs">Pressure Sensitivity</Label>
-                  <Switch 
-                    id="pressure-mode" 
-                    checked={pressureEnabled} 
-                    onCheckedChange={setPressureEnabled} 
-                  />
+                  <Switch id="pressure-mode" checked={pressureEnabled} onCheckedChange={setPressureEnabled} />
                 </div>
-
                 <div className="flex items-center justify-between space-x-2">
                   <Label htmlFor="stabilization-mode" className="text-xs">Line Stabilization</Label>
-                  <Switch 
-                    id="stabilization-mode" 
-                    checked={stabilizationEnabled} 
-                    onCheckedChange={setStabilizationEnabled} 
-                  />
+                  <Switch id="stabilization-mode" checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} />
                 </div>
-
                 <div className="pt-2 border-t mt-2">
                    <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Custom Brush Engine</h4>
-                   
                    <div className="space-y-3 mb-4">
                      <div className="flex items-center justify-between space-x-2">
                        <Label htmlFor="dynamic-stamping" className="text-xs">Dynamic Stamping</Label>
-                       <Switch 
-                         id="dynamic-stamping" 
-                         checked={dynamicStampingEnabled} 
-                         onCheckedChange={setDynamicStampingEnabled} 
-                       />
+                       <Switch id="dynamic-stamping" checked={dynamicStampingEnabled} onCheckedChange={setDynamicStampingEnabled} />
                      </div>
-                     <p className="text-[9px] opacity-60 leading-tight">Paint tips continuously along stroke path.</p>
-
                      <div className="flex items-center justify-between space-x-2">
                        <Label htmlFor="color-link" className="text-xs">Link Brush to Color</Label>
-                       <Switch 
-                         id="color-link" 
-                         checked={customBrushColorLink} 
-                         onCheckedChange={setCustomBrushColorLink} 
-                       />
+                       <Switch id="color-link" checked={customBrushColorLink} onCheckedChange={setCustomBrushColorLink} />
                      </div>
-                     <p className="text-[9px] opacity-60 leading-tight">When OFF, brush keeps its original colors.</p>
                    </div>
-
-                   <CustomBrushDialog onSave={setCustomBrushData} currentBrush={customBrushData} currentFrameData={currentFrame.imageData} />
+                   <CustomBrushDialog 
+                      onSave={setCustomBrushData} 
+                      currentBrush={customBrushData} 
+                      currentFrameData={currentFrame.layers[0].imageData} 
+                    />
                 </div>
               </PopoverContent>
             </Popover>
@@ -248,10 +195,11 @@ export default function Home() {
             setTool={setTool}
             undo={undo}
             redo={redo}
-            flip={flipCurrentFrame}
+            flip={flipCurrentLayer}
             canUndo={canUndo}
             canRedo={canRedo}
             color={color}
+            onOpenLayers={() => setIsLayersOpen(true)}
           />
         </div>
 
@@ -264,13 +212,14 @@ export default function Home() {
                 currentFrame={currentFrame}
                 prevFrame={prevFrame}
                 nextFrame={nextFrame}
+                activeLayerId={activeLayerId}
                 onionSkinEnabled={project.onionSkinEnabled}
                 tool={tool}
                 color={color}
                 brushSize={brushSize}
                 opacity={opacity}
                 hardness={hardness}
-                onFrameUpdate={updateFrameData}
+                onLayerUpdate={updateLayerData}
                 isPlaying={isPlaying}
                 pressureEnabled={pressureEnabled}
                 stabilizationEnabled={stabilizationEnabled}
@@ -294,8 +243,20 @@ export default function Home() {
         </div>
       </div>
 
+      {isLayersOpen && (
+        <LayersPanel 
+          layers={currentFrame.layers}
+          activeLayerId={activeLayerId}
+          onSetActive={setActiveLayerId}
+          onAdd={addLayer}
+          onDelete={deleteLayer}
+          onToggleVisibility={toggleLayerVisibility}
+          onClose={() => setIsLayersOpen(false)}
+        />
+      )}
+
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Capture your current frame as a brush in the settings menu!
+        Tip: Work on separate layers to keep your lines and colors clean!
       </div>
     </main>
   );

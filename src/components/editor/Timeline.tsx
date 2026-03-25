@@ -1,4 +1,3 @@
-
 "use client"
 
 import React from 'react';
@@ -46,27 +45,32 @@ export const Timeline: React.FC<TimelineProps> = ({
       </div>
 
       <div className="flex gap-2 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-accent">
-        {frames.map((frame, index) => (
-          <div 
-            key={frame.id}
-            onClick={() => setCurrentFrameIndex(index)}
-            className={cn(
-              "min-w-[70px] h-[50px] sketch-border bg-white cursor-pointer relative transition-all overflow-hidden flex items-center justify-center group",
-              currentFrameIndex === index ? "border-accent scale-105 z-10 shadow-md ring-2 ring-accent/20" : "hover:border-accent/50 opacity-70 hover:opacity-100"
-            )}
-          >
-            {frame.imageData ? (
-              <img src={frame.imageData} alt={`Frame ${index + 1}`} className="max-w-full max-h-full object-contain pointer-events-none" />
-            ) : (
-              <div className="w-full h-full bg-slate-50 flex items-center justify-center">
-                <span className="text-[8px] text-foreground/20 italic">Empty</span>
+        {frames.map((frame, index) => {
+          // Find the first visible layer with data to show in preview
+          const previewLayer = [...frame.layers].find(l => l.imageData && l.visible);
+          
+          return (
+            <div 
+              key={frame.id}
+              onClick={() => setCurrentFrameIndex(index)}
+              className={cn(
+                "min-w-[70px] h-[50px] sketch-border bg-white cursor-pointer relative transition-all overflow-hidden flex items-center justify-center group",
+                currentFrameIndex === index ? "border-accent scale-105 z-10 shadow-md ring-2 ring-accent/20" : "hover:border-accent/50 opacity-70 hover:opacity-100"
+              )}
+            >
+              {previewLayer ? (
+                <img src={previewLayer.imageData} alt={`Frame ${index + 1}`} className="max-w-full max-h-full object-contain pointer-events-none" />
+              ) : (
+                <div className="w-full h-full bg-slate-50 flex items-center justify-center">
+                  <span className="text-[8px] text-foreground/20 italic">Empty</span>
+                </div>
+              )}
+              <div className="absolute bottom-0 right-0 bg-foreground/10 text-[8px] px-1 font-bold">
+                {index + 1}
               </div>
-            )}
-            <div className="absolute bottom-0 right-0 bg-foreground/10 text-[8px] px-1 font-bold">
-              {index + 1}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

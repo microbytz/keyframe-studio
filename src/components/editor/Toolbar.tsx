@@ -31,7 +31,8 @@ import {
   Square,
   Circle as CircleIcon,
   Triangle,
-  Settings2
+  Settings2,
+  Layers as LayersIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -50,6 +51,7 @@ interface ToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   color: string;
+  onOpenLayers?: () => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -60,7 +62,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   flip,
   canUndo,
   canRedo,
-  color
+  color,
+  onOpenLayers
 }) => {
   const isMobile = useIsMobile();
   
@@ -110,37 +113,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       width: '100%',
       borderRadius: '99px',
     };
-
-    switch (toolId) {
-      case 'pencil':
-        return { ...base, opacity: 0.4, height: '3px', filter: 'contrast(120%)' };
-      case 'brush':
-        return { ...base, boxShadow: `0 0 8px ${color}`, filter: 'blur(1px)' };
-      case 'pixel':
-        return { ...base, borderRadius: '0', height: '8px', backgroundImage: `linear-gradient(90deg, ${color} 50%, transparent 50%)`, backgroundSize: '10px 100%' };
-      case 'calligraphy':
-        return { ...base, transform: 'skewX(-45deg)', height: '10px' };
-      case 'airbrush':
-      case 'spray':
-        return { ...base, backgroundColor: 'transparent', backgroundImage: `radial-gradient(circle, ${color} 1px, transparent 1px)`, backgroundSize: '4px 4px' };
-      case 'highlighter':
-        return { ...base, opacity: 0.5, height: '12px', borderRadius: '2px' };
-      case 'watercolor':
-        return { ...base, opacity: 0.2, height: '15px', filter: 'blur(3px)' };
-      case 'charcoal':
-      case 'chalk':
-        return { ...base, opacity: 0.7, filter: 'contrast(150%) brightness(80%) drop-shadow(1px 1px 1px rgba(0,0,0,0.2))' };
-      case 'crayon':
-        return { ...base, border: `1px dashed ${color}aa`, opacity: 0.9 };
-      case 'technical':
-        return { ...base, height: '1px' };
-      case 'ink':
-        return { ...base, height: '4px', filter: 'drop-shadow(0px 1px 0px rgba(0,0,0,0.1))' };
-      case 'custom':
-        return { ...base, backgroundImage: `repeating-linear-gradient(45deg, ${color}, ${color} 5px, transparent 5px, transparent 10px)` };
-      default:
-        return base;
-    }
+    return base;
   };
 
   return (
@@ -155,34 +128,28 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               )}
               title="Brushes"
             >
-              <activeBrush.icon size={16} className="md:w-[18px] md:h-[18px]" />
+              <activeBrush.icon size={16} />
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
                 <ChevronDown size={10} strokeWidth={4} />
               </div>
             </button>
           </PopoverTrigger>
-          <PopoverContent 
-            side={isMobile ? "bottom" : "right"} 
-            align="start" 
-            className="w-72 p-3 sketch-card md:ml-2 animate-in fade-in zoom-in-95 duration-100 z-[100]"
-          >
-            <div className="mb-4 p-3 sketch-border bg-background/50 flex flex-col items-center justify-center min-h-[64px] overflow-hidden">
-              <span className="text-[10px] font-bold uppercase opacity-60 mb-2 tracking-widest">{activeBrush.label}</span>
+          <PopoverContent side={isMobile ? "bottom" : "right"} align="start" className="w-72 p-3 sketch-card z-[100]">
+            <div className="mb-4 p-3 sketch-border bg-background/50 flex flex-col items-center justify-center min-h-[64px]">
+              <span className="text-[10px] font-bold uppercase opacity-60 mb-2">{activeBrush.label}</span>
               <div className="w-full px-4">
-                <div style={getBrushPreviewStyle(activeBrush.id)} className="transition-all duration-200" />
+                <div style={getBrushPreviewStyle(activeBrush.id)} />
               </div>
             </div>
-
             <div className="grid grid-cols-5 gap-2">
               {brushTools.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setTool(t.id as ToolType)}
                   className={cn(
-                    "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0 flex items-center justify-center",
-                    currentTool === t.id ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
+                    "p-2 sketch-border transition-all hover:bg-accent flex items-center justify-center",
+                    currentTool === t.id ? "bg-accent" : "bg-white"
                   )}
-                  title={t.label}
                 >
                   <t.icon size={16} />
                 </button>
@@ -200,27 +167,22 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               )}
               title="Shapes"
             >
-              {isShapeActive ? <activeShape.icon size={16} className="md:w-[18px] md:h-[18px]" /> : <Square size={16} className="md:w-[18px] md:h-[18px]" />}
+              {isShapeActive ? <activeShape.icon size={16} /> : <Square size={16} />}
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
                 <ChevronDown size={10} strokeWidth={4} />
               </div>
             </button>
           </PopoverTrigger>
-          <PopoverContent 
-            side={isMobile ? "bottom" : "right"} 
-            align="start" 
-            className="w-48 p-3 sketch-card md:ml-2 animate-in fade-in zoom-in-95 duration-100 z-[100]"
-          >
+          <PopoverContent side={isMobile ? "bottom" : "right"} align="start" className="w-48 p-3 sketch-card z-[100]">
             <div className="grid grid-cols-2 gap-2">
               {shapeTools.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setTool(t.id as ToolType)}
                   className={cn(
-                    "p-3 sketch-border transition-all hover:bg-accent group relative shrink-0 flex flex-col items-center justify-center gap-1",
-                    currentTool === t.id ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
+                    "p-3 sketch-border transition-all hover:bg-accent flex flex-col items-center gap-1",
+                    currentTool === t.id ? "bg-accent" : "bg-white"
                   )}
-                  title={t.label}
                 >
                   <t.icon size={18} />
                   <span className="text-[8px] font-bold uppercase">{t.label}</span>
@@ -231,64 +193,48 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </Popover>
 
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
-        <div className="md:hidden w-px h-8 bg-foreground opacity-5 mx-1 self-center" />
-
+        
         {utilityTools.map((t) => (
           <button
             key={t.id}
             onClick={() => setTool(t.id as ToolType)}
             className={cn(
-              "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
-              currentTool === t.id ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
+              "p-2 sketch-border transition-all hover:bg-accent shrink-0",
+              currentTool === t.id ? "bg-accent" : "bg-white"
             )}
-            title={t.label}
           >
-            <t.icon size={16} className="md:w-[18px] md:h-[18px]" />
+            <t.icon size={16} />
           </button>
         ))}
 
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
-        <div className="md:hidden w-px h-8 bg-foreground opacity-5 mx-1 self-center" />
         
-        <button
-          onClick={() => flip('horizontal')}
-          className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0"
-          title="Flip Horizontal"
-        >
+        <button onClick={() => flip('horizontal')} className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0">
           <FlipHorizontal size={16} />
         </button>
-        <button
-          onClick={() => flip('vertical')}
-          className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0"
-          title="Flip Vertical"
-        >
+        <button onClick={() => flip('vertical')} className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0">
           <FlipVertical size={16} />
+        </button>
+
+        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
+
+        <button 
+          onClick={onOpenLayers}
+          className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0"
+          title="Manage Layers"
+        >
+          <LayersIcon size={16} />
         </button>
       </div>
 
       <div className="hidden md:block w-full h-px bg-foreground opacity-10" />
-      <div className="md:hidden w-px h-8 bg-foreground opacity-10 mx-1 shrink-0" />
 
       <div className="flex flex-row md:flex-col gap-2 shrink-0">
-        <button 
-          onClick={undo}
-          disabled={!canUndo}
-          className={cn(
-            "p-2 sketch-border bg-white hover:bg-accent transition-all disabled:opacity-20 disabled:hover:bg-white shrink-0",
-          )}
-          title="Undo"
-        >
-          <Undo2 size={16} className="md:w-[18px] md:h-[18px]" />
+        <button onClick={undo} disabled={!canUndo} className="p-2 sketch-border bg-white hover:bg-accent disabled:opacity-20 transition-all shrink-0">
+          <Undo2 size={16} />
         </button>
-        <button 
-          onClick={redo}
-          disabled={!canRedo}
-          className={cn(
-            "p-2 sketch-border bg-white hover:bg-accent transition-all disabled:opacity-20 disabled:hover:bg-white shrink-0",
-          )}
-          title="Redo"
-        >
-          <Redo2 size={16} className="md:w-[18px] md:h-[18px]" />
+        <button onClick={redo} disabled={!canRedo} className="p-2 sketch-border bg-white hover:bg-accent disabled:opacity-20 transition-all shrink-0">
+          <Redo2 size={16} />
         </button>
       </div>
     </div>
