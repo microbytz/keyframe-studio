@@ -1,9 +1,9 @@
-
 "use client"
 
 import React from 'react';
-import { Play, Pause, FastForward, Rewind } from 'lucide-react';
+import { Play, Pause, FastForward, Rewind, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FrameGroup } from '@/lib/types';
 
 interface PlaybackControlsProps {
   isPlaying: boolean;
@@ -12,6 +12,7 @@ interface PlaybackControlsProps {
   setFps: (fps: number) => void;
   onPrev: () => void;
   onNext: () => void;
+  activeGroup?: FrameGroup;
 }
 
 export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
@@ -20,7 +21,8 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   fps,
   setFps,
   onPrev,
-  onNext
+  onNext,
+  activeGroup
 }) => {
   return (
     <div className="flex items-center gap-2 md:gap-3 px-2 md:px-3 py-1 sketch-card bg-white/80 backdrop-blur-sm">
@@ -42,16 +44,28 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
       <div className="h-6 w-px bg-foreground opacity-10 mx-0.5 md:mx-1" />
 
       <div className="flex items-center gap-1.5 md:gap-2">
-        <label className="hidden sm:block text-[8px] md:text-[10px] font-bold uppercase tracking-tighter">Speed</label>
-        <input 
-          type="range" 
-          min="1" 
-          max="30" 
-          value={fps} 
-          onChange={(e) => setFps(parseInt(e.target.value))}
-          className="w-12 md:w-16 h-1 accent-accent cursor-pointer"
-        />
-        <span className="text-[8px] md:text-[10px] font-mono w-6 md:w-8">{fps}F</span>
+        <div className="flex flex-col items-start min-w-0">
+          <label className="text-[8px] font-bold uppercase tracking-tighter opacity-60">
+            {activeGroup ? "Group FPS" : "Global FPS"}
+          </label>
+          <div className="flex items-center gap-2">
+            <input 
+              type="range" 
+              min="1" 
+              max="60" 
+              value={fps} 
+              onChange={(e) => setFps(parseInt(e.target.value))}
+              className="w-12 md:w-16 h-1 accent-accent cursor-pointer"
+            />
+            <span className={cn(
+              "text-[8px] md:text-[10px] font-mono w-6 md:w-8",
+              activeGroup ? "text-accent font-bold" : ""
+            )}>
+              {fps}F
+            </span>
+            {activeGroup && <Zap size={10} className="text-accent animate-pulse" />}
+          </div>
+        </div>
       </div>
     </div>
   );

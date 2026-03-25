@@ -37,6 +37,15 @@ export interface Frame {
   layers: Layer[];
 }
 
+export interface FrameGroup {
+  id: string;
+  name: string;
+  startIndex: number;
+  endIndex: number;
+  fps: number;
+  color: string;
+}
+
 export interface AnimationProject {
   id: string;
   name: string;
@@ -45,6 +54,7 @@ export interface AnimationProject {
   width: number;
   height: number;
   onionSkinEnabled: boolean;
+  groups: FrameGroup[];
 }
 
 export interface DrawingState {

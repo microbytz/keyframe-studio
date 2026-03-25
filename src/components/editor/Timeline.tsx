@@ -1,14 +1,14 @@
-
 "use client"
 
 import React, { useState } from 'react';
-import { Frame } from '@/lib/types';
+import { Frame, FrameGroup } from '@/lib/types';
 import { Plus, Trash2, Copy, GripHorizontal, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Slider } from '@/components/ui/slider';
 
 interface TimelineProps {
   frames: Frame[];
+  groups?: FrameGroup[];
   currentFrameIndex: number;
   selectedFrameIndices: number[];
   onSelectFrame: (index: number, multi?: boolean, range?: boolean) => void;
@@ -20,6 +20,7 @@ interface TimelineProps {
 
 export const Timeline: React.FC<TimelineProps> = ({
   frames,
+  groups = [],
   currentFrameIndex,
   selectedFrameIndices,
   onSelectFrame,
@@ -29,7 +30,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   reorderFrames,
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [zoom, setZoom] = useState(1); // Zoom factor from 0.5 to 2.0
+  const [zoom, setZoom] = useState(1);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -56,7 +57,6 @@ export const Timeline: React.FC<TimelineProps> = ({
     onSelectFrame(index, multi, range);
   };
 
-  // Base dimensions
   const baseWidth = 70;
   const baseHeight = 50;
 
@@ -117,6 +117,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           const previewLayer = [...frame.layers].find(l => l.imageData && l.visible);
           const isSelected = selectedFrameIndices.includes(index);
           const isActive = currentFrameIndex === index;
+          const group = groups.find(g => index >= g.startIndex && index <= g.endIndex);
           
           return (
             <div 
@@ -129,7 +130,9 @@ export const Timeline: React.FC<TimelineProps> = ({
               onClick={(e) => handleClick(e, index)}
               style={{ 
                 minWidth: `${baseWidth * zoom}px`, 
-                height: `${baseHeight * zoom}px` 
+                height: `${baseHeight * zoom}px`,
+                backgroundColor: group ? `${group.color}15` : 'transparent',
+                borderColor: group ? group.color : undefined
               }}
               className={cn(
                 "sketch-border bg-white cursor-pointer relative transition-all overflow-hidden flex items-center justify-center group shrink-0",
@@ -149,12 +152,17 @@ export const Timeline: React.FC<TimelineProps> = ({
                   <span className="text-[8px] text-foreground/20 italic">Empty</span>
                 </div>
               )}
+              
               <div className={cn(
                 "absolute bottom-0 right-0 text-[8px] px-1 font-bold",
-                isSelected ? "bg-accent text-white" : "bg-foreground/10"
-              )}>
+                isSelected ? "bg-accent text-white" : (group ? "bg-white border-t border-l" : "bg-foreground/10")
+              )} style={group && !isSelected ? { borderColor: group.color, color: group.color } : {}}>
                 {index + 1}
               </div>
+
+              {group && (
+                <div className="absolute top-0 right-0 h-1 w-full" style={{ backgroundColor: group.color }} title={`Group: ${group.name} (${group.fps} FPS)`} />
+              )}
             </div>
           );
         })}

@@ -1,8 +1,7 @@
-
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimationProject, ToolType, Frame, Layer } from '@/lib/types';
+import { AnimationProject, ToolType, Frame, Layer, FrameGroup } from '@/lib/types';
 import gifshot from 'gifshot';
 
 const INITIAL_FPS = 12;
@@ -31,6 +30,7 @@ export function useAnimationState() {
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
     onionSkinEnabled: true,
+    groups: [],
   });
 
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
@@ -49,7 +49,6 @@ export function useAnimationState() {
   const [customBrushColorLink, setCustomBrushColorLink] = useState(true);
   const [customBrushData, setCustomBrushData] = useState<string | null>(null);
 
-  // Multi-draw state
   const [isMultiDrawEnabled, setIsMultiDrawEnabled] = useState(false);
   const [multiDrawRange, setMultiDrawRange] = useState(5);
   
@@ -58,7 +57,7 @@ export function useAnimationState() {
   const [isExporting, setIsExporting] = useState(false);
   const [copiedLayerData, setCopiedLayerData] = useState<{ name: string, imageData: string } | null>(null);
   
-  const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const pushToHistory = useCallback((newFrames: Frame[]) => {
     setHistory(prev => {
@@ -227,13 +226,11 @@ export function useAnimationState() {
     );
     newFrames[currentFrameIndex] = frame;
 
-    // Multi-draw logic
     if (isMultiDrawEnabled && multiDrawRange > 0) {
       for (let i = 1; i <= multiDrawRange; i++) {
         const targetIdx = currentFrameIndex + i;
         if (targetIdx < newFrames.length) {
           const targetFrame = { ...newFrames[targetIdx] };
-          // Match by index to ensure it affects the "same" layer in the stack
           if (targetFrame.layers[layerIdx]) {
             const targetLayers = [...targetFrame.layers];
             targetLayers[layerIdx] = { ...targetLayers[layerIdx], imageData: dataUrl };
@@ -351,21 +348,32 @@ export function useAnimationState() {
   }, []);
 
   useEffect(() => {
-    if (isPlaying) {
-      playbackIntervalRef.current = setInterval(() => {
-        setCurrentFrameIndex(prev => {
-          const nextIdx = (prev + 1) % project.frames.length;
-          setSelectedFrameIndices([nextIdx]);
-          return nextIdx;
-        });
-      }, 1000 / project.fps);
-    } else {
-      if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current);
+    if (!isPlaying) {
+      if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
+      return;
     }
-    return () => {
-      if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current);
+
+    const scheduleNextFrame = () => {
+      setCurrentFrameIndex(prev => {
+        const nextIdx = (prev + 1) % project.frames.length;
+        setSelectedFrameIndices([nextIdx]);
+        
+        const group = project.groups?.find(g => nextIdx >= g.startIndex && nextIdx <= g.endIndex);
+        const currentFps = group ? group.fps : project.fps;
+        
+        playbackTimeoutRef.current = setTimeout(scheduleNextFrame, 1000 / currentFps);
+        return nextIdx;
+      });
     };
-  }, [isPlaying, project.fps, project.frames.length]);
+
+    const currentGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
+    const initialFps = currentGroup ? currentGroup.fps : project.fps;
+    playbackTimeoutRef.current = setTimeout(scheduleNextFrame, 1000 / initialFps);
+
+    return () => {
+      if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
+    };
+  }, [isPlaying, project.fps, project.frames.length, project.groups]);
 
   const saveProject = useCallback(() => {
     localStorage.setItem('sketchflow_project', JSON.stringify(project));
