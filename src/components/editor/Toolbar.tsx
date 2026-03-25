@@ -1,4 +1,3 @@
-
 "use client"
 
 import React from 'react';
@@ -8,7 +7,6 @@ import {
   Eraser, 
   PaintBucket, 
   Scissors, 
-  Type, 
   Undo2, 
   Redo2 
 } from 'lucide-react';
@@ -36,7 +34,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'eraser', icon: Eraser, label: 'Eraser' },
     { id: 'bucket', icon: PaintBucket, label: 'Fill' },
     { id: 'lasso', icon: Scissors, label: 'Lasso' },
-    { id: 'text', icon: Type, label: 'Text' },
   ];
 
   return (

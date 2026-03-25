@@ -1,4 +1,4 @@
-export type ToolType = 'pen' | 'eraser' | 'bucket' | 'lasso' | 'text';
+export type ToolType = 'pen' | 'eraser' | 'bucket' | 'lasso';
 
 export interface Frame {
   id: string;

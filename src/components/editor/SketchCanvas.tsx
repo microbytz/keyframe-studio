@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -178,7 +177,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       }
       setLassoPoints([]);
       tCtx.clearRect(0, 0, width, height);
-    } else if (tool !== 'bucket' && tool !== 'text') {
+    } else if (tool !== 'bucket') {
       onFrameUpdate(canvas.toDataURL());
     }
   };
@@ -200,26 +199,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       floodFill(imgData, x, y, targetColor, fillColor);
       ctx.putImageData(imgData, 0, 0);
       onFrameUpdate(canvas.toDataURL());
-    } else if (tool === 'text') {
-      // Small timeout to prevent interference with click event loop
-      setTimeout(() => {
-        const text = window.prompt('Enter text to add to frame:');
-        if (text && text.trim()) {
-          ctx.save();
-          // Scale font size significantly to be visible (8x brush size)
-          const fontSize = Math.max(16, brushSize * 8);
-          ctx.font = `bold ${fontSize}px PT Sans, sans-serif`;
-          ctx.fillStyle = color;
-          ctx.textBaseline = 'middle';
-          ctx.textAlign = 'center';
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.fillText(text, pos.x, pos.y);
-          ctx.restore();
-          
-          // Save the new canvas state
-          onFrameUpdate(canvas.toDataURL());
-        }
-      }, 10);
     }
   };
 
