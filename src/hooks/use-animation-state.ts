@@ -27,6 +27,10 @@ export function useAnimationState() {
   const [opacity, setOpacity] = useState(100);
   const [hardness, setHardness] = useState(80);
   
+  // New Input Settings
+  const [pressureEnabled, setPressureEnabled] = useState(true);
+  const [stabilizationEnabled, setStabilizationEnabled] = useState(true);
+  
   // Undo/Redo History
   const [history, setHistory] = useState<Frame[][]>([[{ id: '1', imageData: '' }]]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -168,6 +172,10 @@ export function useAnimationState() {
     setOpacity,
     hardness,
     setHardness,
+    pressureEnabled,
+    setPressureEnabled,
+    stabilizationEnabled,
+    setStabilizationEnabled,
     addFrame,
     deleteFrame,
     duplicateFrame,

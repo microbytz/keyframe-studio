@@ -6,13 +6,15 @@ import { SketchCanvas } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
-import { Save, FolderOpen, Layers, Settings2 } from 'lucide-react';
+import { Save, FolderOpen, Layers, Settings2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function Home() {
   const {
@@ -30,6 +32,10 @@ export default function Home() {
     setOpacity,
     hardness,
     setHardness,
+    pressureEnabled,
+    setPressureEnabled,
+    stabilizationEnabled,
+    setStabilizationEnabled,
     addFrame,
     deleteFrame,
     duplicateFrame,
@@ -157,6 +163,38 @@ export default function Home() {
                 </div>
               </PopoverContent>
             </Popover>
+
+            {/* Input Settings Gear */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="p-1 hover:bg-accent/10 rounded transition-colors">
+                  <Settings size={14} className="opacity-70" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="end">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">Input Settings</h4>
+                
+                <div className="flex items-center justify-between space-x-2">
+                  <Label htmlFor="pressure-mode" className="text-xs">Pressure Sensitivity</Label>
+                  <Switch 
+                    id="pressure-mode" 
+                    checked={pressureEnabled} 
+                    onCheckedChange={setPressureEnabled} 
+                  />
+                </div>
+                <p className="text-[9px] opacity-60 leading-tight">Vary brush thickness based on stylus pressure (requires compatible hardware).</p>
+
+                <div className="flex items-center justify-between space-x-2">
+                  <Label htmlFor="stabilization-mode" className="text-xs">Line Stabilization</Label>
+                  <Switch 
+                    id="stabilization-mode" 
+                    checked={stabilizationEnabled} 
+                    onCheckedChange={setStabilizationEnabled} 
+                  />
+                </div>
+                <p className="text-[9px] opacity-60 leading-tight">Smooths out shaky hand-drawn lines for cleaner curves.</p>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         
@@ -205,6 +243,8 @@ export default function Home() {
                 hardness={hardness}
                 onFrameUpdate={updateFrameData}
                 isPlaying={isPlaying}
+                pressureEnabled={pressureEnabled}
+                stabilizationEnabled={stabilizationEnabled}
               />
             </div>
           </div>
@@ -224,7 +264,7 @@ export default function Home() {
 
       {/* Footer Info */}
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Adjust Opacity and Hardness by clicking the brush size indicator.
+        Tip: Enable Stabilization in settings for smoother lines.
       </div>
     </main>
   );

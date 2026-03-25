@@ -17,6 +17,8 @@ interface SketchCanvasProps {
   hardness: number;
   onFrameUpdate: (dataUrl: string) => void;
   isPlaying: boolean;
+  pressureEnabled?: boolean;
+  stabilizationEnabled?: boolean;
 }
 
 export const SketchCanvas: React.FC<SketchCanvasProps> = ({
@@ -33,6 +35,8 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   hardness,
   onFrameUpdate,
   isPlaying,
+  pressureEnabled = true,
+  stabilizationEnabled = true,
 }) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const prevCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -86,12 +90,19 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     if (tCtx) tCtx.clearRect(0, 0, width, height);
   }, [currentFrame.id, currentFrame.imageData, width, height]);
 
-  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
+  const getPos = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? (e as React.TouchEvent).touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.MouseEvent).clientY;
+    
+    let clientX, clientY;
+    if ('touches' in e) {
+      clientX = (e as any).touches[0].clientX;
+      clientY = (e as any).touches[0].clientY;
+    } else {
+      clientX = (e as any).clientX;
+      clientY = (e as any).clientY;
+    }
     
     return {
       x: (clientX - rect.left) * (width / rect.width),
@@ -99,7 +110,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     };
   };
 
-  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+  const startDrawing = (e: React.PointerEvent) => {
     if (isPlaying) return;
     const pos = getPos(e);
     setIsDrawing(true);
@@ -115,7 +126,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     }
   };
 
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+  const draw = (e: React.PointerEvent) => {
     if (!isDrawing || isPlaying) return;
     const canvas = mainCanvasRef.current;
     const tempCanvas = tempCanvasRef.current;
@@ -123,7 +134,19 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     const ctx = canvas.getContext('2d')!;
     const tCtx = tempCanvas.getContext('2d')!;
 
-    const pos = getPos(e);
+    let pos = getPos(e);
+
+    // Apply Stabilization
+    if (stabilizationEnabled) {
+      const factor = 0.25; // Smoothing factor
+      pos.x = lastPos.x + (pos.x - lastPos.x) * factor;
+      pos.y = lastPos.y + (pos.y - lastPos.y) * factor;
+    }
+
+    // Apply Pressure
+    const currentPressure = pressureEnabled ? e.pressure || 0.5 : 1;
+    const effectiveBrushSize = brushSize * currentPressure;
+
     ctx.save();
 
     const brushTools = [
@@ -141,12 +164,10 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.fillStyle = color;
       }
 
-      // Apply Opacity
       ctx.globalAlpha = opacity / 100;
 
-      // 1. Basic Line Brushes
       if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink'].includes(tool)) {
-        ctx.lineWidth = tool === 'technical' ? Math.max(1, brushSize / 4) : brushSize;
+        ctx.lineWidth = tool === 'technical' ? Math.max(1, effectiveBrushSize / 4) : effectiveBrushSize;
         ctx.lineCap = (tool === 'marker' || tool === 'highlighter') ? 'butt' : 'round';
         ctx.lineJoin = 'round';
         
@@ -157,8 +178,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         }
 
         if (tool === 'brush' && tool !== 'eraser') {
-          // Hardness affects the blur/softness
-          const blurAmount = (1 - (hardness / 100)) * brushSize * 1.5;
+          const blurAmount = (1 - (hardness / 100)) * effectiveBrushSize * 1.5;
           ctx.shadowBlur = blurAmount;
           ctx.shadowColor = color;
         }
@@ -168,10 +188,9 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
       } 
-      // 2. Graphite Pencil
       else if (tool === 'pencil') {
         ctx.globalAlpha *= (0.3 + (hardness / 100) * 0.4);
-        ctx.lineWidth = Math.max(1, brushSize / 2);
+        ctx.lineWidth = Math.max(1, effectiveBrushSize / 2);
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(lastPos.x, lastPos.y);
@@ -179,19 +198,17 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.stroke();
         
         for (let i = 0; i < 3; i++) {
-          const r = Math.random() * (brushSize / 2);
+          const r = Math.random() * (effectiveBrushSize / 2);
           const a = Math.random() * Math.PI * 2;
           ctx.fillRect(pos.x + r * Math.cos(a), pos.y + r * Math.sin(a), 1, 1);
         }
       }
-      // 3. Pixel Brush
       else if (tool === 'pixel') {
-        const size = Math.max(1, Math.floor(brushSize / 2));
+        const size = Math.max(1, Math.floor(effectiveBrushSize / 2));
         const px = Math.floor(pos.x / size) * size;
         const py = Math.floor(pos.y / size) * size;
         ctx.fillRect(px, py, size, size);
       } 
-      // 4. Calligraphy Ribbon
       else if (tool === 'calligraphy') {
         const steps = Math.max(1, Math.ceil(Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2)) / 2));
         for (let i = 0; i <= steps; i++) {
@@ -201,14 +218,13 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
           ctx.save();
           ctx.translate(x, y);
           ctx.rotate(Math.PI / 4);
-          ctx.fillRect(-brushSize, -1, brushSize * 2, 2);
+          ctx.fillRect(-effectiveBrushSize, -1, effectiveBrushSize * 2, 2);
           ctx.restore();
         }
       } 
-      // 5. Airbrush / Sprays
       else if (tool === 'airbrush' || tool === 'spray') {
         const density = (tool === 'airbrush' ? 15 : 8) * (hardness / 100 + 0.5);
-        const spread = tool === 'spray' ? brushSize * 3 : brushSize * 2;
+        const spread = tool === 'spray' ? effectiveBrushSize * 3 : effectiveBrushSize * 2;
         for (let i = 0; i < density; i++) {
           const r = Math.random() * spread;
           const angle = Math.random() * Math.PI * 2;
@@ -219,12 +235,11 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
           ctx.fillRect(x, y, pSize, pSize);
         }
       } 
-      // 6. Charcoal / Chalk
       else if (tool === 'charcoal' || tool === 'chalk') {
         const density = (tool === 'charcoal' ? 12 : 18) * (hardness / 100);
         ctx.globalAlpha *= tool === 'chalk' ? 0.3 : 0.6;
         for (let i = 0; i < density; i++) {
-          const r = Math.random() * brushSize;
+          const r = Math.random() * effectiveBrushSize;
           const angle = Math.random() * Math.PI * 2;
           const x = pos.x + r * Math.cos(angle);
           const y = pos.y + r * Math.sin(angle);
@@ -232,9 +247,8 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
           ctx.fillRect(x, y, pSize, pSize);
         }
       } 
-      // 7. Crayon
       else if (tool === 'crayon') {
-        ctx.lineWidth = brushSize;
+        ctx.lineWidth = effectiveBrushSize;
         ctx.lineCap = 'round';
         ctx.globalAlpha *= 0.8;
         ctx.beginPath();
@@ -242,23 +256,22 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
         for (let i = 0; i < 8; i++) {
-          const offsetX = (Math.random() - 0.5) * brushSize * 1.5;
-          const offsetY = (Math.random() - 0.5) * brushSize * 1.5;
+          const offsetX = (Math.random() - 0.5) * effectiveBrushSize * 1.5;
+          const offsetY = (Math.random() - 0.5) * effectiveBrushSize * 1.5;
           ctx.globalAlpha = (opacity / 100) * 0.4;
           ctx.fillRect(pos.x + offsetX, pos.y + offsetY, 1, 1);
         }
       } 
-      // 8. Watercolor
       else if (tool === 'watercolor') {
         ctx.globalAlpha *= 0.05;
         const blurFactor = 3 * (1 - hardness / 100 + 0.5);
-        const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, brushSize * blurFactor);
+        const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, effectiveBrushSize * blurFactor);
         grad.addColorStop(0, color);
         grad.addColorStop(0.5, color);
         grad.addColorStop(1, 'transparent');
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, brushSize * blurFactor, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, effectiveBrushSize * blurFactor, 0, Math.PI * 2);
         ctx.fill();
       }
     } else if (tool === 'lasso') {
@@ -279,7 +292,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     setLastPos(pos);
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (e: React.PointerEvent) => {
     if (!isDrawing) return;
     setIsDrawing(false);
     
@@ -321,7 +334,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       const imgData = ctx.getImageData(0, 0, width, height);
       const targetColor = getPixelColor(imgData, x, y);
       const fillColor = hexToRgb(color);
-      // Incorporate opacity into fill color alpha if needed, but bucket fill is usually absolute
       if (colorsMatch(targetColor, fillColor)) return;
       floodFill(imgData, x, y, targetColor, fillColor);
       ctx.putImageData(imgData, 0, 0);
@@ -335,9 +347,13 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       <canvas ref={prevCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none opacity-30 w-full h-full" />
       <canvas ref={nextCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none opacity-15 w-full h-full" />
       <canvas ref={mainCanvasRef} width={width} height={height}
-        onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onClick={handleCanvasClick}
-        onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
+        onPointerDown={startDrawing} 
+        onPointerMove={draw} 
+        onPointerUp={stopDrawing} 
+        onPointerLeave={stopDrawing} 
+        onClick={handleCanvasClick}
         className="absolute inset-0 touch-none block z-10 w-full h-full"
+        style={{ cursor: isPlaying ? 'default' : 'crosshair' }}
       />
       <canvas ref={tempCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-20 w-full h-full" />
       {isPlaying && (
