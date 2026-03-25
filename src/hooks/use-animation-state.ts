@@ -48,17 +48,13 @@ export function useAnimationState() {
   const [customBrushColorLink, setCustomBrushColorLink] = useState(true);
   const [customBrushData, setCustomBrushData] = useState<string | null>(null);
   
-  // History management
   const [history, setHistory] = useState<Frame[][]>([[createNewFrame()]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
-  
-  // Layer clipboard state
   const [copiedLayerData, setCopiedLayerData] = useState<{ name: string, imageData: string } | null>(null);
   
   const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Helper to push history more efficiently
   const pushToHistory = useCallback((newFrames: Frame[]) => {
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1);
@@ -81,7 +77,6 @@ export function useAnimationState() {
       const prevFrameIndex = Math.min(currentFrameIndex, prevFrames.length - 1);
       const prevFrame = prevFrames[prevFrameIndex];
       
-      // Try to keep the same active layer ID if it exists in the history
       const existingLayer = prevFrame.layers.find(l => l.id === activeLayerId);
       const nextActiveId = existingLayer ? existingLayer.id : prevFrame.layers[0].id;
 
@@ -149,6 +144,17 @@ export function useAnimationState() {
     setActiveLayerId(newFrame.layers[0].id);
   }, [project.frames, currentFrameIndex, pushToHistory]);
 
+  const reorderFrames = useCallback((startIndex: number, endIndex: number) => {
+    setProject(prev => {
+      const newFrames = [...prev.frames];
+      const [removed] = newFrames.splice(startIndex, 1);
+      newFrames.splice(endIndex, 0, removed);
+      pushToHistory(newFrames);
+      return { ...prev, frames: newFrames };
+    });
+    setCurrentFrameIndex(endIndex);
+  }, [pushToHistory]);
+
   const updateLayerData = useCallback((dataUrl: string) => {
     const newFrames = [...project.frames];
     const frame = { ...newFrames[currentFrameIndex] };
@@ -165,7 +171,7 @@ export function useAnimationState() {
     const newFrames = [...project.frames];
     const frame = { ...newFrames[currentFrameIndex] };
     const newLayer = createNewLayer(`Layer ${frame.layers.length + 1}`);
-    frame.layers = [newLayer, ...frame.layers]; // Add to top
+    frame.layers = [newLayer, ...frame.layers]; 
     newFrames[currentFrameIndex] = frame;
     
     setProject(prev => ({ ...prev, frames: newFrames }));
@@ -207,6 +213,20 @@ export function useAnimationState() {
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
   }, [project.frames, currentFrameIndex, activeLayerId, pushToHistory]);
+
+  const reorderLayers = useCallback((startIndex: number, endIndex: number) => {
+    setProject(prev => {
+      const newFrames = [...prev.frames];
+      const frame = { ...newFrames[currentFrameIndex] };
+      const newLayers = [...frame.layers];
+      const [removed] = newLayers.splice(startIndex, 1);
+      newLayers.splice(endIndex, 0, removed);
+      frame.layers = newLayers;
+      newFrames[currentFrameIndex] = frame;
+      pushToHistory(newFrames);
+      return { ...prev, frames: newFrames };
+    });
+  }, [currentFrameIndex, pushToHistory]);
 
   const toggleLayerVisibility = useCallback((layerId: string) => {
     const newFrames = [...project.frames];
@@ -387,12 +407,14 @@ export function useAnimationState() {
     addFrame,
     deleteFrame,
     duplicateFrame,
+    reorderFrames,
     updateLayerData,
     addLayer,
     copyLayer,
     pasteLayer,
     hasCopiedLayer: !!copiedLayerData,
     deleteLayer,
+    reorderLayers,
     toggleLayerVisibility,
     togglePlayback,
     toggleOnionSkin,

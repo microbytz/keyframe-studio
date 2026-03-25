@@ -1,7 +1,7 @@
 
 "use client"
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Layer } from '@/lib/types';
 import { 
   Plus, 
@@ -26,6 +26,7 @@ interface LayersPanelProps {
   onPaste: () => void;
   hasCopiedLayer: boolean;
   onDelete: (id: string) => void;
+  onReorder: (startIndex: number, endIndex: number) => void;
   onToggleVisibility: (id: string) => void;
   onClose: () => void;
 }
@@ -39,9 +40,31 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
   onPaste,
   hasCopiedLayer,
   onDelete,
+  onReorder,
   onToggleVisibility,
   onClose
 }) => {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.setData('text/plain', index.toString());
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== index) {
+      onReorder(draggedIndex, index);
+    }
+    setDraggedIndex(null);
+  };
+
   return (
     <div className="fixed inset-y-0 right-0 w-64 bg-white shadow-2xl z-[100] border-l-2 border-foreground/10 flex flex-col animate-in slide-in-from-right duration-300">
       <div className="p-4 border-b-2 border-foreground/5 flex items-center justify-between bg-accent/5">
@@ -55,17 +78,25 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {layers.map((layer) => (
+        {layers.map((layer, index) => (
           <div 
             key={layer.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDrop={(e) => handleDrop(e, index)}
+            onDragEnd={() => setDraggedIndex(null)}
             onClick={() => onSetActive(layer.id)}
             className={cn(
               "p-2 sketch-border flex items-center gap-3 cursor-pointer transition-all group relative",
-              activeLayerId === layer.id ? "bg-accent/10 border-accent shadow-[2px_2px_0px_0px_rgba(130,201,201,0.3)]" : "bg-white hover:bg-accent/5"
+              activeLayerId === layer.id ? "bg-accent/10 border-accent shadow-[2px_2px_0px_0px_rgba(130,201,201,0.3)]" : "bg-white hover:bg-accent/5",
+              draggedIndex === index && "opacity-30 border-dashed"
             )}
           >
             <div className="flex flex-col gap-2 items-center">
-              <GripVertical size={12} className="opacity-20 group-hover:opacity-40" />
+              <div className="cursor-grab active:cursor-grabbing">
+                <GripVertical size={12} className="opacity-40 group-hover:opacity-80" />
+              </div>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -78,7 +109,6 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
               </button>
             </div>
             
-            {/* Layer Thumbnail */}
             <div className="w-12 h-10 sketch-border bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:4px_4px]" />
               {layer.imageData ? (

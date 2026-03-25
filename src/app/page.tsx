@@ -50,12 +50,14 @@ export default function Home() {
     addFrame,
     deleteFrame,
     duplicateFrame,
+    reorderFrames,
     updateLayerData,
     addLayer,
     copyLayer,
     pasteLayer,
     hasCopiedLayer,
     deleteLayer,
+    reorderLayers,
     toggleLayerVisibility,
     togglePlayback,
     toggleOnionSkin,
@@ -274,6 +276,7 @@ export default function Home() {
               addFrame={addFrame}
               deleteFrame={deleteFrame}
               duplicateFrame={duplicateFrame}
+              reorderFrames={reorderFrames}
             />
           </div>
         </div>
@@ -289,13 +292,14 @@ export default function Home() {
           onPaste={pasteLayer}
           hasCopiedLayer={hasCopiedLayer}
           onDelete={deleteLayer}
+          onReorder={reorderLayers}
           onToggleVisibility={toggleLayerVisibility}
           onClose={() => setIsLayersOpen(false)}
         />
       )}
 
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Export your work as a GIF to share your animation with the world!
+        Tip: You can now drag and drop frames and layers to reorder them!
       </div>
     </main>
   );
