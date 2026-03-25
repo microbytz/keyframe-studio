@@ -48,6 +48,7 @@ export function useAnimationState() {
   const [customBrushColorLink, setCustomBrushColorLink] = useState(true);
   const [customBrushData, setCustomBrushData] = useState<string | null>(null);
   
+  // History management
   const [history, setHistory] = useState<Frame[][]>([[createNewFrame()]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
@@ -57,6 +58,7 @@ export function useAnimationState() {
   
   const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Helper to push history more efficiently
   const pushToHistory = useCallback((newFrames: Frame[]) => {
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1);
@@ -67,7 +69,7 @@ export function useAnimationState() {
       return newHistory;
     });
     setHistoryIndex(prev => {
-      const next = prev + 1;
+      const next = historyIndex + 1;
       return next >= MAX_HISTORY ? MAX_HISTORY - 1 : next;
     });
   }, [historyIndex]);
@@ -76,23 +78,36 @@ export function useAnimationState() {
     if (historyIndex > 0) {
       const prevIndex = historyIndex - 1;
       const prevFrames = history[prevIndex];
+      const prevFrameIndex = Math.min(currentFrameIndex, prevFrames.length - 1);
+      const prevFrame = prevFrames[prevFrameIndex];
+      
+      // Try to keep the same active layer ID if it exists in the history
+      const existingLayer = prevFrame.layers.find(l => l.id === activeLayerId);
+      const nextActiveId = existingLayer ? existingLayer.id : prevFrame.layers[0].id;
+
       setProject(prev => ({ ...prev, frames: prevFrames }));
       setHistoryIndex(prevIndex);
-      setCurrentFrameIndex(curr => Math.min(curr, prevFrames.length - 1));
-      setActiveLayerId(prevFrames[Math.min(currentFrameIndex, prevFrames.length - 1)].layers[0].id);
+      setCurrentFrameIndex(prevFrameIndex);
+      setActiveLayerId(nextActiveId);
     }
-  }, [history, historyIndex, currentFrameIndex]);
+  }, [history, historyIndex, currentFrameIndex, activeLayerId]);
 
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const nextIndex = historyIndex + 1;
       const nextFrames = history[nextIndex];
+      const nextFrameIndex = Math.min(currentFrameIndex, nextFrames.length - 1);
+      const nextFrame = nextFrames[nextFrameIndex];
+      
+      const existingLayer = nextFrame.layers.find(l => l.id === activeLayerId);
+      const nextActiveId = existingLayer ? existingLayer.id : nextFrame.layers[0].id;
+
       setProject(prev => ({ ...prev, frames: nextFrames }));
       setHistoryIndex(nextIndex);
-      setCurrentFrameIndex(curr => Math.min(curr, nextFrames.length - 1));
-      setActiveLayerId(nextFrames[Math.min(currentFrameIndex, nextFrames.length - 1)].layers[0].id);
+      setCurrentFrameIndex(nextFrameIndex);
+      setActiveLayerId(nextActiveId);
     }
-  }, [history, historyIndex, currentFrameIndex]);
+  }, [history, historyIndex, currentFrameIndex, activeLayerId]);
 
   const addFrame = useCallback(() => {
     const newFrame = createNewFrame();
@@ -108,15 +123,14 @@ export function useAnimationState() {
 
   const deleteFrame = useCallback(() => {
     if (project.frames.length <= 1) return;
-    setProject(prev => {
-      const newFrames = [...prev.frames];
-      newFrames.splice(currentFrameIndex, 1);
-      pushToHistory(newFrames);
-      return { ...prev, frames: newFrames };
-    });
+    const newFrames = [...project.frames];
+    newFrames.splice(currentFrameIndex, 1);
+    
     const nextIndex = Math.max(0, currentFrameIndex - 1);
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
     setCurrentFrameIndex(nextIndex);
-    setActiveLayerId(project.frames[nextIndex].layers[0].id);
+    setActiveLayerId(newFrames[nextIndex].layers[0].id);
   }, [project.frames, currentFrameIndex, pushToHistory]);
 
   const duplicateFrame = useCallback(() => {
@@ -136,30 +150,28 @@ export function useAnimationState() {
   }, [project.frames, currentFrameIndex, pushToHistory]);
 
   const updateLayerData = useCallback((dataUrl: string) => {
-    setProject(prev => {
-      const newFrames = [...prev.frames];
-      const frame = { ...newFrames[currentFrameIndex] };
-      frame.layers = frame.layers.map(l => 
-        l.id === activeLayerId ? { ...l, imageData: dataUrl } : l
-      );
-      newFrames[currentFrameIndex] = frame;
-      pushToHistory(newFrames);
-      return { ...prev, frames: newFrames };
-    });
-  }, [currentFrameIndex, activeLayerId, pushToHistory]);
+    const newFrames = [...project.frames];
+    const frame = { ...newFrames[currentFrameIndex] };
+    frame.layers = frame.layers.map(l => 
+      l.id === activeLayerId ? { ...l, imageData: dataUrl } : l
+    );
+    newFrames[currentFrameIndex] = frame;
+    
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
+  }, [project.frames, currentFrameIndex, activeLayerId, pushToHistory]);
 
   const addLayer = useCallback(() => {
-    setProject(prev => {
-      const newFrames = [...prev.frames];
-      const frame = { ...newFrames[currentFrameIndex] };
-      const newLayer = createNewLayer(`Layer ${frame.layers.length + 1}`);
-      frame.layers = [newLayer, ...frame.layers]; // Add to top
-      newFrames[currentFrameIndex] = frame;
-      pushToHistory(newFrames);
-      setActiveLayerId(newLayer.id);
-      return { ...prev, frames: newFrames };
-    });
-  }, [currentFrameIndex, pushToHistory]);
+    const newFrames = [...project.frames];
+    const frame = { ...newFrames[currentFrameIndex] };
+    const newLayer = createNewLayer(`Layer ${frame.layers.length + 1}`);
+    frame.layers = [newLayer, ...frame.layers]; // Add to top
+    newFrames[currentFrameIndex] = frame;
+    
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
+    setActiveLayerId(newLayer.id);
+  }, [project.frames, currentFrameIndex, pushToHistory]);
 
   const copyLayer = useCallback((layerId: string) => {
     const layer = project.frames[currentFrameIndex].layers.find(l => l.id === layerId);
@@ -170,46 +182,43 @@ export function useAnimationState() {
 
   const pasteLayer = useCallback(() => {
     if (!copiedLayerData) return;
-    setProject(prev => {
-      const newFrames = [...prev.frames];
-      const frame = { ...newFrames[currentFrameIndex] };
-      const newLayer = createNewLayer(`${copiedLayerData.name} (Copy)`);
-      newLayer.imageData = copiedLayerData.imageData;
-      frame.layers = [newLayer, ...frame.layers];
-      newFrames[currentFrameIndex] = frame;
-      pushToHistory(newFrames);
-      setActiveLayerId(newLayer.id);
-      return { ...prev, frames: newFrames };
-    });
-  }, [currentFrameIndex, copiedLayerData, pushToHistory]);
+    const newFrames = [...project.frames];
+    const frame = { ...newFrames[currentFrameIndex] };
+    const newLayer = createNewLayer(`${copiedLayerData.name} (Copy)`);
+    newLayer.imageData = copiedLayerData.imageData;
+    frame.layers = [newLayer, ...frame.layers];
+    newFrames[currentFrameIndex] = frame;
+    
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
+    setActiveLayerId(newLayer.id);
+  }, [project.frames, currentFrameIndex, copiedLayerData, pushToHistory]);
 
   const deleteLayer = useCallback((layerId: string) => {
-    setProject(prev => {
-      const newFrames = [...prev.frames];
-      const frame = { ...newFrames[currentFrameIndex] };
-      if (frame.layers.length <= 1) return prev;
-      frame.layers = frame.layers.filter(l => l.id !== layerId);
-      newFrames[currentFrameIndex] = frame;
-      if (activeLayerId === layerId) {
-        setActiveLayerId(frame.layers[0].id);
-      }
-      pushToHistory(newFrames);
-      return { ...prev, frames: newFrames };
-    });
-  }, [currentFrameIndex, activeLayerId, pushToHistory]);
+    const newFrames = [...project.frames];
+    const frame = { ...newFrames[currentFrameIndex] };
+    if (frame.layers.length <= 1) return;
+    frame.layers = frame.layers.filter(l => l.id !== layerId);
+    newFrames[currentFrameIndex] = frame;
+    
+    if (activeLayerId === layerId) {
+      setActiveLayerId(frame.layers[0].id);
+    }
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
+  }, [project.frames, currentFrameIndex, activeLayerId, pushToHistory]);
 
   const toggleLayerVisibility = useCallback((layerId: string) => {
-    setProject(prev => {
-      const newFrames = [...prev.frames];
-      const frame = { ...newFrames[currentFrameIndex] };
-      frame.layers = frame.layers.map(l => 
-        l.id === layerId ? { ...l, visible: !l.visible } : l
-      );
-      newFrames[currentFrameIndex] = frame;
-      pushToHistory(newFrames);
-      return { ...prev, frames: newFrames };
-    });
-  }, [currentFrameIndex, pushToHistory]);
+    const newFrames = [...project.frames];
+    const frame = { ...newFrames[currentFrameIndex] };
+    frame.layers = frame.layers.map(l => 
+      l.id === layerId ? { ...l, visible: !l.visible } : l
+    );
+    newFrames[currentFrameIndex] = frame;
+    
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
+  }, [project.frames, currentFrameIndex, pushToHistory]);
 
   const toggleOnionSkin = useCallback(() => {
     setProject(prev => ({ ...prev, onionSkinEnabled: !prev.onionSkinEnabled }));
@@ -267,18 +276,6 @@ export function useAnimationState() {
     const saved = localStorage.getItem('sketchflow_project');
     if (saved) {
       const loadedProject = JSON.parse(saved);
-      // Migration logic
-      const migratedFrames = loadedProject.frames.map((f: any) => {
-        if (f.imageData !== undefined) {
-          return {
-            id: f.id,
-            layers: [{ id: 'migrated', name: 'Base Layer', imageData: f.imageData, visible: true }]
-          };
-        }
-        return f;
-      });
-      loadedProject.frames = migratedFrames;
-      
       setProject(loadedProject);
       setHistory([loadedProject.frames]);
       setHistoryIndex(0);
@@ -322,7 +319,7 @@ export function useAnimationState() {
       canvas.width = project.width;
       canvas.height = project.height;
       const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = 'white'; // Fill background
+      ctx.fillStyle = 'white'; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
       const layers = [...frame.layers].reverse();
