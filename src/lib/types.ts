@@ -1,4 +1,17 @@
-export type ToolType = 'pen' | 'brush' | 'pixel' | 'calligraphy' | 'airbrush' | 'eraser' | 'bucket' | 'lasso';
+export type ToolType = 
+  | 'pen' 
+  | 'brush' 
+  | 'pixel' 
+  | 'calligraphy' 
+  | 'airbrush' 
+  | 'highlighter' 
+  | 'charcoal' 
+  | 'marker' 
+  | 'crayon' 
+  | 'watercolor' 
+  | 'eraser' 
+  | 'bucket' 
+  | 'lasso';
 
 export interface Frame {
   id: string;

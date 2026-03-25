@@ -40,7 +40,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
   const [lassoPoints, setLassoPoints] = useState<{ x: number, y: number }[]>([]);
 
-  // Draw onion skin layers on separate canvases
   useEffect(() => {
     const prevCtx = prevCanvasRef.current?.getContext('2d');
     const nextCtx = nextCanvasRef.current?.getContext('2d');
@@ -63,7 +62,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     if (nextCtx) drawSkin(nextCtx, nextFrame);
   }, [onionSkinEnabled, prevFrame, nextFrame, isPlaying, width, height]);
 
-  // Load current frame data onto main canvas
   useEffect(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
@@ -107,8 +105,8 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       setLassoPoints([pos]);
     }
 
-    // Handle single point brushes immediately
-    if (tool === 'pixel' || tool === 'calligraphy' || tool === 'airbrush') {
+    const immediateBrushes = ['pixel', 'calligraphy', 'airbrush', 'charcoal', 'crayon', 'watercolor'];
+    if (immediateBrushes.includes(tool)) {
       draw(e);
     }
   };
@@ -124,9 +122,12 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     const pos = getPos(e);
     ctx.save();
 
-    const brushes = ['pen', 'brush', 'pixel', 'calligraphy', 'airbrush', 'eraser'];
+    const brushTools = [
+      'pen', 'brush', 'pixel', 'calligraphy', 'airbrush', 
+      'highlighter', 'charcoal', 'marker', 'crayon', 'watercolor', 'eraser'
+    ];
     
-    if (brushes.includes(tool)) {
+    if (brushTools.includes(tool)) {
       if (tool === 'eraser') {
         ctx.globalCompositeOperation = 'destination-out';
       } else {
@@ -135,11 +136,15 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.fillStyle = color;
       }
 
-      if (tool === 'pen' || tool === 'eraser' || tool === 'brush') {
+      if (tool === 'pen' || tool === 'eraser' || tool === 'brush' || tool === 'marker' || tool === 'highlighter') {
         ctx.lineWidth = brushSize;
-        ctx.lineCap = 'round';
+        ctx.lineCap = (tool === 'marker' || tool === 'highlighter') ? 'butt' : 'round';
         ctx.lineJoin = 'round';
         
+        if (tool === 'highlighter') {
+          ctx.globalAlpha = 0.5;
+        }
+
         if (tool === 'brush' && tool !== 'eraser') {
           ctx.shadowBlur = brushSize / 2;
           ctx.shadowColor = color;
@@ -155,29 +160,51 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         const py = Math.floor(pos.y / size) * size;
         ctx.fillRect(px, py, size, size);
       } else if (tool === 'calligraphy') {
-        // Draw a slanted flat line for every segment
         const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
         const steps = Math.max(1, Math.ceil(dist / 2));
         for (let i = 0; i <= steps; i++) {
           const t = i / steps;
           const x = lastPos.x + (pos.x - lastPos.x) * t;
           const y = lastPos.y + (pos.y - lastPos.y) * t;
-          
           ctx.save();
           ctx.translate(x, y);
-          ctx.rotate(Math.PI / 4); // 45 degree angle
+          ctx.rotate(Math.PI / 4);
           ctx.fillRect(-brushSize, -1, brushSize * 2, 2);
           ctx.restore();
         }
-      } else if (tool === 'airbrush') {
-        const density = 15;
+      } else if (tool === 'airbrush' || tool === 'charcoal') {
+        const density = tool === 'airbrush' ? 15 : 8;
         for (let i = 0; i < density; i++) {
           const r = Math.random() * brushSize * 2;
           const angle = Math.random() * Math.PI * 2;
           const x = pos.x + r * Math.cos(angle);
           const y = pos.y + r * Math.sin(angle);
-          ctx.fillRect(x, y, 1, 1);
+          const pSize = tool === 'charcoal' ? Math.random() * 2 : 1;
+          ctx.fillRect(x, y, pSize, pSize);
         }
+      } else if (tool === 'crayon') {
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(lastPos.x, lastPos.y);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        // Add "wax" texture
+        for (let i = 0; i < 5; i++) {
+          const offsetX = (Math.random() - 0.5) * brushSize;
+          const offsetY = (Math.random() - 0.5) * brushSize;
+          ctx.globalAlpha = 0.3;
+          ctx.fillRect(pos.x + offsetX, pos.y + offsetY, 1, 1);
+        }
+      } else if (tool === 'watercolor') {
+        ctx.globalAlpha = 0.1;
+        const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, brushSize * 3);
+        grad.addColorStop(0, color);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, brushSize * 3, 0, Math.PI * 2);
+        ctx.fill();
       }
     } else if (tool === 'lasso') {
       const newPoints = [...lassoPoints, pos];
@@ -217,7 +244,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.closePath();
         ctx.fill();
         ctx.restore();
-        
         onFrameUpdate(canvas.toDataURL());
       }
       setLassoPoints([]);
@@ -248,43 +274,16 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   };
 
   return (
-    <div 
-      ref={containerRef}
-      className="relative sketch-border shadow-lg bg-white overflow-hidden w-full aspect-video"
-    >
+    <div ref={containerRef} className="relative sketch-border shadow-lg bg-white overflow-hidden w-full aspect-video">
       <div className="absolute inset-0 bg-white" />
-      <canvas
-        ref={prevCanvasRef}
-        width={width}
-        height={height}
-        className="absolute inset-0 pointer-events-none opacity-30 w-full h-full"
-      />
-      <canvas
-        ref={nextCanvasRef}
-        width={width}
-        height={height}
-        className="absolute inset-0 pointer-events-none opacity-15 w-full h-full"
-      />
-      <canvas
-        ref={mainCanvasRef}
-        width={width}
-        height={height}
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
-        onClick={handleCanvasClick}
-        onTouchStart={startDrawing}
-        onTouchMove={draw}
-        onTouchEnd={stopDrawing}
+      <canvas ref={prevCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none opacity-30 w-full h-full" />
+      <canvas ref={nextCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none opacity-15 w-full h-full" />
+      <canvas ref={mainCanvasRef} width={width} height={height}
+        onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onClick={handleCanvasClick}
+        onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
         className="absolute inset-0 touch-none block z-10 w-full h-full"
       />
-      <canvas
-        ref={tempCanvasRef}
-        width={width}
-        height={height}
-        className="absolute inset-0 pointer-events-none z-20 w-full h-full"
-      />
+      <canvas ref={tempCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-20 w-full h-full" />
       {isPlaying && (
         <div className="absolute top-1 right-1 md:top-2 md:right-2 px-1 py-0.5 md:px-2 md:py-1 bg-accent text-[8px] md:text-xs font-bold uppercase tracking-wider sketch-border z-30">
           Preview
@@ -301,12 +300,7 @@ function getPixelColor(imgData: ImageData, x: number, y: number) {
 
 function hexToRgb(hex: string) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? [
-    parseInt(result[1], 16),
-    parseInt(result[2], 16),
-    parseInt(result[3], 16),
-    255
-  ] : [0, 0, 0, 255];
+  return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16), 255] : [0, 0, 0, 255];
 }
 
 function colorsMatch(c1: number[], c2: number[]) {
@@ -317,22 +311,15 @@ function floodFill(imgData: ImageData, x: number, y: number, targetColor: number
   const width = imgData.width;
   const height = imgData.height;
   const stack = [[x, y]];
-
   while (stack.length > 0) {
     const [currX, currY] = stack.pop()!;
     const index = (currY * width + currX) * 4;
-
     if (currX < 0 || currX >= width || currY < 0 || currY >= height) continue;
     if (!colorsMatch(getPixelColor(imgData, currX, currY), targetColor)) continue;
-
     imgData.data[index] = fillColor[0];
     imgData.data[index + 1] = fillColor[1];
     imgData.data[index + 2] = fillColor[2];
     imgData.data[index + 3] = fillColor[3];
-
-    stack.push([currX + 1, currY]);
-    stack.push([currX - 1, currY]);
-    stack.push([currX, currY + 1]);
-    stack.push([currX, currY - 1]);
+    stack.push([currX + 1, currY], [currX - 1, currY], [currX, currY + 1], [currX, currY - 1]);
   }
 }

@@ -11,8 +11,13 @@ import {
   Redo2,
   Paintbrush,
   Grid2X2,
-  Highlighter,
+  Feather,
   Wind,
+  Highlighter,
+  PenLine,
+  CloudRain,
+  Sparkles,
+  Droplets,
   ChevronDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -43,8 +48,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'pen', icon: Pencil, label: 'Pen' },
     { id: 'brush', icon: Paintbrush, label: 'Soft Brush' },
     { id: 'pixel', icon: Grid2X2, label: 'Pixel Brush' },
-    { id: 'calligraphy', icon: Highlighter, label: 'Calligraphy' },
+    { id: 'calligraphy', icon: Feather, label: 'Calligraphy' },
     { id: 'airbrush', icon: Wind, label: 'Airbrush' },
+    { id: 'highlighter', icon: Highlighter, label: 'Highlighter' },
+    { id: 'marker', icon: PenLine, label: 'Marker' },
+    { id: 'charcoal', icon: CloudRain, label: 'Charcoal' },
+    { id: 'crayon', icon: Sparkles, label: 'Crayon' },
+    { id: 'watercolor', icon: Droplets, label: 'Watercolor' },
   ];
 
   const utilityTools = [
@@ -78,7 +88,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <PopoverContent 
             side="right" 
             align="start" 
-            className="w-auto p-2 sketch-card ml-2 flex flex-row md:flex-col gap-2 animate-in fade-in zoom-in-95 duration-100"
+            className="w-auto p-2 sketch-card ml-2 grid grid-cols-5 md:grid-cols-2 gap-2 animate-in fade-in zoom-in-95 duration-100"
           >
             {brushTools.map((t) => (
               <button
@@ -91,15 +101,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 title={t.label}
               >
                 <t.icon size={16} />
-                <span className="hidden md:group-hover:block absolute left-full ml-3 px-2 py-1 bg-primary text-white text-[10px] rounded whitespace-nowrap z-50">
-                  {t.label}
-                </span>
               </button>
             ))}
           </PopoverContent>
         </Popover>
 
-        {/* Separator for utility tools */}
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
 
         {/* Utility Tools */}
@@ -114,9 +120,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             title={t.label}
           >
             <t.icon size={16} className="md:w-[18px] md:h-[18px]" />
-            <span className="hidden md:group-hover:block absolute left-full ml-2 px-2 py-1 bg-primary text-white text-[10px] rounded whitespace-nowrap z-50">
-              {t.label}
-            </span>
           </button>
         ))}
       </div>
