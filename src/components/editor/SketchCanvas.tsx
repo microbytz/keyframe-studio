@@ -165,7 +165,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 
     if (tool === 'lasso') {
       if (lassoPoints.length > 2) {
-        // Closed path logic for clear
         ctx.save();
         ctx.globalCompositeOperation = 'destination-out';
         ctx.beginPath();
@@ -202,14 +201,25 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       ctx.putImageData(imgData, 0, 0);
       onFrameUpdate(canvas.toDataURL());
     } else if (tool === 'text') {
-      const text = window.prompt('Enter text:');
-      if (text && text.trim()) {
-        ctx.font = `${brushSize * 4}px PT Sans, sans-serif`;
-        ctx.fillStyle = color;
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillText(text, pos.x, pos.y);
-        onFrameUpdate(canvas.toDataURL());
-      }
+      // Small timeout to prevent interference with click event loop
+      setTimeout(() => {
+        const text = window.prompt('Enter text to add to frame:');
+        if (text && text.trim()) {
+          ctx.save();
+          // Scale font size significantly to be visible (8x brush size)
+          const fontSize = Math.max(16, brushSize * 8);
+          ctx.font = `bold ${fontSize}px PT Sans, sans-serif`;
+          ctx.fillStyle = color;
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = 'center';
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.fillText(text, pos.x, pos.y);
+          ctx.restore();
+          
+          // Save the new canvas state
+          onFrameUpdate(canvas.toDataURL());
+        }
+      }, 10);
     }
   };
 
@@ -218,10 +228,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       ref={containerRef}
       className="relative sketch-border shadow-lg bg-white overflow-hidden w-full aspect-video"
     >
-      {/* Background Layer (Paper) */}
       <div className="absolute inset-0 bg-white" />
-
-      {/* Onion Skin Layers */}
       <canvas
         ref={prevCanvasRef}
         width={width}
@@ -234,8 +241,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         height={height}
         className="absolute inset-0 pointer-events-none opacity-15 w-full h-full"
       />
-
-      {/* Main Drawing Layer */}
       <canvas
         ref={mainCanvasRef}
         width={width}
@@ -250,15 +255,12 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         onTouchEnd={stopDrawing}
         className="absolute inset-0 touch-none block z-10 w-full h-full"
       />
-      
-      {/* Feedback Overlay (Lasso Lines) */}
       <canvas
         ref={tempCanvasRef}
         width={width}
         height={height}
         className="absolute inset-0 pointer-events-none z-20 w-full h-full"
       />
-      
       {isPlaying && (
         <div className="absolute top-1 right-1 md:top-2 md:right-2 px-1 py-0.5 md:px-2 md:py-1 bg-accent text-[8px] md:text-xs font-bold uppercase tracking-wider sketch-border z-30">
           Preview
@@ -267,8 +269,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     </div>
   );
 };
-
-// --- Helper Functions for Canvas Tools ---
 
 function getPixelColor(imgData: ImageData, x: number, y: number) {
   const index = (y * imgData.width + x) * 4;
