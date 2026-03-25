@@ -105,7 +105,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       setLassoPoints([pos]);
     }
 
-    const immediateBrushes = ['pixel', 'calligraphy', 'airbrush', 'charcoal', 'crayon', 'watercolor'];
+    const immediateBrushes = ['pixel', 'calligraphy', 'airbrush', 'charcoal', 'crayon', 'watercolor', 'spray', 'chalk'];
     if (immediateBrushes.includes(tool)) {
       draw(e);
     }
@@ -123,8 +123,9 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     ctx.save();
 
     const brushTools = [
-      'pen', 'brush', 'pixel', 'calligraphy', 'airbrush', 
-      'highlighter', 'charcoal', 'marker', 'crayon', 'watercolor', 'eraser'
+      'pen', 'pencil', 'brush', 'pixel', 'calligraphy', 'airbrush', 
+      'highlighter', 'marker', 'charcoal', 'crayon', 'watercolor', 'ink',
+      'spray', 'chalk', 'technical', 'eraser'
     ];
     
     if (brushTools.includes(tool)) {
@@ -136,17 +137,20 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.fillStyle = color;
       }
 
-      if (tool === 'pen' || tool === 'eraser' || tool === 'brush' || tool === 'marker' || tool === 'highlighter') {
-        ctx.lineWidth = brushSize;
+      // 1. Basic Line Brushes
+      if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink'].includes(tool)) {
+        ctx.lineWidth = tool === 'technical' ? Math.max(1, brushSize / 4) : brushSize;
         ctx.lineCap = (tool === 'marker' || tool === 'highlighter') ? 'butt' : 'round';
         ctx.lineJoin = 'round';
         
         if (tool === 'highlighter') {
           ctx.globalAlpha = 0.5;
+        } else if (tool === 'ink') {
+          ctx.globalAlpha = 0.9;
         }
 
         if (tool === 'brush' && tool !== 'eraser') {
-          ctx.shadowBlur = brushSize / 2;
+          ctx.shadowBlur = brushSize / 1.5;
           ctx.shadowColor = color;
         }
 
@@ -154,12 +158,33 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.moveTo(lastPos.x, lastPos.y);
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
-      } else if (tool === 'pixel') {
+      } 
+      // 2. Graphite Pencil (grainy, soft)
+      else if (tool === 'pencil') {
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = Math.max(1, brushSize / 2);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(lastPos.x, lastPos.y);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        
+        // Add tiny grains
+        for (let i = 0; i < 3; i++) {
+          const r = Math.random() * (brushSize / 2);
+          const a = Math.random() * Math.PI * 2;
+          ctx.fillRect(pos.x + r * Math.cos(a), pos.y + r * Math.sin(a), 1, 1);
+        }
+      }
+      // 3. Pixel Brush
+      else if (tool === 'pixel') {
         const size = Math.max(1, Math.floor(brushSize / 2));
         const px = Math.floor(pos.x / size) * size;
         const py = Math.floor(pos.y / size) * size;
         ctx.fillRect(px, py, size, size);
-      } else if (tool === 'calligraphy') {
+      } 
+      // 4. Calligraphy Ribbon
+      else if (tool === 'calligraphy') {
         const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
         const steps = Math.max(1, Math.ceil(dist / 2));
         for (let i = 0; i <= steps; i++) {
@@ -172,34 +197,57 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
           ctx.fillRect(-brushSize, -1, brushSize * 2, 2);
           ctx.restore();
         }
-      } else if (tool === 'airbrush' || tool === 'charcoal') {
-        const density = tool === 'airbrush' ? 15 : 8;
+      } 
+      // 5. Airbrush / Sprays
+      else if (tool === 'airbrush' || tool === 'spray') {
+        const density = tool === 'airbrush' ? 20 : 10;
+        const spread = tool === 'spray' ? brushSize * 3 : brushSize * 2;
         for (let i = 0; i < density; i++) {
-          const r = Math.random() * brushSize * 2;
+          const r = Math.random() * spread;
           const angle = Math.random() * Math.PI * 2;
           const x = pos.x + r * Math.cos(angle);
           const y = pos.y + r * Math.sin(angle);
-          const pSize = tool === 'charcoal' ? Math.random() * 2 : 1;
+          const pSize = tool === 'spray' ? Math.random() * 3 : 1;
+          ctx.globalAlpha = Math.random();
           ctx.fillRect(x, y, pSize, pSize);
         }
-      } else if (tool === 'crayon') {
+      } 
+      // 6. Charcoal / Chalk
+      else if (tool === 'charcoal' || tool === 'chalk') {
+        const density = tool === 'charcoal' ? 12 : 18;
+        ctx.globalAlpha = tool === 'chalk' ? 0.3 : 0.6;
+        for (let i = 0; i < density; i++) {
+          const r = Math.random() * brushSize;
+          const angle = Math.random() * Math.PI * 2;
+          const x = pos.x + r * Math.cos(angle);
+          const y = pos.y + r * Math.sin(angle);
+          const pSize = Math.random() * (tool === 'charcoal' ? 3 : 2);
+          ctx.fillRect(x, y, pSize, pSize);
+        }
+      } 
+      // 7. Crayon (textured wax)
+      else if (tool === 'crayon') {
         ctx.lineWidth = brushSize;
         ctx.lineCap = 'round';
+        ctx.globalAlpha = 0.8;
         ctx.beginPath();
         ctx.moveTo(lastPos.x, lastPos.y);
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
         // Add "wax" texture
-        for (let i = 0; i < 5; i++) {
-          const offsetX = (Math.random() - 0.5) * brushSize;
-          const offsetY = (Math.random() - 0.5) * brushSize;
-          ctx.globalAlpha = 0.3;
+        for (let i = 0; i < 8; i++) {
+          const offsetX = (Math.random() - 0.5) * brushSize * 1.5;
+          const offsetY = (Math.random() - 0.5) * brushSize * 1.5;
+          ctx.globalAlpha = 0.4;
           ctx.fillRect(pos.x + offsetX, pos.y + offsetY, 1, 1);
         }
-      } else if (tool === 'watercolor') {
-        ctx.globalAlpha = 0.1;
+      } 
+      // 8. Watercolor (soft overlap)
+      else if (tool === 'watercolor') {
+        ctx.globalAlpha = 0.05;
         const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, brushSize * 3);
         grad.addColorStop(0, color);
+        grad.addColorStop(0.5, color);
         grad.addColorStop(1, 'transparent');
         ctx.fillStyle = grad;
         ctx.beginPath();

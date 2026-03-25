@@ -18,7 +18,12 @@ import {
   CloudRain,
   Sparkles,
   Droplets,
-  ChevronDown
+  ChevronDown,
+  Type,
+  Zap,
+  Brush,
+  SprayCan,
+  Ghost
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -45,16 +50,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   canRedo
 }) => {
   const brushTools = [
-    { id: 'pen', icon: Pencil, label: 'Pen' },
+    { id: 'pen', icon: Pencil, label: 'Standard Pen' },
+    { id: 'pencil', icon: Pencil, label: 'Graphite Pencil' },
     { id: 'brush', icon: Paintbrush, label: 'Soft Brush' },
-    { id: 'pixel', icon: Grid2X2, label: 'Pixel Brush' },
+    { id: 'pixel', icon: Grid2X2, label: 'Pixel Art' },
     { id: 'calligraphy', icon: Feather, label: 'Calligraphy' },
     { id: 'airbrush', icon: Wind, label: 'Airbrush' },
     { id: 'highlighter', icon: Highlighter, label: 'Highlighter' },
-    { id: 'marker', icon: PenLine, label: 'Marker' },
+    { id: 'marker', icon: PenLine, label: 'Felt Tip Marker' },
     { id: 'charcoal', icon: CloudRain, label: 'Charcoal' },
-    { id: 'crayon', icon: Sparkles, label: 'Crayon' },
+    { id: 'crayon', icon: Sparkles, label: 'Wax Crayon' },
     { id: 'watercolor', icon: Droplets, label: 'Watercolor' },
+    { id: 'ink', icon: Zap, label: 'Ink Pen' },
+    { id: 'spray', icon: SprayCan, label: 'Spray Paint' },
+    { id: 'chalk', icon: Ghost, label: 'Dusty Chalk' },
+    { id: 'technical', icon: Type, label: 'Technical Pen' },
   ];
 
   const utilityTools = [
@@ -88,7 +98,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <PopoverContent 
             side="right" 
             align="start" 
-            className="w-auto p-2 sketch-card ml-2 grid grid-cols-5 md:grid-cols-2 gap-2 animate-in fade-in zoom-in-95 duration-100"
+            className="w-auto p-2 sketch-card ml-2 grid grid-cols-5 md:grid-cols-3 gap-2 animate-in fade-in zoom-in-95 duration-100"
           >
             {brushTools.map((t) => (
               <button
