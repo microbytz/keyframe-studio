@@ -20,6 +20,7 @@ interface SketchCanvasProps {
   pressureEnabled?: boolean;
   stabilizationEnabled?: boolean;
   dynamicStampingEnabled?: boolean;
+  customBrushColorLink?: boolean;
   customBrushData?: string | null;
 }
 
@@ -40,6 +41,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   pressureEnabled = true,
   stabilizationEnabled = true,
   dynamicStampingEnabled = true,
+  customBrushColorLink = true,
   customBrushData = null,
 }) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -247,16 +249,19 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
           const oCtx = offscreen.getContext('2d')!;
           
           oCtx.drawImage(customBrushImage, 0, 0, offscreen.width, offscreen.height);
-          oCtx.globalCompositeOperation = 'source-in';
-          oCtx.fillStyle = color;
-          oCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+          
+          if (customBrushColorLink) {
+            oCtx.globalCompositeOperation = 'source-in';
+            oCtx.fillStyle = color;
+            oCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+          }
           
           ctx.drawImage(offscreen, -effectiveBrushSize, -effectiveBrushSize);
           ctx.restore();
         };
 
         if (dynamicStampingEnabled) {
-          const steps = Math.max(1, Math.ceil(dist / (effectiveBrushSize / 2)));
+          const steps = Math.max(1, Math.ceil(dist / (effectiveBrushSize / 4)));
           for (let i = 0; i < steps; i++) {
             const t = i / steps;
             const x = lastPos.x + (pos.x - lastPos.x) * t;

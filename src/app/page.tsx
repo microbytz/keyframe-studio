@@ -39,6 +39,8 @@ export default function Home() {
     setStabilizationEnabled,
     dynamicStampingEnabled,
     setDynamicStampingEnabled,
+    customBrushColorLink,
+    setCustomBrushColorLink,
     customBrushData,
     setCustomBrushData,
     addFrame,
@@ -175,7 +177,7 @@ export default function Home() {
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="end">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">Input Settings</h4>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">Editor Settings</h4>
                 
                 <div className="flex items-center justify-between space-x-2">
                   <Label htmlFor="pressure-mode" className="text-xs">Pressure Sensitivity</Label>
@@ -185,7 +187,6 @@ export default function Home() {
                     onCheckedChange={setPressureEnabled} 
                   />
                 </div>
-                <p className="text-[9px] opacity-60 leading-tight">Vary brush thickness based on stylus pressure.</p>
 
                 <div className="flex items-center justify-between space-x-2">
                   <Label htmlFor="stabilization-mode" className="text-xs">Line Stabilization</Label>
@@ -195,21 +196,33 @@ export default function Home() {
                     onCheckedChange={setStabilizationEnabled} 
                   />
                 </div>
-                <p className="text-[9px] opacity-60 leading-tight">Smooths out shaky hand-drawn lines.</p>
-
-                <div className="flex items-center justify-between space-x-2">
-                  <Label htmlFor="dynamic-stamping" className="text-xs">Dynamic Stamping</Label>
-                  <Switch 
-                    id="dynamic-stamping" 
-                    checked={dynamicStampingEnabled} 
-                    onCheckedChange={setDynamicStampingEnabled} 
-                  />
-                </div>
-                <p className="text-[9px] opacity-60 leading-tight">Draw custom brush tips continuously along path.</p>
 
                 <div className="pt-2 border-t mt-2">
-                   <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Custom Brush</h4>
-                   <CustomBrushDialog onSave={setCustomBrushData} currentBrush={customBrushData} />
+                   <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Custom Brush Engine</h4>
+                   
+                   <div className="space-y-3 mb-4">
+                     <div className="flex items-center justify-between space-x-2">
+                       <Label htmlFor="dynamic-stamping" className="text-xs">Dynamic Stamping</Label>
+                       <Switch 
+                         id="dynamic-stamping" 
+                         checked={dynamicStampingEnabled} 
+                         onCheckedChange={setDynamicStampingEnabled} 
+                       />
+                     </div>
+                     <p className="text-[9px] opacity-60 leading-tight">Paint tips continuously along stroke path.</p>
+
+                     <div className="flex items-center justify-between space-x-2">
+                       <Label htmlFor="color-link" className="text-xs">Link Brush to Color</Label>
+                       <Switch 
+                         id="color-link" 
+                         checked={customBrushColorLink} 
+                         onCheckedChange={setCustomBrushColorLink} 
+                       />
+                     </div>
+                     <p className="text-[9px] opacity-60 leading-tight">When OFF, brush keeps its original colors.</p>
+                   </div>
+
+                   <CustomBrushDialog onSave={setCustomBrushData} currentBrush={customBrushData} currentFrameData={currentFrame.imageData} />
                 </div>
               </PopoverContent>
             </Popover>
@@ -262,6 +275,7 @@ export default function Home() {
                 pressureEnabled={pressureEnabled}
                 stabilizationEnabled={stabilizationEnabled}
                 dynamicStampingEnabled={dynamicStampingEnabled}
+                customBrushColorLink={customBrushColorLink}
                 customBrushData={customBrushData}
               />
             </div>
@@ -281,7 +295,7 @@ export default function Home() {
       </div>
 
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Select "Custom Brush" in the sidebar to use your imported or drawn tip.
+        Tip: Capture your current frame as a brush in the settings menu!
       </div>
     </main>
   );

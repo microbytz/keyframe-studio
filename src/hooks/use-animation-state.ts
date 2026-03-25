@@ -30,6 +30,7 @@ export function useAnimationState() {
   const [pressureEnabled, setPressureEnabled] = useState(true);
   const [stabilizationEnabled, setStabilizationEnabled] = useState(true);
   const [dynamicStampingEnabled, setDynamicStampingEnabled] = useState(true);
+  const [customBrushColorLink, setCustomBrushColorLink] = useState(true);
   const [customBrushData, setCustomBrushData] = useState<string | null>(null);
   
   const [history, setHistory] = useState<Frame[][]>([[{ id: '1', imageData: '' }]]);
@@ -204,6 +205,8 @@ export function useAnimationState() {
     setStabilizationEnabled,
     dynamicStampingEnabled,
     setDynamicStampingEnabled,
+    customBrushColorLink,
+    setCustomBrushColorLink,
     customBrushData,
     setCustomBrushData,
     addFrame,

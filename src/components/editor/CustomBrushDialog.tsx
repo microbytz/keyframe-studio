@@ -9,26 +9,29 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Upload, Edit3, Trash2, Check } from 'lucide-react';
+import { Upload, Edit3, Trash2, Check, Scissors } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CustomBrushDialogProps {
   onSave: (dataUrl: string) => void;
   currentBrush: string | null;
+  currentFrameData: string | null;
 }
 
-export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, currentBrush }) => {
+export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, currentBrush, currentFrameData }) => {
   const [mode, setMode] = useState<'import' | 'draw' | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawing, setHasDrawing] = useState(false);
+
+  const BRUSH_SIZE = 256;
 
   useEffect(() => {
     if (mode === 'draw' && canvasRef.current) {
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
         ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, 128, 128);
+        ctx.fillRect(0, 0, BRUSH_SIZE, BRUSH_SIZE);
       }
     }
   }, [mode]);
@@ -45,12 +48,15 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
     if (!ctx) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = (('touches' in e) ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = (('touches' in e) ? e.touches[0].clientY : e.clientY) - rect.top;
+    const x = (('touches' in e) ? e.touches[0].clientX : (e as React.MouseEvent).clientX) - rect.left;
+    const y = (('touches' in e) ? e.touches[0].clientY : (e as React.MouseEvent).clientY) - rect.top;
+
+    const scaleX = BRUSH_SIZE / rect.width;
+    const scaleY = BRUSH_SIZE / rect.height;
 
     ctx.fillStyle = 'black';
     ctx.beginPath();
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.arc(x * scaleX, y * scaleY, 8, 0, Math.PI * 2);
     ctx.fill();
   };
 
@@ -60,7 +66,7 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
     const ctx = canvasRef.current?.getContext('2d');
     if (ctx) {
       ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, 128, 128);
+      ctx.fillRect(0, 0, BRUSH_SIZE, BRUSH_SIZE);
       setHasDrawing(false);
     }
   };
@@ -77,19 +83,37 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
     }
   };
 
+  const handleCaptureFromFrame = () => {
+    if (!currentFrameData) return;
+    
+    const img = new Image();
+    img.src = currentFrameData;
+    img.onload = () => {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = BRUSH_SIZE;
+      tempCanvas.height = BRUSH_SIZE;
+      const tCtx = tempCanvas.getContext('2d')!;
+      
+      // Center crop/scale from the frame
+      const minDim = Math.min(img.width, img.height);
+      const sx = (img.width - minDim) / 2;
+      const sy = (img.height - minDim) / 2;
+      
+      tCtx.drawImage(img, sx, sy, minDim, minDim, 0, 0, BRUSH_SIZE, BRUSH_SIZE);
+      onSave(tempCanvas.toDataURL());
+    };
+  };
+
   const saveDrawing = () => {
     if (canvasRef.current) {
-      // We want to save a version where black pixels are the "brush"
-      // and white pixels are transparent.
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = 128;
-      tempCanvas.height = 128;
+      tempCanvas.width = BRUSH_SIZE;
+      tempCanvas.height = BRUSH_SIZE;
       const tempCtx = tempCanvas.getContext('2d')!;
       
       const sourceCtx = canvasRef.current.getContext('2d')!;
-      const imgData = sourceCtx.getImageData(0, 0, 128, 128);
+      const imgData = sourceCtx.getImageData(0, 0, BRUSH_SIZE, BRUSH_SIZE);
       
-      // Convert white pixels to transparent
       for (let i = 0; i < imgData.data.length; i += 4) {
         const r = imgData.data[i];
         const g = imgData.data[i+1];
@@ -109,42 +133,44 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full text-xs sketch-border justify-start gap-2 h-8 px-2">
           <Edit3 size={14} />
-          Custom Brush
+          Create Custom Tip
         </Button>
       </DialogTrigger>
       <DialogContent className="sketch-card sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-sm font-bold uppercase tracking-widest">Brush Engine Customization</DialogTitle>
+          <DialogTitle className="text-sm font-bold uppercase tracking-widest">Brush Designer</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6 py-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-2">
             <div 
               onClick={() => setMode('import')}
               className={cn(
-                "sketch-border p-4 flex flex-col items-center gap-3 cursor-pointer transition-colors hover:bg-accent/10",
+                "sketch-border p-3 flex flex-col items-center gap-2 cursor-pointer transition-colors hover:bg-accent/10",
                 mode === 'import' && "bg-accent/20 border-accent"
               )}
             >
-              <Upload size={32} className="opacity-50" />
-              <div className="text-center">
-                <p className="font-bold text-xs">Import Image</p>
-                <p className="text-[10px] opacity-60">Use a PNG/JPG as a brush</p>
-              </div>
+              <Upload size={24} className="opacity-50" />
+              <p className="font-bold text-[10px] text-center">Import Image</p>
             </div>
 
             <div 
               onClick={() => setMode('draw')}
               className={cn(
-                "sketch-border p-4 flex flex-col items-center gap-3 cursor-pointer transition-colors hover:bg-accent/10",
+                "sketch-border p-3 flex flex-col items-center gap-2 cursor-pointer transition-colors hover:bg-accent/10",
                 mode === 'draw' && "bg-accent/20 border-accent"
               )}
             >
-              <Edit3 size={32} className="opacity-50" />
-              <div className="text-center">
-                <p className="font-bold text-xs">Draw Brush</p>
-                <p className="text-[10px] opacity-60">Design your own tip</p>
-              </div>
+              <Edit3 size={24} className="opacity-50" />
+              <p className="font-bold text-[10px] text-center">Draw Tip</p>
+            </div>
+
+            <div 
+              onClick={handleCaptureFromFrame}
+              className="sketch-border p-3 flex flex-col items-center gap-2 cursor-pointer transition-colors hover:bg-accent/10"
+            >
+              <Scissors size={24} className="opacity-50" />
+              <p className="font-bold text-[10px] text-center">Capture Canvas</p>
             </div>
           </div>
 
@@ -156,17 +182,17 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
                 onChange={handleFileUpload}
                 className="w-full text-xs sketch-border p-2 bg-background"
               />
-              <p className="text-[9px] mt-2 opacity-50 italic">Tip: Use an image with a transparent background for best results.</p>
+              <p className="text-[9px] mt-2 opacity-50 italic">Upload images with transparency for best results.</p>
             </div>
           )}
 
           {mode === 'draw' && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col items-center gap-4">
-              <div className="relative sketch-border bg-white shadow-inner">
+              <div className="relative sketch-border bg-white shadow-inner w-full aspect-square max-w-[256px]">
                 <canvas
                   ref={canvasRef}
-                  width={128}
-                  height={128}
+                  width={BRUSH_SIZE}
+                  height={BRUSH_SIZE}
                   onMouseDown={startDrawing}
                   onMouseMove={draw}
                   onMouseUp={stopDrawing}
@@ -174,7 +200,7 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
                   onTouchStart={startDrawing}
                   onTouchMove={draw}
                   onTouchEnd={stopDrawing}
-                  className="cursor-crosshair touch-none"
+                  className="cursor-crosshair touch-none w-full h-full"
                 />
               </div>
               <div className="flex gap-2 w-full">
@@ -182,7 +208,7 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
                   <Trash2 size={14} /> Clear
                 </Button>
                 <Button size="sm" onClick={saveDrawing} disabled={!hasDrawing} className="flex-1 bg-accent hover:bg-accent/90 gap-2">
-                  <Check size={14} /> Use Drawing
+                  <Check size={14} /> Use Tip
                 </Button>
               </div>
             </div>
@@ -190,14 +216,14 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
 
           {currentBrush && (
             <div className="pt-4 border-t">
-              <p className="text-[10px] font-bold uppercase opacity-50 mb-2">Current Active Tip</p>
+              <p className="text-[10px] font-bold uppercase opacity-50 mb-2">Active Tip Preview</p>
               <div className="flex items-center gap-3 bg-background p-2 sketch-border">
-                <div className="w-12 h-12 sketch-border bg-white flex items-center justify-center p-1">
+                <div className="w-16 h-16 sketch-border bg-white flex items-center justify-center p-1">
                   <img src={currentBrush} alt="Brush Tip" className="max-w-full max-h-full object-contain" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-[10px] font-bold">Custom Tip Active</p>
-                  <p className="text-[9px] opacity-60">This tip will be used when "Custom Brush" is selected in the sidebar.</p>
+                  <p className="text-[10px] font-bold">Custom Tip Registered</p>
+                  <p className="text-[9px] opacity-60">This tip will be used when the "Custom Brush" tool is selected.</p>
                 </div>
               </div>
             </div>
