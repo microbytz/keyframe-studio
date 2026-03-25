@@ -1,3 +1,4 @@
+
 "use client"
 
 import React from 'react';
@@ -10,7 +11,9 @@ import {
   Layers as LayersIcon, 
   X,
   GripVertical,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Copy,
+  ClipboardPaste
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +22,9 @@ interface LayersPanelProps {
   activeLayerId: string;
   onSetActive: (id: string) => void;
   onAdd: () => void;
+  onCopy: (id: string) => void;
+  onPaste: () => void;
+  hasCopiedLayer: boolean;
   onDelete: (id: string) => void;
   onToggleVisibility: (id: string) => void;
   onClose: () => void;
@@ -29,6 +35,9 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
   activeLayerId,
   onSetActive,
   onAdd,
+  onCopy,
+  onPaste,
+  hasCopiedLayer,
   onDelete,
   onToggleVisibility,
   onClose
@@ -98,17 +107,29 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
               </p>
             </div>
 
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(layer.id);
-              }}
-              className="p-1.5 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-              disabled={layers.length <= 1}
-              title="Delete Layer"
-            >
-              <Trash2 size={14} />
-            </button>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopy(layer.id);
+                }}
+                className="p-1.5 hover:bg-accent/10 rounded transition-all"
+                title="Copy Layer"
+              >
+                <Copy size={14} />
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(layer.id);
+                }}
+                className="p-1.5 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                disabled={layers.length <= 1}
+                title="Delete Layer"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
             
             {activeLayerId === layer.id && (
               <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-accent rounded-full" />
@@ -117,13 +138,21 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
         ))}
       </div>
 
-      <div className="p-4 border-t-2 border-foreground/5 bg-slate-50/50">
+      <div className="p-4 border-t-2 border-foreground/5 bg-slate-50/50 space-y-2">
         <button 
           onClick={onAdd}
-          className="w-full py-2.5 bg-accent text-white font-bold sketch-border flex items-center justify-center gap-2 hover:translate-y-[-1px] hover:shadow-md active:translate-y-[1px] transition-all"
+          className="w-full py-2 bg-accent text-white font-bold sketch-border flex items-center justify-center gap-2 hover:translate-y-[-1px] hover:shadow-md active:translate-y-[1px] transition-all text-xs"
         >
-          <Plus size={16} />
+          <Plus size={14} />
           New Layer
+        </button>
+        <button 
+          onClick={onPaste}
+          disabled={!hasCopiedLayer}
+          className="w-full py-2 bg-white text-foreground font-bold sketch-border flex items-center justify-center gap-2 hover:translate-y-[-1px] hover:shadow-md active:translate-y-[1px] transition-all disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+        >
+          <ClipboardPaste size={14} />
+          Paste Layer
         </button>
         <p className="text-[8px] text-center mt-3 opacity-40 font-bold uppercase tracking-widest">
           Stack: Top to Bottom

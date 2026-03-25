@@ -52,6 +52,9 @@ export function useAnimationState() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   
+  // Layer clipboard state
+  const [copiedLayerData, setCopiedLayerData] = useState<{ name: string, imageData: string } | null>(null);
+  
   const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const pushToHistory = useCallback((newFrames: Frame[]) => {
@@ -157,6 +160,28 @@ export function useAnimationState() {
       return { ...prev, frames: newFrames };
     });
   }, [currentFrameIndex, pushToHistory]);
+
+  const copyLayer = useCallback((layerId: string) => {
+    const layer = project.frames[currentFrameIndex].layers.find(l => l.id === layerId);
+    if (layer) {
+      setCopiedLayerData({ name: layer.name, imageData: layer.imageData });
+    }
+  }, [project.frames, currentFrameIndex]);
+
+  const pasteLayer = useCallback(() => {
+    if (!copiedLayerData) return;
+    setProject(prev => {
+      const newFrames = [...prev.frames];
+      const frame = { ...newFrames[currentFrameIndex] };
+      const newLayer = createNewLayer(`${copiedLayerData.name} (Copy)`);
+      newLayer.imageData = copiedLayerData.imageData;
+      frame.layers = [newLayer, ...frame.layers];
+      newFrames[currentFrameIndex] = frame;
+      pushToHistory(newFrames);
+      setActiveLayerId(newLayer.id);
+      return { ...prev, frames: newFrames };
+    });
+  }, [currentFrameIndex, copiedLayerData, pushToHistory]);
 
   const deleteLayer = useCallback((layerId: string) => {
     setProject(prev => {
@@ -367,6 +392,9 @@ export function useAnimationState() {
     duplicateFrame,
     updateLayerData,
     addLayer,
+    copyLayer,
+    pasteLayer,
+    hasCopiedLayer: !!copiedLayerData,
     deleteLayer,
     toggleLayerVisibility,
     togglePlayback,

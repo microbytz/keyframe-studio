@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef } from 'react';
@@ -51,6 +52,9 @@ export default function Home() {
     duplicateFrame,
     updateLayerData,
     addLayer,
+    copyLayer,
+    pasteLayer,
+    hasCopiedLayer,
     deleteLayer,
     toggleLayerVisibility,
     togglePlayback,
@@ -281,6 +285,9 @@ export default function Home() {
           activeLayerId={activeLayerId}
           onSetActive={setActiveLayerId}
           onAdd={addLayer}
+          onCopy={copyLayer}
+          onPaste={pasteLayer}
+          hasCopiedLayer={hasCopiedLayer}
           onDelete={deleteLayer}
           onToggleVisibility={toggleLayerVisibility}
           onClose={() => setIsLayersOpen(false)}
