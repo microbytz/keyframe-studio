@@ -9,7 +9,8 @@ import {
   EyeOff, 
   Layers as LayersIcon, 
   X,
-  GripVertical
+  GripVertical,
+  Image as ImageIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -44,34 +45,56 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {layers.map((layer) => (
           <div 
             key={layer.id}
             onClick={() => onSetActive(layer.id)}
             className={cn(
-              "p-2 sketch-border flex items-center gap-3 cursor-pointer transition-all group",
-              activeLayerId === layer.id ? "bg-accent/20 border-accent" : "bg-white hover:bg-accent/5"
+              "p-2 sketch-border flex items-center gap-3 cursor-pointer transition-all group relative",
+              activeLayerId === layer.id ? "bg-accent/10 border-accent shadow-[2px_2px_0px_0px_rgba(130,201,201,0.3)]" : "bg-white hover:bg-accent/5"
             )}
           >
-            <GripVertical size={14} className="opacity-20 group-hover:opacity-40" />
+            <div className="flex flex-col gap-2 items-center">
+              <GripVertical size={12} className="opacity-20 group-hover:opacity-40" />
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleVisibility(layer.id);
+                }}
+                className="p-1 hover:bg-foreground/5 rounded transition-colors"
+                title={layer.visible ? "Hide Layer" : "Show Layer"}
+              >
+                {layer.visible ? <Eye size={14} className="text-foreground" /> : <EyeOff size={14} className="text-foreground/30" />}
+              </button>
+            </div>
             
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleVisibility(layer.id);
-              }}
-              className="p-1 hover:bg-foreground/5 rounded"
-            >
-              {layer.visible ? <Eye size={14} /> : <EyeOff size={14} className="opacity-40" />}
-            </button>
+            {/* Layer Thumbnail */}
+            <div className="w-12 h-10 sketch-border bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:4px_4px]" />
+              {layer.imageData ? (
+                <img 
+                  src={layer.imageData} 
+                  alt={layer.name} 
+                  className={cn(
+                    "max-w-full max-h-full object-contain pointer-events-none transition-opacity",
+                    !layer.visible && "opacity-30"
+                  )} 
+                />
+              ) : (
+                <ImageIcon size={12} className="opacity-10" />
+              )}
+            </div>
 
             <div className="flex-1 min-w-0">
               <p className={cn(
-                "text-xs font-bold truncate uppercase tracking-tighter",
+                "text-[10px] font-bold truncate uppercase tracking-tighter leading-tight",
                 !layer.visible && "opacity-40"
               )}>
                 {layer.name}
+              </p>
+              <p className="text-[8px] opacity-40 font-mono">
+                {activeLayerId === layer.id ? "ACTIVE" : ""}
               </p>
             </div>
 
@@ -80,23 +103,31 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                 e.stopPropagation();
                 onDelete(layer.id);
               }}
-              className="p-1 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              className="p-1.5 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
               disabled={layers.length <= 1}
+              title="Delete Layer"
             >
               <Trash2 size={14} />
             </button>
+            
+            {activeLayerId === layer.id && (
+              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-accent rounded-full" />
+            )}
           </div>
         ))}
       </div>
 
-      <div className="p-4 border-t-2 border-foreground/5">
+      <div className="p-4 border-t-2 border-foreground/5 bg-slate-50/50">
         <button 
           onClick={onAdd}
-          className="w-full py-2 bg-accent text-white font-bold sketch-border flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="w-full py-2.5 bg-accent text-white font-bold sketch-border flex items-center justify-center gap-2 hover:translate-y-[-1px] hover:shadow-md active:translate-y-[1px] transition-all"
         >
           <Plus size={16} />
           New Layer
         </button>
+        <p className="text-[8px] text-center mt-3 opacity-40 font-bold uppercase tracking-widest">
+          Stack: Top to Bottom
+        </p>
       </div>
     </div>
   );
