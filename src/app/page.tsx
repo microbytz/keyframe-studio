@@ -23,7 +23,8 @@ export default function Home() {
   const {
     project,
     currentFrameIndex,
-    setCurrentFrameIndex,
+    selectedFrameIndices,
+    selectFrame,
     activeLayerId,
     setActiveLayerId,
     isPlaying,
@@ -220,8 +221,8 @@ export default function Home() {
             togglePlayback={togglePlayback}
             fps={project.fps}
             setFps={(fps) => setProject(p => ({ ...p, fps }))}
-            onPrev={() => setCurrentFrameIndex(Math.max(0, currentFrameIndex - 1))}
-            onNext={() => setCurrentFrameIndex(Math.min(project.frames.length - 1, currentFrameIndex + 1))}
+            onPrev={() => selectFrame(Math.max(0, currentFrameIndex - 1))}
+            onNext={() => selectFrame(Math.min(project.frames.length - 1, currentFrameIndex + 1))}
           />
         </div>
       </div>
@@ -272,7 +273,8 @@ export default function Home() {
             <Timeline 
               frames={project.frames}
               currentFrameIndex={currentFrameIndex}
-              setCurrentFrameIndex={setCurrentFrameIndex}
+              selectedFrameIndices={selectedFrameIndices}
+              onSelectFrame={selectFrame}
               addFrame={addFrame}
               deleteFrame={deleteFrame}
               duplicateFrame={duplicateFrame}
@@ -299,7 +301,7 @@ export default function Home() {
       )}
 
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: You can now drag and drop frames and layers to reorder them!
+        Tip: Shift + Click for range select, Ctrl/Cmd + Click to toggle multiple frames!
       </div>
     </main>
   );

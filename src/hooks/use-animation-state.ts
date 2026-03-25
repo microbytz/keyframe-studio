@@ -34,6 +34,7 @@ export function useAnimationState() {
   });
 
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
+  const [selectedFrameIndices, setSelectedFrameIndices] = useState<number[]>([0]);
   const [activeLayerId, setActiveLayerId] = useState<string>(project.frames[0].layers[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
   const [tool, setTool] = useState<ToolType>('pen');
@@ -83,6 +84,7 @@ export function useAnimationState() {
       setProject(prev => ({ ...prev, frames: prevFrames }));
       setHistoryIndex(prevIndex);
       setCurrentFrameIndex(prevFrameIndex);
+      setSelectedFrameIndices([prevFrameIndex]);
       setActiveLayerId(nextActiveId);
     }
   }, [history, historyIndex, currentFrameIndex, activeLayerId]);
@@ -100,6 +102,7 @@ export function useAnimationState() {
       setProject(prev => ({ ...prev, frames: nextFrames }));
       setHistoryIndex(nextIndex);
       setCurrentFrameIndex(nextFrameIndex);
+      setSelectedFrameIndices([nextFrameIndex]);
       setActiveLayerId(nextActiveId);
     }
   }, [history, historyIndex, currentFrameIndex, activeLayerId]);
@@ -113,47 +116,110 @@ export function useAnimationState() {
       return { ...prev, frames: newFrames };
     });
     setCurrentFrameIndex(prev => prev + 1);
+    setSelectedFrameIndices([currentFrameIndex + 1]);
     setActiveLayerId(newFrame.layers[0].id);
   }, [currentFrameIndex, pushToHistory]);
 
-  const deleteFrame = useCallback(() => {
-    if (project.frames.length <= 1) return;
-    const newFrames = [...project.frames];
-    newFrames.splice(currentFrameIndex, 1);
+  const deleteSelectedFrames = useCallback(() => {
+    if (project.frames.length <= selectedFrameIndices.length) return;
     
-    const nextIndex = Math.max(0, currentFrameIndex - 1);
+    const sortedIndices = [...selectedFrameIndices].sort((a, b) => b - a);
+    const newFrames = [...project.frames];
+    
+    sortedIndices.forEach(index => {
+      newFrames.splice(index, 1);
+    });
+
+    const nextIndex = Math.max(0, Math.min(currentFrameIndex, newFrames.length - 1));
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
     setCurrentFrameIndex(nextIndex);
+    setSelectedFrameIndices([nextIndex]);
     setActiveLayerId(newFrames[nextIndex].layers[0].id);
-  }, [project.frames, currentFrameIndex, pushToHistory]);
+  }, [project.frames, selectedFrameIndices, currentFrameIndex, pushToHistory]);
 
-  const duplicateFrame = useCallback(() => {
-    const frameToDup = project.frames[currentFrameIndex];
-    const newFrame: Frame = {
-      id: Math.random().toString(36).substr(2, 9),
-      layers: frameToDup.layers.map(l => ({ ...l, id: Math.random().toString(36).substr(2, 9) })),
-    };
-    setProject(prev => {
-      const newFrames = [...prev.frames];
-      newFrames.splice(currentFrameIndex + 1, 0, newFrame);
-      pushToHistory(newFrames);
-      return { ...prev, frames: newFrames };
+  const duplicateSelectedFrames = useCallback(() => {
+    const sortedIndices = [...selectedFrameIndices].sort((a, b) => a - b);
+    const newFrames = [...project.frames];
+    const newSelectedIndices: number[] = [];
+    
+    let offset = 0;
+    sortedIndices.forEach(index => {
+      const frameToDup = project.frames[index];
+      const newFrame: Frame = {
+        id: Math.random().toString(36).substr(2, 9),
+        layers: frameToDup.layers.map(l => ({ ...l, id: Math.random().toString(36).substr(2, 9) })),
+      };
+      newFrames.splice(index + 1 + offset, 0, newFrame);
+      newSelectedIndices.push(index + 1 + offset);
+      offset++;
     });
-    setCurrentFrameIndex(prev => prev + 1);
-    setActiveLayerId(newFrame.layers[0].id);
-  }, [project.frames, currentFrameIndex, pushToHistory]);
+
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
+    const lastIdx = newSelectedIndices[newSelectedIndices.length - 1];
+    setCurrentFrameIndex(lastIdx);
+    setSelectedFrameIndices(newSelectedIndices);
+    setActiveLayerId(newFrames[lastIdx].layers[0].id);
+  }, [project.frames, selectedFrameIndices, pushToHistory]);
 
   const reorderFrames = useCallback((startIndex: number, endIndex: number) => {
     setProject(prev => {
       const newFrames = [...prev.frames];
-      const [removed] = newFrames.splice(startIndex, 1);
-      newFrames.splice(endIndex, 0, removed);
+      const selectedIndices = [...selectedFrameIndices].sort((a, b) => a - b);
+      
+      if (!selectedIndices.includes(startIndex)) {
+        // Individual drag
+        const [removed] = newFrames.splice(startIndex, 1);
+        newFrames.splice(endIndex, 0, removed);
+        setCurrentFrameIndex(endIndex);
+        setSelectedFrameIndices([endIndex]);
+      } else {
+        // Group drag
+        const selectedFrames = selectedIndices.map(i => prev.frames[i]);
+        
+        // Remove from old positions (highest first)
+        [...selectedIndices].reverse().forEach(i => {
+          newFrames.splice(i, 1);
+        });
+        
+        // Adjust insert position
+        let targetIndex = endIndex;
+        const itemsBeforeTarget = selectedIndices.filter(i => i < targetIndex).length;
+        targetIndex = Math.max(0, targetIndex - itemsBeforeTarget);
+        
+        newFrames.splice(targetIndex, 0, ...selectedFrames);
+        
+        const newSelection = Array.from({ length: selectedFrames.length }, (_, i) => targetIndex + i);
+        setSelectedFrameIndices(newSelection);
+        // Find which frame of the selection was being dragged to maintain relative active frame
+        const relativeActiveIdx = selectedIndices.indexOf(startIndex);
+        setCurrentFrameIndex(targetIndex + relativeActiveIdx);
+      }
+      
       pushToHistory(newFrames);
       return { ...prev, frames: newFrames };
     });
-    setCurrentFrameIndex(endIndex);
-  }, [pushToHistory]);
+  }, [selectedFrameIndices, pushToHistory]);
+
+  const selectFrame = useCallback((index: number, multi?: boolean, range?: boolean) => {
+    if (range) {
+      const start = Math.min(currentFrameIndex, index);
+      const end = Math.max(currentFrameIndex, index);
+      const newSelection = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+      setSelectedFrameIndices(newSelection);
+    } else if (multi) {
+      setSelectedFrameIndices(prev => 
+        prev.includes(index) 
+          ? (prev.length > 1 ? prev.filter(i => i !== index) : prev) 
+          : [...prev, index]
+      );
+    } else {
+      setSelectedFrameIndices([index]);
+    }
+    setCurrentFrameIndex(index);
+    setActiveLayerId(project.frames[index].layers[0].id);
+  }, [currentFrameIndex, project.frames]);
 
   const updateLayerData = useCallback((dataUrl: string) => {
     const newFrames = [...project.frames];
@@ -278,7 +344,11 @@ export function useAnimationState() {
   useEffect(() => {
     if (isPlaying) {
       playbackIntervalRef.current = setInterval(() => {
-        setCurrentFrameIndex(prev => (prev + 1) % project.frames.length);
+        setCurrentFrameIndex(prev => {
+          const nextIdx = (prev + 1) % project.frames.length;
+          setSelectedFrameIndices([nextIdx]);
+          return nextIdx;
+        });
       }, 1000 / project.fps);
     } else {
       if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current);
@@ -300,6 +370,7 @@ export function useAnimationState() {
       setHistory([loadedProject.frames]);
       setHistoryIndex(0);
       setCurrentFrameIndex(0);
+      setSelectedFrameIndices([0]);
       setActiveLayerId(loadedProject.frames[0].layers[0].id);
     }
   }, []);
@@ -324,6 +395,7 @@ export function useAnimationState() {
         setHistory([loadedProject.frames]);
         setHistoryIndex(0);
         setCurrentFrameIndex(0);
+        setSelectedFrameIndices([0]);
         setActiveLayerId(loadedProject.frames[0].layers[0].id);
       } catch (err) {
         console.error("Failed to parse project file", err);
@@ -380,7 +452,8 @@ export function useAnimationState() {
   return {
     project,
     currentFrameIndex,
-    setCurrentFrameIndex,
+    selectedFrameIndices,
+    selectFrame,
     activeLayerId,
     setActiveLayerId,
     isPlaying,
@@ -405,8 +478,8 @@ export function useAnimationState() {
     customBrushData,
     setCustomBrushData,
     addFrame,
-    deleteFrame,
-    duplicateFrame,
+    deleteFrame: deleteSelectedFrames,
+    duplicateFrame: duplicateSelectedFrames,
     reorderFrames,
     updateLayerData,
     addLayer,
