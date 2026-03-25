@@ -6,11 +6,13 @@ import { ToolType, Frame, Layer } from '@/lib/types';
 interface SketchCanvasProps {
   width: number;
   height: number;
-  currentFrame: Frame;
-  prevFrame?: Frame;
-  nextFrame?: Frame;
+  frames: Frame[];
+  currentFrameIndex: number;
   activeLayerId: string;
   onionSkinEnabled: boolean;
+  advancedOnionSkinEnabled?: boolean;
+  onionSkinBefore?: number;
+  onionSkinAfter?: number;
   tool: ToolType;
   color: string;
   brushSize: number;
@@ -28,11 +30,13 @@ interface SketchCanvasProps {
 export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   width,
   height,
-  currentFrame,
-  prevFrame,
-  nextFrame,
+  frames,
+  currentFrameIndex,
   activeLayerId,
   onionSkinEnabled,
+  advancedOnionSkinEnabled = false,
+  onionSkinBefore = 1,
+  onionSkinAfter = 1,
   tool,
   color,
   brushSize,
@@ -48,11 +52,9 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 }) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const compositeCanvasRef = useRef<HTMLCanvasElement>(null);
-  const prevCanvasRef = useRef<HTMLCanvasElement>(null);
-  const nextCanvasRef = useRef<HTMLCanvasElement>(null);
+  const onionSkinCanvasRef = useRef<HTMLCanvasElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  // Ref to track the last rendered state to prevent "flashing" on state updates
   const lastRenderedImageDataRef = useRef<string>('');
   const lastRenderedActiveLayerIdRef = useRef<string>('');
 
@@ -63,6 +65,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const [dragStartImage, setDragStartImage] = useState<HTMLImageElement | null>(null);
   const [customBrushImage, setCustomBrushImage] = useState<HTMLImageElement | null>(null);
 
+  const currentFrame = frames[currentFrameIndex];
   const activeLayer = currentFrame.layers.find(l => l.id === activeLayerId) || currentFrame.layers[0];
 
   useEffect(() => {
@@ -75,58 +78,76 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     }
   }, [customBrushData]);
 
-  // Onion skinning with double-buffering
+  // Onion skinning logic
   useEffect(() => {
-    const prevCtx = prevCanvasRef.current?.getContext('2d');
-    const nextCtx = nextCanvasRef.current?.getContext('2d');
-    if (!prevCtx || !nextCtx) return;
+    const ctx = onionSkinCanvasRef.current?.getContext('2d');
+    if (!ctx) return;
 
     let isCancelled = false;
+    ctx.clearRect(0, 0, width, height);
 
-    if (!onionSkinEnabled || isPlaying) {
-      prevCtx.clearRect(0, 0, width, height);
-      nextCtx.clearRect(0, 0, width, height);
-      return;
-    }
+    if (!onionSkinEnabled || isPlaying) return;
 
-    const renderFrameToCanvas = async (ctx: CanvasRenderingContext2D, frame: Frame | undefined) => {
-      if (!frame) {
-        ctx.clearRect(0, 0, width, height);
-        return;
-      }
-
+    const renderOnionSkin = async () => {
       const offscreen = document.createElement('canvas');
       offscreen.width = width;
       offscreen.height = height;
       const oCtx = offscreen.getContext('2d')!;
 
-      const layers = [...frame.layers].reverse().filter(l => l.visible && l.imageData);
-      for (const layer of layers) {
-        if (isCancelled) return;
-        await new Promise((resolve) => {
-          const img = new Image();
-          img.src = layer.imageData;
-          img.onload = () => {
-            oCtx.drawImage(img, 0, 0);
-            resolve(null);
-          };
-          img.onerror = () => resolve(null);
-        });
+      const framesToRender: { index: number; opacity: number }[] = [];
+
+      if (advancedOnionSkinEnabled) {
+        // Multi-frame Advanced Onion Skinning
+        for (let i = 1; i <= onionSkinBefore; i++) {
+          const idx = currentFrameIndex - i;
+          if (idx >= 0) {
+            framesToRender.push({ index: idx, opacity: 0.3 * (1 - (i - 1) / onionSkinBefore) });
+          }
+        }
+        for (let i = 1; i <= onionSkinAfter; i++) {
+          const idx = currentFrameIndex + i;
+          if (idx < frames.length) {
+            framesToRender.push({ index: idx, opacity: 0.15 * (1 - (i - 1) / onionSkinAfter) });
+          }
+        }
+      } else {
+        // Simple Standard Onion Skinning
+        if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: 0.3 });
+        if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: 0.15 });
       }
-      
+
+      for (const item of framesToRender) {
+        if (isCancelled) return;
+        const frame = frames[item.index];
+        const layers = [...frame.layers].reverse().filter(l => l.visible && l.imageData);
+        
+        oCtx.save();
+        oCtx.globalAlpha = item.opacity;
+        for (const layer of layers) {
+          await new Promise((resolve) => {
+            const img = new Image();
+            img.src = layer.imageData;
+            img.onload = () => {
+              oCtx.drawImage(img, 0, 0);
+              resolve(null);
+            };
+            img.onerror = () => resolve(null);
+          });
+        }
+        oCtx.restore();
+      }
+
       if (!isCancelled) {
         ctx.clearRect(0, 0, width, height);
         ctx.drawImage(offscreen, 0, 0);
       }
     };
 
-    renderFrameToCanvas(prevCtx, prevFrame);
-    renderFrameToCanvas(nextCtx, nextFrame);
-
+    renderOnionSkin();
     return () => { isCancelled = true; };
-  }, [onionSkinEnabled, prevFrame, nextFrame, isPlaying, width, height]);
+  }, [onionSkinEnabled, advancedOnionSkinEnabled, onionSkinBefore, onionSkinAfter, currentFrameIndex, frames, isPlaying, width, height]);
 
-  // Composite Rendering with double-buffering
+  // Composite Rendering
   useEffect(() => {
     const compositeCtx = compositeCanvasRef.current?.getContext('2d');
     if (!compositeCtx) return;
@@ -164,14 +185,13 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     return () => { isCancelled = true; };
   }, [currentFrame, activeLayerId, width, height]);
 
-  // Main canvas initialization - skips redraw if content is already there
+  // Main canvas initialization
   useEffect(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // IMPORTANT: Skip redundant redraws if content already matches (prevents flash)
     if (activeLayer?.imageData === lastRenderedImageDataRef.current && activeLayerId === lastRenderedActiveLayerIdRef.current) {
       return;
     }
@@ -520,7 +540,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 
     const handleUpdate = () => {
       const dataUrl = canvas.toDataURL();
-      // Track this render to prevent flickering in the effect
       lastRenderedImageDataRef.current = dataUrl;
       lastRenderedActiveLayerIdRef.current = activeLayerId;
       onLayerUpdate(dataUrl);
@@ -561,8 +580,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   return (
     <div className="relative sketch-border shadow-lg bg-white overflow-hidden w-full aspect-video">
       <div className="absolute inset-0 bg-white" />
-      <canvas ref={prevCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none opacity-30 w-full h-full" />
-      <canvas ref={nextCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none opacity-15 w-full h-full" />
+      <canvas ref={onionSkinCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none w-full h-full" />
       <canvas ref={compositeCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-0 w-full h-full" />
       <canvas 
         ref={mainCanvasRef} 

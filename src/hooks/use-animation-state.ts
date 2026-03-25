@@ -30,6 +30,9 @@ export function useAnimationState() {
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
     onionSkinEnabled: true,
+    advancedOnionSkinEnabled: false,
+    onionSkinBefore: 1,
+    onionSkinAfter: 1,
     groups: [],
   });
 
@@ -52,63 +55,66 @@ export function useAnimationState() {
   const [isMultiDrawEnabled, setIsMultiDrawEnabled] = useState(false);
   const [multiDrawRange, setMultiDrawRange] = useState(5);
   
-  const [history, setHistory] = useState<Frame[][]>([[createNewFrame()]]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const historyRef = useRef<Frame[][]>([[createNewFrame()]]);
+  const historyIndexRef = useRef<number>(0);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  
   const [isExporting, setIsExporting] = useState(false);
   const [copiedLayerData, setCopiedLayerData] = useState<{ name: string, imageData: string } | null>(null);
   
   const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const updateHistoryState = useCallback(() => {
+    setCanUndo(historyIndexRef.current > 0);
+    setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
+  }, []);
+
   const pushToHistory = useCallback((newFrames: Frame[]) => {
-    setHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push(newFrames);
-      if (newHistory.length > MAX_HISTORY) {
-        newHistory.shift();
-      }
-      return newHistory;
-    });
-    setHistoryIndex(prev => {
-      const next = historyIndex + 1;
-      return next >= MAX_HISTORY ? MAX_HISTORY - 1 : next;
-    });
-  }, [historyIndex]);
+    const nextIndex = historyIndexRef.current + 1;
+    historyRef.current = [...historyRef.current.slice(0, nextIndex), [...newFrames]];
+    if (historyRef.current.length > MAX_HISTORY) {
+      historyRef.current.shift();
+      historyIndexRef.current = MAX_HISTORY - 1;
+    } else {
+      historyIndexRef.current = nextIndex;
+    }
+    updateHistoryState();
+  }, [updateHistoryState]);
 
   const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const prevIndex = historyIndex - 1;
-      const prevFrames = history[prevIndex];
-      const prevFrameIndex = Math.min(currentFrameIndex, prevFrames.length - 1);
-      const prevFrame = prevFrames[prevFrameIndex];
+    if (historyIndexRef.current > 0) {
+      historyIndexRef.current -= 1;
+      const prevFrames = historyRef.current[historyIndexRef.current];
       
-      const existingLayer = prevFrame.layers.find(l => l.id === activeLayerId);
-      const nextActiveId = existingLayer ? existingLayer.id : prevFrame.layers[0].id;
-
-      setProject(prev => ({ ...prev, frames: prevFrames }));
-      setHistoryIndex(prevIndex);
-      setCurrentFrameIndex(prevFrameIndex);
-      setSelectedFrameIndices([prevFrameIndex]);
-      setActiveLayerId(nextActiveId);
+      setProject(prev => {
+        const nextIdx = Math.min(currentFrameIndex, prevFrames.length - 1);
+        const currentActiveLayer = prevFrames[nextIdx].layers.find(l => l.id === activeLayerId);
+        if (!currentActiveLayer) setActiveLayerId(prevFrames[nextIdx].layers[0].id);
+        
+        return { ...prev, frames: prevFrames };
+      });
+      setCurrentFrameIndex(prev => Math.min(prev, prevFrames.length - 1));
+      updateHistoryState();
     }
-  }, [history, historyIndex, currentFrameIndex, activeLayerId]);
+  }, [currentFrameIndex, activeLayerId, updateHistoryState]);
 
   const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const nextIndex = historyIndex + 1;
-      const nextFrames = history[nextIndex];
-      const nextFrameIndex = Math.min(currentFrameIndex, nextFrames.length - 1);
-      const nextFrame = nextFrames[nextFrameIndex];
-      
-      const existingLayer = nextFrame.layers.find(l => l.id === activeLayerId);
-      const nextActiveId = existingLayer ? existingLayer.id : nextFrame.layers[0].id;
+    if (historyIndexRef.current < historyRef.current.length - 1) {
+      historyIndexRef.current += 1;
+      const nextFrames = historyRef.current[historyIndexRef.current];
 
-      setProject(prev => ({ ...prev, frames: nextFrames }));
-      setHistoryIndex(nextIndex);
-      setCurrentFrameIndex(nextFrameIndex);
-      setSelectedFrameIndices([nextFrameIndex]);
-      setActiveLayerId(nextActiveId);
+      setProject(prev => {
+        const nextIdx = Math.min(currentFrameIndex, nextFrames.length - 1);
+        const currentActiveLayer = nextFrames[nextIdx].layers.find(l => l.id === activeLayerId);
+        if (!currentActiveLayer) setActiveLayerId(nextFrames[nextIdx].layers[0].id);
+        
+        return { ...prev, frames: nextFrames };
+      });
+      setCurrentFrameIndex(prev => Math.min(prev, nextFrames.length - 1));
+      updateHistoryState();
     }
-  }, [history, historyIndex, currentFrameIndex, activeLayerId]);
+  }, [currentFrameIndex, activeLayerId, updateHistoryState]);
 
   const addFrame = useCallback(() => {
     const newFrame = createNewFrame();
@@ -356,11 +362,9 @@ export function useAnimationState() {
       return;
     }
 
-    // Determine the FPS for the current frame
     const group = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
     const currentFps = group ? group.fps : project.fps;
 
-    // Set a timeout to advance to the next frame
     playbackTimeoutRef.current = setTimeout(() => {
       setCurrentFrameIndex(prev => {
         const nextIdx = (prev + 1) % project.frames.length;
@@ -386,13 +390,14 @@ export function useAnimationState() {
     if (saved) {
       const loadedProject = JSON.parse(saved);
       setProject(loadedProject);
-      setHistory([loadedProject.frames]);
-      setHistoryIndex(0);
+      historyRef.current = [loadedProject.frames];
+      historyIndexRef.current = 0;
+      updateHistoryState();
       setCurrentFrameIndex(0);
       setSelectedFrameIndices([0]);
       setActiveLayerId(loadedProject.frames[0].layers[0].id);
     }
-  }, []);
+  }, [updateHistoryState]);
 
   const downloadProject = useCallback(() => {
     const data = JSON.stringify(project, null, 2);
@@ -411,8 +416,9 @@ export function useAnimationState() {
       try {
         const loadedProject = JSON.parse(e.target?.result as string);
         setProject(loadedProject);
-        setHistory([loadedProject.frames]);
-        setHistoryIndex(0);
+        historyRef.current = [loadedProject.frames];
+        historyIndexRef.current = 0;
+        updateHistoryState();
         setCurrentFrameIndex(0);
         setSelectedFrameIndices([0]);
         setActiveLayerId(loadedProject.frames[0].layers[0].id);
@@ -421,7 +427,7 @@ export function useAnimationState() {
       }
     };
     reader.readAsText(file);
-  }, []);
+  }, [updateHistoryState]);
 
   const exportToGif = useCallback(async () => {
     setIsExporting(true);
@@ -522,7 +528,7 @@ export function useAnimationState() {
     undo,
     redo,
     flipCurrentLayer,
-    canUndo: historyIndex > 0,
-    canRedo: historyIndex < history.length - 1
+    canUndo,
+    canRedo
   };
 }

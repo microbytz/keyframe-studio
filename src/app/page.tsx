@@ -8,7 +8,7 @@ import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { LayersPanel } from '@/components/editor/LayersPanel';
-import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2, Sparkles, Plus, Trash2, Zap } from 'lucide-react';
+import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2, Sparkles, Plus, Trash2, Zap, Ghost } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -122,7 +122,7 @@ export default function Home() {
     const start = Math.max(0, parseInt(groupStart) - 1);
     const end = Math.min(project.frames.length - 1, parseInt(groupEnd) - 1);
     
-    if (isNaN(start) || isNaN(end) || start > end) return;
+    if (isNaN(start) || iNaN(end) || start > end) return;
 
     const newGroup: FrameGroup = {
       id: Math.random().toString(36).substr(2, 9),
@@ -240,6 +240,37 @@ export default function Home() {
                   <Label htmlFor="stabilization-mode" className="text-xs">Line Stabilization</Label>
                   <Switch id="stabilization-mode" checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} />
                 </div>
+
+                <div className="pt-2 border-t mt-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <Ghost size={12} className="text-accent" />
+                    Advanced Onion Skinning
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between space-x-2">
+                      <Label htmlFor="advanced-skin" className="text-xs">Enable Multi-Skin</Label>
+                      <Switch id="advanced-skin" checked={project.advancedOnionSkinEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, advancedOnionSkinEnabled: checked }))} />
+                    </div>
+                    {project.advancedOnionSkinEnabled && (
+                      <div className="space-y-2 animate-in slide-in-from-top-1 duration-200">
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <Label className="text-[9px] uppercase font-bold opacity-60">Skins Before</Label>
+                            <span className="text-[9px] font-mono">{project.onionSkinBefore}</span>
+                          </div>
+                          <input type="range" min="1" max="10" value={project.onionSkinBefore} onChange={(e) => setProject(p => ({ ...p, onionSkinBefore: parseInt(e.target.value) }))} className="w-full h-1 accent-accent cursor-pointer" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <Label className="text-[9px] uppercase font-bold opacity-60">Skins After</Label>
+                            <span className="text-[9px] font-mono">{project.onionSkinAfter}</span>
+                          </div>
+                          <input type="range" min="1" max="10" value={project.onionSkinAfter} onChange={(e) => setProject(p => ({ ...p, onionSkinAfter: parseInt(e.target.value) }))} className="w-full h-1 accent-accent cursor-pointer" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 
                 <div className="pt-2 border-t mt-2">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Sync Tools</h4>
@@ -310,7 +341,7 @@ export default function Home() {
         <div className="flex-1 flex flex-col items-center px-4 gap-4 md:gap-6 pb-20 w-full overflow-hidden">
           <div className="w-full max-w-full flex justify-center">
             <div className="shadow-xl bg-white sketch-border overflow-hidden w-full max-w-[800px]">
-              <SketchCanvas width={project.width} height={project.height} currentFrame={currentFrame} prevFrame={currentFrameIndex > 0 ? project.frames[currentFrameIndex - 1] : undefined} nextFrame={currentFrameIndex < project.frames.length - 1 ? project.frames[currentFrameIndex + 1] : undefined} activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} tool={tool} color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} dynamicStampingEnabled={dynamicStampingEnabled} customBrushColorLink={customBrushColorLink} customBrushData={customBrushData} />
+              <SketchCanvas width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} onionSkinBefore={project.onionSkinBefore} onionSkinAfter={project.onionSkinAfter} tool={tool} color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} dynamicStampingEnabled={dynamicStampingEnabled} customBrushColorLink={customBrushColorLink} customBrushData={customBrushData} />
             </div>
           </div>
           

@@ -54,6 +54,9 @@ export interface AnimationProject {
   width: number;
   height: number;
   onionSkinEnabled: boolean;
+  advancedOnionSkinEnabled?: boolean;
+  onionSkinBefore?: number;
+  onionSkinAfter?: number;
   groups: FrameGroup[];
 }
 
