@@ -52,6 +52,10 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const nextCanvasRef = useRef<HTMLCanvasElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   
+  // Ref to track the last rendered state to prevent "flashing" on state updates
+  const lastRenderedImageDataRef = useRef<string>('');
+  const lastRenderedActiveLayerIdRef = useRef<string>('');
+
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
@@ -71,51 +75,106 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     }
   }, [customBrushData]);
 
-  // Onion skinning
+  // Onion skinning with double-buffering
   useEffect(() => {
     const prevCtx = prevCanvasRef.current?.getContext('2d');
     const nextCtx = nextCanvasRef.current?.getContext('2d');
-    if (prevCtx) prevCtx.clearRect(0, 0, width, height);
-    if (nextCtx) nextCtx.clearRect(0, 0, width, height);
+    if (!prevCtx || !nextCtx) return;
 
-    if (!onionSkinEnabled || isPlaying) return;
+    let isCancelled = false;
 
-    const drawFrameComposite = (ctx: CanvasRenderingContext2D, frame: Frame | undefined) => {
-      if (!frame) return;
-      [...frame.layers].reverse().forEach(layer => {
-        if (layer.visible && layer.imageData) {
+    if (!onionSkinEnabled || isPlaying) {
+      prevCtx.clearRect(0, 0, width, height);
+      nextCtx.clearRect(0, 0, width, height);
+      return;
+    }
+
+    const renderFrameToCanvas = async (ctx: CanvasRenderingContext2D, frame: Frame | undefined) => {
+      if (!frame) {
+        ctx.clearRect(0, 0, width, height);
+        return;
+      }
+
+      const offscreen = document.createElement('canvas');
+      offscreen.width = width;
+      offscreen.height = height;
+      const oCtx = offscreen.getContext('2d')!;
+
+      const layers = [...frame.layers].reverse().filter(l => l.visible && l.imageData);
+      for (const layer of layers) {
+        if (isCancelled) return;
+        await new Promise((resolve) => {
           const img = new Image();
           img.src = layer.imageData;
-          img.onload = () => ctx.drawImage(img, 0, 0);
-        }
-      });
+          img.onload = () => {
+            oCtx.drawImage(img, 0, 0);
+            resolve(null);
+          };
+          img.onerror = () => resolve(null);
+        });
+      }
+      
+      if (!isCancelled) {
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(offscreen, 0, 0);
+      }
     };
 
-    if (prevCtx) drawFrameComposite(prevCtx, prevFrame);
-    if (nextCtx) drawFrameComposite(nextCtx, nextFrame);
+    renderFrameToCanvas(prevCtx, prevFrame);
+    renderFrameToCanvas(nextCtx, nextFrame);
+
+    return () => { isCancelled = true; };
   }, [onionSkinEnabled, prevFrame, nextFrame, isPlaying, width, height]);
 
-  // Composite Rendering
+  // Composite Rendering with double-buffering
   useEffect(() => {
     const compositeCtx = compositeCanvasRef.current?.getContext('2d');
     if (!compositeCtx) return;
-    compositeCtx.clearRect(0, 0, width, height);
 
-    [...currentFrame.layers].reverse().forEach(layer => {
-      if (layer.id !== activeLayerId && layer.visible && layer.imageData) {
-        const img = new Image();
-        img.src = layer.imageData;
-        img.onload = () => compositeCtx.drawImage(img, 0, 0);
+    let isCancelled = false;
+
+    const renderComposite = async () => {
+      const layersToDraw = [...currentFrame.layers].reverse().filter(l => l.id !== activeLayerId && l.visible && l.imageData);
+      
+      const offscreen = document.createElement('canvas');
+      offscreen.width = width;
+      offscreen.height = height;
+      const oCtx = offscreen.getContext('2d')!;
+
+      for (const layer of layersToDraw) {
+        if (isCancelled) return;
+        await new Promise((resolve) => {
+          const img = new Image();
+          img.src = layer.imageData;
+          img.onload = () => {
+            oCtx.drawImage(img, 0, 0);
+            resolve(null);
+          };
+          img.onerror = () => resolve(null);
+        });
       }
-    });
+      
+      if (!isCancelled) {
+        compositeCtx.clearRect(0, 0, width, height);
+        compositeCtx.drawImage(offscreen, 0, 0);
+      }
+    };
+
+    renderComposite();
+    return () => { isCancelled = true; };
   }, [currentFrame, activeLayerId, width, height]);
 
-  // Main canvas initialization
+  // Main canvas initialization - skips redraw if content is already there
   useEffect(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    // IMPORTANT: Skip redundant redraws if content already matches (prevents flash)
+    if (activeLayer?.imageData === lastRenderedImageDataRef.current && activeLayerId === lastRenderedActiveLayerIdRef.current) {
+      return;
+    }
 
     ctx.clearRect(0, 0, width, height);
     
@@ -124,7 +183,12 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       img.src = activeLayer.imageData;
       img.onload = () => {
         ctx.drawImage(img, 0, 0);
+        lastRenderedImageDataRef.current = activeLayer.imageData;
+        lastRenderedActiveLayerIdRef.current = activeLayerId;
       };
+    } else {
+      lastRenderedImageDataRef.current = '';
+      lastRenderedActiveLayerIdRef.current = activeLayerId;
     }
 
     const tCtx = tempCanvasRef.current?.getContext('2d');
@@ -228,7 +292,10 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       if (canvas) {
         const ctx = canvas.getContext('2d')!;
         floodFill(ctx, pos.x, pos.y, color);
-        onLayerUpdate(canvas.toDataURL());
+        const dataUrl = canvas.toDataURL();
+        lastRenderedImageDataRef.current = dataUrl;
+        lastRenderedActiveLayerIdRef.current = activeLayerId;
+        onLayerUpdate(dataUrl);
       }
       return;
     }
@@ -451,6 +518,14 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
 
+    const handleUpdate = () => {
+      const dataUrl = canvas.toDataURL();
+      // Track this render to prevent flickering in the effect
+      lastRenderedImageDataRef.current = dataUrl;
+      lastRenderedActiveLayerIdRef.current = activeLayerId;
+      onLayerUpdate(dataUrl);
+    };
+
     const shapeTools = ['line', 'rectangle', 'circle', 'triangle'];
     if (shapeTools.includes(tool)) {
       const pos = getPos(e);
@@ -462,7 +537,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       ctx.lineJoin = 'round';
       drawShape(ctx, startPos.x, startPos.y, pos.x, pos.y, tool);
       ctx.restore();
-      onLayerUpdate(canvas.toDataURL());
+      handleUpdate();
     } else if (tool === 'lasso' && lassoPoints.length > 2) {
       ctx.save();
       ctx.globalCompositeOperation = 'destination-out';
@@ -472,10 +547,10 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       ctx.closePath();
       ctx.fill();
       ctx.restore();
-      onLayerUpdate(canvas.toDataURL());
+      handleUpdate();
       setLassoPoints([]);
     } else if (tool !== 'bucket') {
-      onLayerUpdate(canvas.toDataURL());
+      handleUpdate();
     }
     
     if (tool === 'move') setDragStartImage(null);
