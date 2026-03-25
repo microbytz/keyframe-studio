@@ -3,8 +3,9 @@
 
 import React, { useState } from 'react';
 import { Frame } from '@/lib/types';
-import { Plus, Trash2, Copy, GripHorizontal } from 'lucide-react';
+import { Plus, Trash2, Copy, GripHorizontal, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Slider } from '@/components/ui/slider';
 
 interface TimelineProps {
   frames: Frame[];
@@ -28,6 +29,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   reorderFrames,
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [zoom, setZoom] = useState(1); // Zoom factor from 0.5 to 2.0
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -54,6 +56,10 @@ export const Timeline: React.FC<TimelineProps> = ({
     onSelectFrame(index, multi, range);
   };
 
+  // Base dimensions
+  const baseWidth = 70;
+  const baseHeight = 50;
+
   return (
     <div className="w-full sketch-card bg-white p-2 flex flex-col gap-2">
       <div className="flex items-center justify-between px-1">
@@ -65,32 +71,48 @@ export const Timeline: React.FC<TimelineProps> = ({
               : `Frame ${currentFrameIndex + 1} of ${frames.length}`}
           </span>
         </div>
-        <div className="flex gap-2">
-          <button 
-            onClick={duplicateFrame} 
-            className="p-1.5 hover:bg-accent/20 rounded transition-colors" 
-            title={selectedFrameIndices.length > 1 ? "Duplicate Selected Frames" : "Duplicate Frame"}
-          >
-            <Copy size={14} />
-          </button>
-          <button 
-            onClick={deleteFrame} 
-            className="p-1.5 hover:bg-accent/20 rounded transition-colors" 
-            title={selectedFrameIndices.length > 1 ? "Delete Selected Frames" : "Delete Frame"}
-          >
-            <Trash2 size={14} />
-          </button>
-          <button 
-            onClick={addFrame} 
-            className="p-1.5 bg-accent/20 hover:bg-accent transition-colors rounded sketch-border border-accent" 
-            title="Add Frame"
-          >
-            <Plus size={14} />
-          </button>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-slate-50 px-2 py-1 sketch-border scale-90">
+            <ZoomOut size={12} className="opacity-40" />
+            <Slider 
+              value={[zoom]} 
+              min={0.5} 
+              max={2} 
+              step={0.1} 
+              onValueChange={([val]) => setZoom(val)}
+              className="w-20"
+            />
+            <ZoomIn size={12} className="opacity-40" />
+          </div>
+
+          <div className="flex gap-2">
+            <button 
+              onClick={duplicateFrame} 
+              className="p-1.5 hover:bg-accent/20 rounded transition-colors" 
+              title={selectedFrameIndices.length > 1 ? "Duplicate Selected Frames" : "Duplicate Frame"}
+            >
+              <Copy size={14} />
+            </button>
+            <button 
+              onClick={deleteFrame} 
+              className="p-1.5 hover:bg-accent/20 rounded transition-colors" 
+              title={selectedFrameIndices.length > 1 ? "Delete Selected Frames" : "Delete Frame"}
+            >
+              <Trash2 size={14} />
+            </button>
+            <button 
+              onClick={addFrame} 
+              className="p-1.5 bg-accent/20 hover:bg-accent transition-colors rounded sketch-border border-accent" 
+              title="Add Frame"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-accent">
+      <div className="flex gap-2 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-accent min-h-[60px]">
         {frames.map((frame, index) => {
           const previewLayer = [...frame.layers].find(l => l.imageData && l.visible);
           const isSelected = selectedFrameIndices.includes(index);
@@ -105,8 +127,12 @@ export const Timeline: React.FC<TimelineProps> = ({
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={() => setDraggedIndex(null)}
               onClick={(e) => handleClick(e, index)}
+              style={{ 
+                minWidth: `${baseWidth * zoom}px`, 
+                height: `${baseHeight * zoom}px` 
+              }}
               className={cn(
-                "min-w-[70px] h-[50px] sketch-border bg-white cursor-pointer relative transition-all overflow-hidden flex items-center justify-center group",
+                "sketch-border bg-white cursor-pointer relative transition-all overflow-hidden flex items-center justify-center group shrink-0",
                 isActive ? "border-accent scale-105 z-10 shadow-md ring-2 ring-accent/20" : "hover:border-accent/50 opacity-70 hover:opacity-100",
                 isSelected && !isActive ? "border-accent/60 bg-accent/5" : "",
                 draggedIndex === index && "opacity-30 border-dashed"
