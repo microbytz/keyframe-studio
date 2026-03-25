@@ -11,14 +11,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Upload, Edit3, Trash2, Check, Scissors } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Layer } from '@/lib/types';
 
 interface CustomBrushDialogProps {
   onSave: (dataUrl: string) => void;
   currentBrush: string | null;
-  currentFrameData: string | null;
+  layers: Layer[];
+  width: number;
+  height: number;
 }
 
-export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, currentBrush, currentFrameData }) => {
+export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ 
+  onSave, 
+  currentBrush, 
+  layers,
+  width,
+  height
+}) => {
   const [mode, setMode] = useState<'import' | 'draw' | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -30,7 +39,9 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
     if (mode === 'draw' && canvasRef.current) {
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
-        ctx.fillStyle = 'white';
+        ctx.clearRect(0, 0, BRUSH_SIZE, BRUSH_SIZE);
+        // We use transparency for the draw tip mode
+        ctx.fillStyle = 'rgba(0,0,0,0)';
         ctx.fillRect(0, 0, BRUSH_SIZE, BRUSH_SIZE);
       }
     }
@@ -65,8 +76,7 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
   const clearCanvas = () => {
     const ctx = canvasRef.current?.getContext('2d');
     if (ctx) {
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, BRUSH_SIZE, BRUSH_SIZE);
+      ctx.clearRect(0, 0, BRUSH_SIZE, BRUSH_SIZE);
       setHasDrawing(false);
     }
   };
@@ -83,48 +93,47 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
     }
   };
 
-  const handleCaptureFromFrame = () => {
-    if (!currentFrameData) return;
+  const handleCaptureFromFrame = async () => {
+    if (!layers || layers.length === 0) return;
     
-    const img = new Image();
-    img.src = currentFrameData;
-    img.onload = () => {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = BRUSH_SIZE;
-      tempCanvas.height = BRUSH_SIZE;
-      const tCtx = tempCanvas.getContext('2d')!;
-      
-      // Center crop/scale from the frame
-      const minDim = Math.min(img.width, img.height);
-      const sx = (img.width - minDim) / 2;
-      const sy = (img.height - minDim) / 2;
-      
-      tCtx.drawImage(img, sx, sy, minDim, minDim, 0, 0, BRUSH_SIZE, BRUSH_SIZE);
-      onSave(tempCanvas.toDataURL());
-    };
+    // Create a temporary canvas to flatten all visible layers
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const tCtx = tempCanvas.getContext('2d')!;
+    
+    // Draw all visible layers from bottom to top
+    const visibleLayers = [...layers].reverse().filter(l => l.visible && l.imageData);
+    
+    for (const layer of visibleLayers) {
+      await new Promise((resolve) => {
+        const img = new Image();
+        img.src = layer.imageData;
+        img.onload = () => {
+          tCtx.drawImage(img, 0, 0);
+          resolve(null);
+        };
+        img.onerror = () => resolve(null);
+      });
+    }
+
+    // Now crop and scale the center to BRUSH_SIZE
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = BRUSH_SIZE;
+    cropCanvas.height = BRUSH_SIZE;
+    const cCtx = cropCanvas.getContext('2d')!;
+    
+    const minDim = Math.min(width, height);
+    const sx = (width - minDim) / 2;
+    const sy = (height - minDim) / 2;
+    
+    cCtx.drawImage(tempCanvas, sx, sy, minDim, minDim, 0, 0, BRUSH_SIZE, BRUSH_SIZE);
+    onSave(cropCanvas.toDataURL());
   };
 
   const saveDrawing = () => {
     if (canvasRef.current) {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = BRUSH_SIZE;
-      tempCanvas.height = BRUSH_SIZE;
-      const tempCtx = tempCanvas.getContext('2d')!;
-      
-      const sourceCtx = canvasRef.current.getContext('2d')!;
-      const imgData = sourceCtx.getImageData(0, 0, BRUSH_SIZE, BRUSH_SIZE);
-      
-      for (let i = 0; i < imgData.data.length; i += 4) {
-        const r = imgData.data[i];
-        const g = imgData.data[i+1];
-        const b = imgData.data[i+2];
-        if (r > 200 && g > 200 && b > 200) {
-          imgData.data[i+3] = 0;
-        }
-      }
-      
-      tempCtx.putImageData(imgData, 0, 0);
-      onSave(tempCanvas.toDataURL());
+      onSave(canvasRef.current.toDataURL());
     }
   };
 
@@ -188,7 +197,7 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
 
           {mode === 'draw' && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col items-center gap-4">
-              <div className="relative sketch-border bg-white shadow-inner w-full aspect-square max-w-[256px]">
+              <div className="relative sketch-border bg-slate-50 shadow-inner w-full aspect-square max-w-[256px] pattern-checkered">
                 <canvas
                   ref={canvasRef}
                   width={BRUSH_SIZE}
@@ -218,7 +227,7 @@ export const CustomBrushDialog: React.FC<CustomBrushDialogProps> = ({ onSave, cu
             <div className="pt-4 border-t">
               <p className="text-[10px] font-bold uppercase opacity-50 mb-2">Active Tip Preview</p>
               <div className="flex items-center gap-3 bg-background p-2 sketch-border">
-                <div className="w-16 h-16 sketch-border bg-white flex items-center justify-center p-1">
+                <div className="w-16 h-16 sketch-border bg-white flex items-center justify-center p-1 pattern-checkered">
                   <img src={currentBrush} alt="Brush Tip" className="max-w-full max-h-full object-contain" />
                 </div>
                 <div className="flex-1">

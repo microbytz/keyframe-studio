@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef } from 'react';
@@ -199,7 +198,9 @@ export default function Home() {
                    <CustomBrushDialog 
                       onSave={setCustomBrushData} 
                       currentBrush={customBrushData} 
-                      currentFrameData={currentFrame.layers[0].imageData} 
+                      layers={currentFrame.layers}
+                      width={project.width}
+                      height={project.height}
                     />
                 </div>
               </PopoverContent>
