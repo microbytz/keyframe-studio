@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
@@ -427,7 +428,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       ctx.fillStyle = color;
     }
 
-    // Improved Interpolation and Spacing Logic
     const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
     const angle = Math.atan2(pos.y - lastPos.y, pos.x - lastPos.x);
 
@@ -437,7 +437,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.translate(x, y);
         ctx.rotate(r);
         
-        // Creating temporary canvas for color injection if needed
         const offscreen = document.createElement('canvas');
         offscreen.width = effectiveBrushSize * 2;
         offscreen.height = effectiveBrushSize * 2;
@@ -455,19 +454,17 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.restore();
       };
 
-      // Spacing: Draw a stamp every X pixels (standard spacing is 1/4 of brush size)
-      const spacing = Math.max(1, effectiveBrushSize / 4);
+      // Toggleable spacing: High spacing for "Stamp Look", low for smooth stroke
+      const spacing = dynamicStampingEnabled 
+        ? effectiveBrushSize * 1.1 
+        : Math.max(1, effectiveBrushSize / 10);
       
-      if (dynamicStampingEnabled) {
-        const steps = Math.max(1, Math.ceil(dist / spacing));
-        for (let i = 0; i < steps; i++) {
-          const t = i / steps;
-          const x = lastPos.x + (pos.x - lastPos.x) * t;
-          const y = lastPos.y + (pos.y - lastPos.y) * t;
-          drawStamp(x, y, angle);
-        }
-      } else {
-        drawStamp(pos.x, pos.y, angle);
+      const steps = Math.max(1, Math.ceil(dist / spacing));
+      for (let i = 0; i < steps; i++) {
+        const t = i / steps;
+        const x = lastPos.x + (pos.x - lastPos.x) * t;
+        const y = lastPos.y + (pos.y - lastPos.y) * t;
+        drawStamp(x, y, angle);
       }
     }
     else if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink'].includes(tool)) {
@@ -519,14 +516,13 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       const density = 20 * (hardness / 100 + 0.5);
       const spread = effectiveBrushSize * 1.5;
       
-      // Distribute density along the stroke for airbrush-style tools
       const steps = Math.max(1, Math.ceil(dist / 2));
       for (let s = 0; s < steps; s++) {
         const t = s / steps;
         const interpX = lastPos.x + (pos.x - lastPos.x) * t;
         const interpY = lastPos.y + (pos.y - lastPos.y) * t;
         
-        for (let i = 0; i < density / 5; i++) { // Lower density per step to balance
+        for (let i = 0; i < density / 5; i++) {
           const r = Math.random() * spread;
           const rndAngle = Math.random() * Math.PI * 2;
           const x = interpX + r * Math.cos(rndAngle);

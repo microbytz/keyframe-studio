@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef } from 'react';
@@ -122,7 +123,7 @@ export default function Home() {
     const start = Math.max(0, parseInt(groupStart) - 1);
     const end = Math.min(project.frames.length - 1, parseInt(groupEnd) - 1);
     
-    if (isNaN(start) || iNaN(end) || start > end) return;
+    if (isNaN(start) || isNaN(end) || start > end) return;
 
     const newGroup: FrameGroup = {
       id: Math.random().toString(36).substr(2, 9),
@@ -313,7 +314,17 @@ export default function Home() {
 
                 <div className="pt-2 border-t mt-2">
                    <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Custom Brush Engine</h4>
-                   <CustomBrushDialog onSave={setCustomBrushData} currentBrush={customBrushData} layers={currentFrame.layers} width={project.width} height={project.height} />
+                   <div className="space-y-3">
+                     <CustomBrushDialog onSave={setCustomBrushData} currentBrush={customBrushData} layers={currentFrame.layers} width={project.width} height={project.height} />
+                     <div className="flex items-center justify-between space-x-2">
+                        <Label htmlFor="stamp-spacing" className="text-xs">Add spacing in custom tip?</Label>
+                        <Switch id="stamp-spacing" checked={dynamicStampingEnabled} onCheckedChange={setDynamicStampingEnabled} />
+                     </div>
+                     <div className="flex items-center justify-between space-x-2">
+                        <Label htmlFor="color-link" className="text-xs">Sync tip color with palette?</Label>
+                        <Switch id="color-link" checked={customBrushColorLink} onCheckedChange={setCustomBrushColorLink} />
+                     </div>
+                   </div>
                 </div>
               </PopoverContent>
             </Popover>
