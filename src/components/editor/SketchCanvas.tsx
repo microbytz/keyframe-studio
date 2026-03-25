@@ -34,9 +34,12 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const prevCanvasRef = useRef<HTMLCanvasElement>(null);
   const nextCanvasRef = useRef<HTMLCanvasElement>(null);
+  const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
+  const [lassoPoints, setLassoPoints] = useState<{ x: number, y: number }[]>([]);
 
   // Draw onion skin layers on separate canvases
   useEffect(() => {
@@ -77,6 +80,10 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.drawImage(img, 0, 0);
       };
     }
+
+    // Clear temp feedback canvas on frame change
+    const tCtx = tempCanvasRef.current?.getContext('2d');
+    if (tCtx) tCtx.clearRect(0, 0, width, height);
   }, [currentFrame.id, currentFrame.imageData, width, height]);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
@@ -86,7 +93,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     const clientX = 'touches' in e ? (e as React.TouchEvent).touches[0].clientX : (e as React.MouseEvent).clientX;
     const clientY = 'touches' in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.MouseEvent).clientY;
     
-    // Calculate normalized position relative to the visual display size vs internal resolution
     return {
       x: (clientX - rect.left) * (width / rect.width),
       y: (clientY - rect.top) * (height / rect.height)
@@ -95,34 +101,54 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     if (isPlaying) return;
+    const pos = getPos(e);
     setIsDrawing(true);
-    setLastPos(getPos(e));
+    setLastPos(pos);
+    
+    if (tool === 'lasso') {
+      setLassoPoints([pos]);
+    }
   };
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing || isPlaying) return;
     const canvas = mainCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const tempCanvas = tempCanvasRef.current;
+    if (!canvas || !tempCanvas) return;
+    const ctx = canvas.getContext('2d')!;
+    const tCtx = tempCanvas.getContext('2d')!;
 
     const pos = getPos(e);
 
-    ctx.beginPath();
-    ctx.lineWidth = brushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    if (tool === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out';
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = color;
-    }
+    if (tool === 'pen' || tool === 'eraser') {
+      ctx.beginPath();
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      if (tool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = color;
+      }
 
-    ctx.moveTo(lastPos.x, lastPos.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
+      ctx.moveTo(lastPos.x, lastPos.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    } else if (tool === 'lasso') {
+      const newPoints = [...lassoPoints, pos];
+      setLassoPoints(newPoints);
+      
+      tCtx.clearRect(0, 0, width, height);
+      tCtx.beginPath();
+      tCtx.strokeStyle = '#000';
+      tCtx.setLineDash([5, 5]);
+      tCtx.moveTo(newPoints[0].x, newPoints[0].y);
+      newPoints.forEach(p => tCtx.lineTo(p.x, p.y));
+      tCtx.stroke();
+      tCtx.setLineDash([]);
+    }
 
     setLastPos(pos);
   };
@@ -130,32 +156,61 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const stopDrawing = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
+    
     const canvas = mainCanvasRef.current;
-    if (canvas) {
+    const tempCanvas = tempCanvasRef.current;
+    if (!canvas || !tempCanvas) return;
+    const ctx = canvas.getContext('2d')!;
+    const tCtx = tempCanvas.getContext('2d')!;
+
+    if (tool === 'lasso') {
+      if (lassoPoints.length > 2) {
+        // Closed path logic for clear
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+        lassoPoints.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        
+        onFrameUpdate(canvas.toDataURL());
+      }
+      setLassoPoints([]);
+      tCtx.clearRect(0, 0, width, height);
+    } else if (tool !== 'bucket' && tool !== 'text') {
       onFrameUpdate(canvas.toDataURL());
     }
   };
 
-  const handleBucketFill = (e: React.MouseEvent) => {
-    if (tool !== 'bucket' || isPlaying) return;
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    if (isPlaying) return;
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
+    const ctx = canvas.getContext('2d')!;
     const pos = getPos(e);
-    const x = Math.floor(pos.x);
-    const y = Math.floor(pos.y);
 
-    const imgData = ctx.getImageData(0, 0, width, height);
-    const targetColor = getPixelColor(imgData, x, y);
-    const fillColor = hexToRgb(color);
-
-    if (colorsMatch(targetColor, fillColor)) return;
-
-    floodFill(imgData, x, y, targetColor, fillColor);
-    ctx.putImageData(imgData, 0, 0);
-    onFrameUpdate(canvas.toDataURL());
+    if (tool === 'bucket') {
+      const x = Math.floor(pos.x);
+      const y = Math.floor(pos.y);
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const targetColor = getPixelColor(imgData, x, y);
+      const fillColor = hexToRgb(color);
+      if (colorsMatch(targetColor, fillColor)) return;
+      floodFill(imgData, x, y, targetColor, fillColor);
+      ctx.putImageData(imgData, 0, 0);
+      onFrameUpdate(canvas.toDataURL());
+    } else if (tool === 'text') {
+      const text = window.prompt('Enter text:');
+      if (text && text.trim()) {
+        ctx.font = `${brushSize * 4}px PT Sans, sans-serif`;
+        ctx.fillStyle = color;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillText(text, pos.x, pos.y);
+        onFrameUpdate(canvas.toDataURL());
+      }
+    }
   };
 
   return (
@@ -186,21 +241,26 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         width={width}
         height={height}
         onMouseDown={startDrawing}
-        onMouseMove={(e) => {
-          if (tool === 'bucket') return;
-          draw(e);
-        }}
+        onMouseMove={draw}
         onMouseUp={stopDrawing}
         onMouseLeave={stopDrawing}
-        onClick={handleBucketFill}
+        onClick={handleCanvasClick}
         onTouchStart={startDrawing}
         onTouchMove={draw}
         onTouchEnd={stopDrawing}
         className="absolute inset-0 touch-none block z-10 w-full h-full"
       />
       
+      {/* Feedback Overlay (Lasso Lines) */}
+      <canvas
+        ref={tempCanvasRef}
+        width={width}
+        height={height}
+        className="absolute inset-0 pointer-events-none z-20 w-full h-full"
+      />
+      
       {isPlaying && (
-        <div className="absolute top-1 right-1 md:top-2 md:right-2 px-1 py-0.5 md:px-2 md:py-1 bg-accent text-[8px] md:text-xs font-bold uppercase tracking-wider sketch-border z-20">
+        <div className="absolute top-1 right-1 md:top-2 md:right-2 px-1 py-0.5 md:px-2 md:py-1 bg-accent text-[8px] md:text-xs font-bold uppercase tracking-wider sketch-border z-30">
           Preview
         </div>
       )}
