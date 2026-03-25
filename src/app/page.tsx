@@ -37,6 +37,8 @@ export default function Home() {
     setPressureEnabled,
     stabilizationEnabled,
     setStabilizationEnabled,
+    dynamicStampingEnabled,
+    setDynamicStampingEnabled,
     customBrushData,
     setCustomBrushData,
     addFrame,
@@ -195,6 +197,16 @@ export default function Home() {
                 </div>
                 <p className="text-[9px] opacity-60 leading-tight">Smooths out shaky hand-drawn lines.</p>
 
+                <div className="flex items-center justify-between space-x-2">
+                  <Label htmlFor="dynamic-stamping" className="text-xs">Dynamic Stamping</Label>
+                  <Switch 
+                    id="dynamic-stamping" 
+                    checked={dynamicStampingEnabled} 
+                    onCheckedChange={setDynamicStampingEnabled} 
+                  />
+                </div>
+                <p className="text-[9px] opacity-60 leading-tight">Draw custom brush tips continuously along path.</p>
+
                 <div className="pt-2 border-t mt-2">
                    <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Custom Brush</h4>
                    <CustomBrushDialog onSave={setCustomBrushData} currentBrush={customBrushData} />
@@ -249,6 +261,7 @@ export default function Home() {
                 isPlaying={isPlaying}
                 pressureEnabled={pressureEnabled}
                 stabilizationEnabled={stabilizationEnabled}
+                dynamicStampingEnabled={dynamicStampingEnabled}
                 customBrushData={customBrushData}
               />
             </div>

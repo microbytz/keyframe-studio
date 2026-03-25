@@ -19,6 +19,7 @@ interface SketchCanvasProps {
   isPlaying: boolean;
   pressureEnabled?: boolean;
   stabilizationEnabled?: boolean;
+  dynamicStampingEnabled?: boolean;
   customBrushData?: string | null;
 }
 
@@ -38,6 +39,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   isPlaying,
   pressureEnabled = true,
   stabilizationEnabled = true,
+  dynamicStampingEnabled = true,
   customBrushData = null,
 }) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -233,18 +235,12 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       if (tool === 'custom' && customBrushImage) {
         const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
         const angle = Math.atan2(pos.y - lastPos.y, pos.x - lastPos.x);
-        const steps = Math.max(1, Math.ceil(dist / (effectiveBrushSize / 2)));
         
-        for (let i = 0; i < steps; i++) {
-          const t = i / steps;
-          const x = lastPos.x + (pos.x - lastPos.x) * t;
-          const y = lastPos.y + (pos.y - lastPos.y) * t;
-          
+        const drawStamp = (x: number, y: number, r: number) => {
           ctx.save();
           ctx.translate(x, y);
-          ctx.rotate(angle);
+          ctx.rotate(r);
           
-          // Draw the brush image, using the current color as a tint
           const offscreen = document.createElement('canvas');
           offscreen.width = effectiveBrushSize * 2;
           offscreen.height = effectiveBrushSize * 2;
@@ -257,6 +253,18 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
           
           ctx.drawImage(offscreen, -effectiveBrushSize, -effectiveBrushSize);
           ctx.restore();
+        };
+
+        if (dynamicStampingEnabled) {
+          const steps = Math.max(1, Math.ceil(dist / (effectiveBrushSize / 2)));
+          for (let i = 0; i < steps; i++) {
+            const t = i / steps;
+            const x = lastPos.x + (pos.x - lastPos.x) * t;
+            const y = lastPos.y + (pos.y - lastPos.y) * t;
+            drawStamp(x, y, angle);
+          }
+        } else {
+          drawStamp(pos.x, pos.y, angle);
         }
       }
       else if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink'].includes(tool)) {
