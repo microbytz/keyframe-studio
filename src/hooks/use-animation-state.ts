@@ -29,6 +29,7 @@ export function useAnimationState() {
   
   const [pressureEnabled, setPressureEnabled] = useState(true);
   const [stabilizationEnabled, setStabilizationEnabled] = useState(true);
+  const [customBrushData, setCustomBrushData] = useState<string | null>(null);
   
   const [history, setHistory] = useState<Frame[][]>([[{ id: '1', imageData: '' }]]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -200,6 +201,8 @@ export function useAnimationState() {
     setPressureEnabled,
     stabilizationEnabled,
     setStabilizationEnabled,
+    customBrushData,
+    setCustomBrushData,
     addFrame,
     deleteFrame,
     duplicateFrame,

@@ -19,6 +19,7 @@ interface SketchCanvasProps {
   isPlaying: boolean;
   pressureEnabled?: boolean;
   stabilizationEnabled?: boolean;
+  customBrushData?: string | null;
 }
 
 export const SketchCanvas: React.FC<SketchCanvasProps> = ({
@@ -37,6 +38,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   isPlaying,
   pressureEnabled = true,
   stabilizationEnabled = true,
+  customBrushData = null,
 }) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const prevCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,6 +51,17 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
   const [lassoPoints, setLassoPoints] = useState<{ x: number, y: number }[]>([]);
   const [dragStartImage, setDragStartImage] = useState<HTMLImageElement | null>(null);
+  const [customBrushImage, setCustomBrushImage] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (customBrushData) {
+      const img = new Image();
+      img.src = customBrushData;
+      img.onload = () => setCustomBrushImage(img);
+    } else {
+      setCustomBrushImage(null);
+    }
+  }, [customBrushData]);
 
   useEffect(() => {
     const prevCtx = prevCanvasRef.current?.getContext('2d');
@@ -130,7 +143,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       }
     }
 
-    const immediateBrushes = ['pixel', 'calligraphy', 'airbrush', 'charcoal', 'crayon', 'watercolor', 'spray', 'chalk'];
+    const immediateBrushes = ['pixel', 'calligraphy', 'airbrush', 'charcoal', 'crayon', 'watercolor', 'spray', 'chalk', 'custom'];
     if (immediateBrushes.includes(tool)) {
       draw(e);
     }
@@ -203,7 +216,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     const brushTools = [
       'pen', 'pencil', 'brush', 'pixel', 'calligraphy', 'airbrush', 
       'highlighter', 'marker', 'charcoal', 'crayon', 'watercolor', 'ink',
-      'spray', 'chalk', 'technical', 'eraser'
+      'spray', 'chalk', 'technical', 'eraser', 'custom'
     ];
     
     if (brushTools.includes(tool)) {
@@ -217,7 +230,36 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 
       ctx.globalAlpha = opacity / 100;
 
-      if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink'].includes(tool)) {
+      if (tool === 'custom' && customBrushImage) {
+        const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
+        const angle = Math.atan2(pos.y - lastPos.y, pos.x - lastPos.x);
+        const steps = Math.max(1, Math.ceil(dist / (effectiveBrushSize / 2)));
+        
+        for (let i = 0; i < steps; i++) {
+          const t = i / steps;
+          const x = lastPos.x + (pos.x - lastPos.x) * t;
+          const y = lastPos.y + (pos.y - lastPos.y) * t;
+          
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(angle);
+          
+          // Draw the brush image, using the current color as a tint
+          const offscreen = document.createElement('canvas');
+          offscreen.width = effectiveBrushSize * 2;
+          offscreen.height = effectiveBrushSize * 2;
+          const oCtx = offscreen.getContext('2d')!;
+          
+          oCtx.drawImage(customBrushImage, 0, 0, offscreen.width, offscreen.height);
+          oCtx.globalCompositeOperation = 'source-in';
+          oCtx.fillStyle = color;
+          oCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+          
+          ctx.drawImage(offscreen, -effectiveBrushSize, -effectiveBrushSize);
+          ctx.restore();
+        }
+      }
+      else if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink'].includes(tool)) {
         ctx.lineWidth = tool === 'technical' ? Math.max(1, effectiveBrushSize / 4) : effectiveBrushSize;
         ctx.lineCap = (tool === 'marker' || tool === 'highlighter') ? 'butt' : 'round';
         ctx.lineJoin = 'round';

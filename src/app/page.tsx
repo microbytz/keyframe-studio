@@ -6,6 +6,7 @@ import { SketchCanvas } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
+import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { Save, FolderOpen, Layers, Settings2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -36,6 +37,8 @@ export default function Home() {
     setPressureEnabled,
     stabilizationEnabled,
     setStabilizationEnabled,
+    customBrushData,
+    setCustomBrushData,
     addFrame,
     deleteFrame,
     duplicateFrame,
@@ -180,7 +183,7 @@ export default function Home() {
                     onCheckedChange={setPressureEnabled} 
                   />
                 </div>
-                <p className="text-[9px] opacity-60 leading-tight">Vary brush thickness based on stylus pressure (requires compatible hardware).</p>
+                <p className="text-[9px] opacity-60 leading-tight">Vary brush thickness based on stylus pressure.</p>
 
                 <div className="flex items-center justify-between space-x-2">
                   <Label htmlFor="stabilization-mode" className="text-xs">Line Stabilization</Label>
@@ -190,7 +193,12 @@ export default function Home() {
                     onCheckedChange={setStabilizationEnabled} 
                   />
                 </div>
-                <p className="text-[9px] opacity-60 leading-tight">Smooths out shaky hand-drawn lines for cleaner curves.</p>
+                <p className="text-[9px] opacity-60 leading-tight">Smooths out shaky hand-drawn lines.</p>
+
+                <div className="pt-2 border-t mt-2">
+                   <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Custom Brush</h4>
+                   <CustomBrushDialog onSave={setCustomBrushData} currentBrush={customBrushData} />
+                </div>
               </PopoverContent>
             </Popover>
           </div>
@@ -241,6 +249,7 @@ export default function Home() {
                 isPlaying={isPlaying}
                 pressureEnabled={pressureEnabled}
                 stabilizationEnabled={stabilizationEnabled}
+                customBrushData={customBrushData}
               />
             </div>
           </div>
@@ -259,7 +268,7 @@ export default function Home() {
       </div>
 
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Use the Move tool in the sidebar to reposition your drawing.
+        Tip: Select "Custom Brush" in the sidebar to use your imported or drawn tip.
       </div>
     </main>
   );

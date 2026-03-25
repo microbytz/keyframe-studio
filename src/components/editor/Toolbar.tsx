@@ -30,7 +30,8 @@ import {
   Minus,
   Square,
   Circle as CircleIcon,
-  Triangle
+  Triangle,
+  Settings2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -76,6 +77,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'spray', icon: SprayCan, label: 'Spray Paint' },
     { id: 'chalk', icon: Ghost, label: 'Dusty Chalk' },
     { id: 'technical', icon: Type, label: 'Technical Pen' },
+    { id: 'custom', icon: Settings2, label: 'Custom Brush' },
   ];
 
   const shapeTools = [
@@ -131,6 +133,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         return { ...base, height: '1px' };
       case 'ink':
         return { ...base, height: '4px', filter: 'drop-shadow(0px 1px 0px rgba(0,0,0,0.1))' };
+      case 'custom':
+        return { ...base, backgroundImage: `repeating-linear-gradient(45deg, ${color}, ${color} 5px, transparent 5px, transparent 10px)` };
       default:
         return base;
     }

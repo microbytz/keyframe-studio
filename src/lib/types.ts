@@ -21,7 +21,8 @@ export type ToolType =
   | 'line'
   | 'rectangle'
   | 'circle'
-  | 'triangle';
+  | 'triangle'
+  | 'custom';
 
 export interface Frame {
   id: string;
