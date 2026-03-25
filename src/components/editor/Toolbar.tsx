@@ -26,7 +26,11 @@ import {
   Ghost,
   Move,
   FlipHorizontal,
-  FlipVertical
+  FlipVertical,
+  Minus,
+  Square,
+  Circle as CircleIcon,
+  Triangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -74,6 +78,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'technical', icon: Type, label: 'Technical Pen' },
   ];
 
+  const shapeTools = [
+    { id: 'line', icon: Minus, label: 'Line' },
+    { id: 'rectangle', icon: Square, label: 'Rectangle' },
+    { id: 'circle', icon: CircleIcon, label: 'Circle' },
+    { id: 'triangle', icon: Triangle, label: 'Triangle' },
+  ];
+
   const utilityTools = [
     { id: 'move', icon: Move, label: 'Move / Transform' },
     { id: 'eraser', icon: Eraser, label: 'Eraser' },
@@ -83,6 +94,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
   const activeBrush = brushTools.find(t => t.id === currentTool) || brushTools[0];
   const isBrushActive = brushTools.some(t => t.id === currentTool);
+  
+  const activeShape = shapeTools.find(t => t.id === currentTool);
+  const isShapeActive = !!activeShape;
 
   const getBrushPreviewStyle = (toolId: string) => {
     const base: React.CSSProperties = {
@@ -164,6 +178,45 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                   title={t.label}
                 >
                   <t.icon size={16} />
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className={cn(
+                "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
+                isShapeActive ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
+              )}
+              title="Shapes"
+            >
+              {isShapeActive ? <activeShape.icon size={16} className="md:w-[18px] md:h-[18px]" /> : <Square size={16} className="md:w-[18px] md:h-[18px]" />}
+              <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
+                <ChevronDown size={10} strokeWidth={4} />
+              </div>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent 
+            side="right" 
+            align="start" 
+            className="w-48 p-3 sketch-card ml-2 animate-in fade-in zoom-in-95 duration-100"
+          >
+            <div className="grid grid-cols-2 gap-2">
+              {shapeTools.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTool(t.id as ToolType)}
+                  className={cn(
+                    "p-3 sketch-border transition-all hover:bg-accent group relative shrink-0 flex flex-col items-center justify-center gap-1",
+                    currentTool === t.id ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
+                  )}
+                  title={t.label}
+                >
+                  <t.icon size={18} />
+                  <span className="text-[8px] font-bold uppercase">{t.label}</span>
                 </button>
               ))}
             </div>

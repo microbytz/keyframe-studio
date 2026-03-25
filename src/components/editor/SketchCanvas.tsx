@@ -45,6 +45,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   
   const [isDrawing, setIsDrawing] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
   const [lassoPoints, setLassoPoints] = useState<{ x: number, y: number }[]>([]);
   const [dragStartImage, setDragStartImage] = useState<HTMLImageElement | null>(null);
@@ -115,6 +116,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     if (isPlaying) return;
     const pos = getPos(e);
     setIsDrawing(true);
+    setStartPos(pos);
     setLastPos(pos);
     
     if (tool === 'lasso') {
@@ -134,6 +136,25 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     }
   };
 
+  const drawShape = (ctx: CanvasRenderingContext2D, sX: number, sY: number, eX: number, eY: number, shapeTool: string) => {
+    ctx.beginPath();
+    if (shapeTool === 'line') {
+      ctx.moveTo(sX, sY);
+      ctx.lineTo(eX, eY);
+    } else if (shapeTool === 'rectangle') {
+      ctx.rect(sX, sY, eX - sX, eY - sY);
+    } else if (shapeTool === 'circle') {
+      const radius = Math.sqrt(Math.pow(eX - sX, 2) + Math.pow(eY - sY, 2));
+      ctx.arc(sX, sY, radius, 0, 2 * Math.PI);
+    } else if (shapeTool === 'triangle') {
+      ctx.moveTo(sX + (eX - sX) / 2, sY);
+      ctx.lineTo(eX, eY);
+      ctx.lineTo(sX, eY);
+      ctx.closePath();
+    }
+    ctx.stroke();
+  };
+
   const draw = (e: React.PointerEvent) => {
     if (!isDrawing || isPlaying) return;
     const canvas = mainCanvasRef.current;
@@ -151,6 +172,20 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.clearRect(0, 0, width, height);
         ctx.drawImage(dragStartImage, dx, dy);
       }
+      return;
+    }
+
+    const shapeTools = ['line', 'rectangle', 'circle', 'triangle'];
+    if (shapeTools.includes(tool)) {
+      tCtx.clearRect(0, 0, width, height);
+      tCtx.save();
+      tCtx.strokeStyle = color;
+      tCtx.lineWidth = brushSize;
+      tCtx.globalAlpha = opacity / 100;
+      tCtx.lineCap = 'round';
+      tCtx.lineJoin = 'round';
+      drawShape(tCtx, startPos.x, startPos.y, pos.x, pos.y, tool);
+      tCtx.restore();
       return;
     }
 
@@ -305,7 +340,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     }
 
     ctx.restore();
-    if (tool !== 'move') {
+    if (tool !== 'move' && !shapeTools.includes(tool)) {
       setLastPos(pos);
     }
   };
@@ -320,7 +355,20 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     const ctx = canvas.getContext('2d')!;
     const tCtx = tempCanvas.getContext('2d')!;
 
-    if (tool === 'lasso') {
+    const shapeTools = ['line', 'rectangle', 'circle', 'triangle'];
+    if (shapeTools.includes(tool)) {
+      const pos = getPos(e);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = brushSize;
+      ctx.globalAlpha = opacity / 100;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      drawShape(ctx, startPos.x, startPos.y, pos.x, pos.y, tool);
+      ctx.restore();
+      tCtx.clearRect(0, 0, width, height);
+      onFrameUpdate(canvas.toDataURL());
+    } else if (tool === 'lasso') {
       if (lassoPoints.length > 2) {
         ctx.save();
         ctx.globalCompositeOperation = 'destination-out';
