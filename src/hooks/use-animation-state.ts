@@ -24,6 +24,8 @@ export function useAnimationState() {
   const [tool, setTool] = useState<ToolType>('pen');
   const [color, setColor] = useState('#454D52');
   const [brushSize, setBrushSize] = useState(4);
+  const [opacity, setOpacity] = useState(100);
+  const [hardness, setHardness] = useState(80);
   
   // Undo/Redo History
   const [history, setHistory] = useState<Frame[][]>([[{ id: '1', imageData: '' }]]);
@@ -52,7 +54,6 @@ export function useAnimationState() {
       const prevFrames = history[prevIndex];
       setProject(prev => ({ ...prev, frames: prevFrames }));
       setHistoryIndex(prevIndex);
-      // Adjust currentFrameIndex if it's now out of bounds
       setCurrentFrameIndex(curr => Math.min(curr, prevFrames.length - 1));
     }
   }, [history, historyIndex]);
@@ -63,7 +64,6 @@ export function useAnimationState() {
       const nextFrames = history[nextIndex];
       setProject(prev => ({ ...prev, frames: nextFrames }));
       setHistoryIndex(nextIndex);
-      // Adjust currentFrameIndex if it's now out of bounds
       setCurrentFrameIndex(curr => Math.min(curr, nextFrames.length - 1));
     }
   }, [history, historyIndex]);
@@ -164,6 +164,10 @@ export function useAnimationState() {
     setColor,
     brushSize,
     setBrushSize,
+    opacity,
+    setOpacity,
+    hardness,
+    setHardness,
     addFrame,
     deleteFrame,
     duplicateFrame,

@@ -6,8 +6,13 @@ import { SketchCanvas } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
-import { Save, FolderOpen, Layers } from 'lucide-react';
+import { Save, FolderOpen, Layers, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export default function Home() {
   const {
@@ -21,6 +26,10 @@ export default function Home() {
     setColor,
     brushSize,
     setBrushSize,
+    opacity,
+    setOpacity,
+    hardness,
+    setHardness,
     addFrame,
     deleteFrame,
     duplicateFrame,
@@ -42,7 +51,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col items-center bg-background overflow-x-hidden">
-      {/* Header Area - Compacted and holds more controls */}
+      {/* Header Area */}
       <div className="w-full flex items-center justify-between max-w-7xl h-auto md:h-14 p-2 md:px-4 bg-white/30 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-50">
         <div className="flex flex-wrap items-center gap-2 md:gap-4">
           <h1 className="text-base md:text-lg font-bold italic tracking-tighter text-primary">
@@ -78,7 +87,7 @@ export default function Home() {
 
           <div className="hidden md:block h-6 w-px bg-foreground/10 mx-1" />
 
-          {/* Color & Size in header to save sidebar space */}
+          {/* Color & Brush Settings in header */}
           <div className="flex items-center gap-2 md:gap-3 bg-white px-2 py-1 sketch-border">
             <div className="flex items-center">
               <div 
@@ -93,17 +102,61 @@ export default function Home() {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <input 
-                type="range" 
-                min="1" 
-                max="50" 
-                value={brushSize} 
-                onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                className="w-16 md:w-20 h-1 accent-accent cursor-pointer"
-              />
-              <span className="text-[10px] font-bold w-6">{brushSize}px</span>
-            </div>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-2 hover:bg-accent/10 px-1 py-0.5 rounded transition-colors">
+                  <span className="text-[10px] font-bold w-6">{brushSize}px</span>
+                  <Settings2 size={12} className="opacity-50" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="end">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-tighter">Size</label>
+                    <span className="text-[10px] font-mono">{brushSize}px</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="100" 
+                    value={brushSize} 
+                    onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                    className="w-full h-1 accent-accent cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-tighter">Opacity</label>
+                    <span className="text-[10px] font-mono">{opacity}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="100" 
+                    value={opacity} 
+                    onChange={(e) => setOpacity(parseInt(e.target.value))}
+                    className="w-full h-1 accent-accent cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-tighter">Hardness</label>
+                    <span className="text-[10px] font-mono">{hardness}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="100" 
+                    value={hardness} 
+                    onChange={(e) => setHardness(parseInt(e.target.value))}
+                    className="w-full h-1 accent-accent cursor-pointer"
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         
@@ -121,7 +174,7 @@ export default function Home() {
 
       {/* Workspace Area */}
       <div className="flex flex-col md:flex-row flex-1 w-full max-w-7xl items-center md:items-start py-4 md:py-6">
-        {/* Sidebar - Tools Only */}
+        {/* Sidebar */}
         <div className="w-full md:w-auto px-4 mb-4 md:mb-0 md:flex-none md:sticky md:top-20 z-40">
           <Toolbar 
             currentTool={tool}
@@ -148,6 +201,8 @@ export default function Home() {
                 tool={tool}
                 color={color}
                 brushSize={brushSize}
+                opacity={opacity}
+                hardness={hardness}
                 onFrameUpdate={updateFrameData}
                 isPlaying={isPlaying}
               />
@@ -169,7 +224,7 @@ export default function Home() {
 
       {/* Footer Info */}
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Press 'S' to save, 'L' to load projects locally.
+        Tip: Adjust Opacity and Hardness by clicking the brush size indicator.
       </div>
     </main>
   );

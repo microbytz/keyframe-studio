@@ -13,6 +13,8 @@ interface SketchCanvasProps {
   tool: ToolType;
   color: string;
   brushSize: number;
+  opacity: number;
+  hardness: number;
   onFrameUpdate: (dataUrl: string) => void;
   isPlaying: boolean;
 }
@@ -27,6 +29,8 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   tool,
   color,
   brushSize,
+  opacity,
+  hardness,
   onFrameUpdate,
   isPlaying,
 }) => {
@@ -137,6 +141,9 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.fillStyle = color;
       }
 
+      // Apply Opacity
+      ctx.globalAlpha = opacity / 100;
+
       // 1. Basic Line Brushes
       if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink'].includes(tool)) {
         ctx.lineWidth = tool === 'technical' ? Math.max(1, brushSize / 4) : brushSize;
@@ -144,13 +151,15 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.lineJoin = 'round';
         
         if (tool === 'highlighter') {
-          ctx.globalAlpha = 0.5;
+          ctx.globalAlpha *= 0.5;
         } else if (tool === 'ink') {
-          ctx.globalAlpha = 0.9;
+          ctx.globalAlpha *= 0.9;
         }
 
         if (tool === 'brush' && tool !== 'eraser') {
-          ctx.shadowBlur = brushSize / 1.5;
+          // Hardness affects the blur/softness
+          const blurAmount = (1 - (hardness / 100)) * brushSize * 1.5;
+          ctx.shadowBlur = blurAmount;
           ctx.shadowColor = color;
         }
 
@@ -159,9 +168,9 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
       } 
-      // 2. Graphite Pencil (grainy, soft)
+      // 2. Graphite Pencil
       else if (tool === 'pencil') {
-        ctx.globalAlpha = 0.4;
+        ctx.globalAlpha *= (0.3 + (hardness / 100) * 0.4);
         ctx.lineWidth = Math.max(1, brushSize / 2);
         ctx.lineCap = 'round';
         ctx.beginPath();
@@ -169,7 +178,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
         
-        // Add tiny grains
         for (let i = 0; i < 3; i++) {
           const r = Math.random() * (brushSize / 2);
           const a = Math.random() * Math.PI * 2;
@@ -185,8 +193,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       } 
       // 4. Calligraphy Ribbon
       else if (tool === 'calligraphy') {
-        const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
-        const steps = Math.max(1, Math.ceil(dist / 2));
+        const steps = Math.max(1, Math.ceil(Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2)) / 2));
         for (let i = 0; i <= steps; i++) {
           const t = i / steps;
           const x = lastPos.x + (pos.x - lastPos.x) * t;
@@ -200,7 +207,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       } 
       // 5. Airbrush / Sprays
       else if (tool === 'airbrush' || tool === 'spray') {
-        const density = tool === 'airbrush' ? 20 : 10;
+        const density = (tool === 'airbrush' ? 15 : 8) * (hardness / 100 + 0.5);
         const spread = tool === 'spray' ? brushSize * 3 : brushSize * 2;
         for (let i = 0; i < density; i++) {
           const r = Math.random() * spread;
@@ -208,14 +215,14 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
           const x = pos.x + r * Math.cos(angle);
           const y = pos.y + r * Math.sin(angle);
           const pSize = tool === 'spray' ? Math.random() * 3 : 1;
-          ctx.globalAlpha = Math.random();
+          ctx.globalAlpha = (opacity / 100) * Math.random();
           ctx.fillRect(x, y, pSize, pSize);
         }
       } 
       // 6. Charcoal / Chalk
       else if (tool === 'charcoal' || tool === 'chalk') {
-        const density = tool === 'charcoal' ? 12 : 18;
-        ctx.globalAlpha = tool === 'chalk' ? 0.3 : 0.6;
+        const density = (tool === 'charcoal' ? 12 : 18) * (hardness / 100);
+        ctx.globalAlpha *= tool === 'chalk' ? 0.3 : 0.6;
         for (let i = 0; i < density; i++) {
           const r = Math.random() * brushSize;
           const angle = Math.random() * Math.PI * 2;
@@ -225,33 +232,33 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
           ctx.fillRect(x, y, pSize, pSize);
         }
       } 
-      // 7. Crayon (textured wax)
+      // 7. Crayon
       else if (tool === 'crayon') {
         ctx.lineWidth = brushSize;
         ctx.lineCap = 'round';
-        ctx.globalAlpha = 0.8;
+        ctx.globalAlpha *= 0.8;
         ctx.beginPath();
         ctx.moveTo(lastPos.x, lastPos.y);
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
-        // Add "wax" texture
         for (let i = 0; i < 8; i++) {
           const offsetX = (Math.random() - 0.5) * brushSize * 1.5;
           const offsetY = (Math.random() - 0.5) * brushSize * 1.5;
-          ctx.globalAlpha = 0.4;
+          ctx.globalAlpha = (opacity / 100) * 0.4;
           ctx.fillRect(pos.x + offsetX, pos.y + offsetY, 1, 1);
         }
       } 
-      // 8. Watercolor (soft overlap)
+      // 8. Watercolor
       else if (tool === 'watercolor') {
-        ctx.globalAlpha = 0.05;
-        const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, brushSize * 3);
+        ctx.globalAlpha *= 0.05;
+        const blurFactor = 3 * (1 - hardness / 100 + 0.5);
+        const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, brushSize * blurFactor);
         grad.addColorStop(0, color);
         grad.addColorStop(0.5, color);
         grad.addColorStop(1, 'transparent');
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, brushSize * 3, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, brushSize * blurFactor, 0, Math.PI * 2);
         ctx.fill();
       }
     } else if (tool === 'lasso') {
@@ -314,6 +321,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       const imgData = ctx.getImageData(0, 0, width, height);
       const targetColor = getPixelColor(imgData, x, y);
       const fillColor = hexToRgb(color);
+      // Incorporate opacity into fill color alpha if needed, but bucket fill is usually absolute
       if (colorsMatch(targetColor, fillColor)) return;
       floodFill(imgData, x, y, targetColor, fillColor);
       ctx.putImageData(imgData, 0, 0);
