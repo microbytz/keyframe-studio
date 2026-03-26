@@ -115,7 +115,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const activeBrush = brushTools.find(t => t.id === currentTool) || brushTools[0];
   const isBrushActive = brushTools.some(t => t.id === currentTool);
   const isShapeActive = shapeTools.some(t => t.id === currentTool);
-  const activeMoveIcon = transformModes.find(m => m.id === moveMode)?.icon || Move;
 
   return (
     <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-start md:justify-center bg-white overflow-x-auto scrollbar-none touch-pan-x">
@@ -195,7 +194,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
         
-        {/* Advanced Move Tool with Popover for Transforms */}
         <Popover>
           <PopoverTrigger asChild>
             <button
@@ -206,7 +204,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               )}
               title="Move & Transform"
             >
-              <activeMoveIcon size={16} />
+              <Move size={16} />
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
                 <ChevronDown size={10} strokeWidth={4} />
               </div>
