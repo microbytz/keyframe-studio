@@ -153,6 +153,13 @@ export default function Home() {
   // Export Settings
   const [exportScale, setExportScale] = useState('1');
   const [exportTransparent, setExportTransparent] = useState(false);
+  const [exportStartFrame, setExportStartFrame] = useState('1');
+  const [exportEndFrame, setExportEndFrame] = useState(project.frames.length.toString());
+
+  // Update export bounds when project changes
+  useEffect(() => {
+    setExportEndFrame(project.frames.length.toString());
+  }, [project.frames.length]);
 
   const currentFrame = project.frames[currentFrameIndex];
   const activeGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
@@ -336,6 +343,34 @@ export default function Home() {
                   <p className="text-[8px] opacity-40 italic">Higher resolution increases file size and processing time.</p>
                 </div>
 
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase opacity-60">Frame Range</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <span className="text-[8px] uppercase font-bold opacity-40">From</span>
+                      <Input 
+                        type="number" 
+                        min="1" 
+                        max={project.frames.length} 
+                        value={exportStartFrame} 
+                        onChange={(e) => setExportStartFrame(e.target.value)}
+                        className="sketch-border h-7 text-[10px]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[8px] uppercase font-bold opacity-40">To</span>
+                      <Input 
+                        type="number" 
+                        min="1" 
+                        max={project.frames.length} 
+                        value={exportEndFrame} 
+                        onChange={(e) => setExportEndFrame(e.target.value)}
+                        className="sketch-border h-7 text-[10px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between space-x-2 pt-2">
                   <div className="flex flex-col">
                     <Label htmlFor="transparent-export" className="text-xs font-bold">Transparent Background</Label>
@@ -345,7 +380,12 @@ export default function Home() {
                 </div>
 
                 <Button 
-                  onClick={() => exportToGif({ scale: parseFloat(exportScale), transparent: exportTransparent })} 
+                  onClick={() => exportToGif({ 
+                    scale: parseFloat(exportScale), 
+                    transparent: exportTransparent,
+                    startFrame: parseInt(exportStartFrame) - 1,
+                    endFrame: parseInt(exportEndFrame) - 1
+                  })} 
                   disabled={isExporting}
                   className="w-full mt-2 bg-accent hover:bg-accent/90 text-primary font-bold uppercase text-[10px] sketch-border h-9"
                 >
@@ -535,7 +575,7 @@ export default function Home() {
       </div>
 
       <div className="flex flex-col md:flex-row flex-1 w-full max-w-7xl items-center md:items-start py-4 md:py-6 relative">
-        <div className="w-full md:w-auto px-4 mb-4 md:mb-0 md:flex-none md:sticky md:top-20 z-40">
+        <div className="w-full md:auto px-4 mb-4 md:mb-0 md:flex-none md:sticky md:top-20 z-40">
           <Toolbar currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={flipCurrentLayer} canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled} savedBrushes={project.savedBrushes} customBrushData={customBrushData} setCustomBrushData={setCustomBrushData} deleteSavedBrush={deleteSavedBrush} />
         </div>
 

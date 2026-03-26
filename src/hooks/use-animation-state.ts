@@ -727,12 +727,16 @@ export function useAnimationState() {
     reader.readAsText(file);
   }, [updateHistoryState, toast]);
 
-  const exportToGif = useCallback(async (settings: { scale: number, transparent: boolean }) => {
+  const exportToGif = useCallback(async (settings: { scale: number, transparent: boolean, startFrame?: number, endFrame?: number }) => {
     setIsExporting(true);
     const exportWidth = project.width * settings.scale;
     const exportHeight = project.height * settings.scale;
 
-    const images = await Promise.all(project.frames.map(async (frame) => {
+    const startIdx = settings.startFrame !== undefined ? settings.startFrame : 0;
+    const endIdx = settings.endFrame !== undefined ? settings.endFrame : project.frames.length - 1;
+    const framesToExport = project.frames.slice(startIdx, endIdx + 1);
+
+    const images = await Promise.all(framesToExport.map(async (frame) => {
       const canvas = document.createElement('canvas');
       canvas.width = exportWidth;
       canvas.height = exportHeight;
@@ -782,7 +786,7 @@ export function useAnimationState() {
         link.click();
         toast({
           title: "Export Complete!",
-          description: "Your GIF has been generated and downloaded.",
+          description: `Generated GIF for frames ${startIdx + 1} to ${endIdx + 1}.`,
         });
       } else {
         console.error("GIF generation error:", obj.error);
