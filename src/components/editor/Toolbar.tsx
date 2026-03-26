@@ -21,7 +21,6 @@ import {
   ChevronDown,
   Type,
   Zap,
-  Brush,
   SprayCan,
   Ghost,
   Move,
@@ -207,12 +206,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <Popover>
           <PopoverTrigger asChild>
             <button
-              onClick={() => setTool('move')}
               className={cn(
                 "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
                 currentTool === 'move' ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
               )}
               title="Move & Transform"
+              onClick={() => setTool('move')}
             >
               <Move size={16} />
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">

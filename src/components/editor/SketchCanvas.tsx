@@ -79,7 +79,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   const currentFrame = frames[currentFrameIndex];
   const activeLayer = currentFrame.layers.find(l => l.id === activeLayerId) || currentFrame.layers[0];
 
-  const calculateBounds = (ctx: CanvasRenderingContext2D) => {
+  const calculateBounds = (canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext('2d')!;
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
     let minX = width, minY = height, maxX = 0, maxY = 0;
@@ -88,7 +89,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const alpha = data[(y * width + x) * 4 + 3];
-        if (alpha > 0) {
+        if (alpha > 5) { // Small threshold to ignore tiny noise
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;
@@ -98,7 +99,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       }
     }
 
-    if (!found) return null;
+    if (!found) return { x: 0, y: 0, w: width, h: height };
     return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
   };
 
@@ -108,8 +109,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       if (points.length < 3 || !mainCanvasRef.current) return null;
       const canvas = mainCanvasRef.current;
       const ctx = canvas.getContext('2d')!;
-      let resultData: string | null = null;
-
+      
       const offscreen = document.createElement('canvas');
       offscreen.width = width;
       offscreen.height = height;
@@ -121,9 +121,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       oCtx.closePath();
       oCtx.clip();
       oCtx.drawImage(canvas, 0, 0);
-      resultData = offscreen.toDataURL();
+      const resultData = offscreen.toDataURL();
 
-      const bounds = calculateBounds(oCtx);
+      const bounds = calculateBounds(offscreen);
 
       if (action === 'move') {
         const img = new Image();
@@ -131,6 +131,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         img.onload = () => {
           setMovingSelection(img);
           setSelectionBounds(bounds);
+          // Redraw immediate preview
+          const tCtx = tempCanvasRef.current?.getContext('2d');
+          if (tCtx) {
+            tCtx.clearRect(0, 0, width, height);
+            tCtx.drawImage(img, 0, 0);
+            drawSelectionBox(tCtx, bounds);
+          }
         };
       }
 
@@ -144,14 +151,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         ctx.fill();
         ctx.restore();
         
-        const dataUrl = canvas.toDataURL();
-        lastRenderedImageDataRef.current = dataUrl;
-        lastRenderedActiveLayerIdRef.current = activeLayerId;
-        onLayerUpdate(dataUrl);
+        const committedData = canvas.toDataURL();
+        lastRenderedImageDataRef.current = committedData;
+        onLayerUpdate(committedData);
       }
 
       const tCtx = tempCanvasRef.current?.getContext('2d');
-      if (tCtx) {
+      if (tCtx && action !== 'move') {
         tCtx.clearRect(0, 0, width, height);
       }
 
@@ -171,21 +177,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     ctx.setLineDash([4, 4]);
     ctx.strokeRect(bounds.x - 4, bounds.y - 4, bounds.w + 8, bounds.h + 8);
     
-    // Draw solid handles
     ctx.setLineDash([]);
     ctx.fillStyle = '#82C9C9';
-    const s = 8;
-    // Corners
+    const s = 6;
     ctx.fillRect(bounds.x - 4 - s/2, bounds.y - 4 - s/2, s, s);
     ctx.fillRect(bounds.x + bounds.w + 4 - s/2, bounds.y - 4 - s/2, s, s);
     ctx.fillRect(bounds.x - 4 - s/2, bounds.y + bounds.h + 4 - s/2, s, s);
     ctx.fillRect(bounds.x + bounds.w + 4 - s/2, bounds.y + bounds.h + 4 - s/2, s, s);
-    // Midpoints
-    ctx.fillRect(bounds.x + bounds.w/2 - s/2, bounds.y - 4 - s/2, s, s);
-    ctx.fillRect(bounds.x + bounds.w/2 - s/2, bounds.y + bounds.h + 4 - s/2, s, s);
-    ctx.fillRect(bounds.x - 4 - s/2, bounds.y + bounds.h/2 - s/2, s, s);
-    ctx.fillRect(bounds.x + bounds.w + 4 - s/2, bounds.y + bounds.h/2 - s/2, s, s);
-    
     ctx.restore();
   };
 
@@ -194,8 +192,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       setMovingSelection(null);
       setSelectionBounds(null);
       setDragStartImage(null);
+      const tCtx = tempCanvasRef.current?.getContext('2d');
+      if (tCtx) tCtx.clearRect(0, 0, width, height);
     }
-  }, [tool]);
+  }, [tool, width, height]);
 
   useEffect(() => {
     if (customBrushData) {
@@ -207,25 +207,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
   }, [customBrushData]);
 
-  // Handle immediate visual update for Select & Move
-  useEffect(() => {
-    if (tool === 'move' && movingSelection && selectionBounds) {
-      const tCtx = tempCanvasRef.current?.getContext('2d');
-      if (tCtx) {
-        tCtx.clearRect(0, 0, width, height);
-        tCtx.drawImage(movingSelection, 0, 0);
-        drawSelectionBox(tCtx, selectionBounds);
-      }
-    }
-  }, [tool, movingSelection, selectionBounds, width, height]);
-
   useEffect(() => {
     const ctx = onionSkinCanvasRef.current?.getContext('2d');
     if (!ctx) return;
-
-    let isCancelled = false;
     ctx.clearRect(0, 0, width, height);
-
     if (!onionSkinEnabled || isPlaying) return;
 
     const renderOnionSkin = async () => {
@@ -233,21 +218,16 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       offscreen.width = width;
       offscreen.height = height;
       const oCtx = offscreen.getContext('2d')!;
-
       const framesToRender: { index: number; opacity: number }[] = [];
 
       if (advancedOnionSkinEnabled) {
         for (let i = 1; i <= onionSkinBefore; i++) {
           const idx = currentFrameIndex - i;
-          if (idx >= 0) {
-            framesToRender.push({ index: idx, opacity: 0.3 * (1 - (i - 1) / onionSkinBefore) });
-          }
+          if (idx >= 0) framesToRender.push({ index: idx, opacity: 0.3 * (1 - (i - 1) / onionSkinBefore) });
         }
         for (let i = 1; i <= onionSkinAfter; i++) {
           const idx = currentFrameIndex + i;
-          if (idx < frames.length) {
-            framesToRender.push({ index: idx, opacity: 0.15 * (1 - (i - 1) / onionSkinAfter) });
-          }
+          if (idx < frames.length) framesToRender.push({ index: idx, opacity: 0.15 * (1 - (i - 1) / onionSkinAfter) });
         }
       } else {
         if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: 0.3 });
@@ -255,71 +235,44 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       }
 
       for (const item of framesToRender) {
-        if (isCancelled) return;
         const frame = frames[item.index];
-        const layers = [...frame.layers].reverse().filter(l => l.visible && l.imageData);
-        
         oCtx.save();
         oCtx.globalAlpha = item.opacity;
-        for (const layer of layers) {
+        for (const layer of [...frame.layers].reverse().filter(l => l.visible && l.imageData)) {
           await new Promise((resolve) => {
             const img = new Image();
             img.src = layer.imageData;
-            img.onload = () => {
-              oCtx.drawImage(img, 0, 0);
-              resolve(null);
-            };
+            img.onload = () => { oCtx.drawImage(img, 0, 0); resolve(null); };
             img.onerror = () => resolve(null);
           });
         }
         oCtx.restore();
       }
-
-      if (!isCancelled) {
-        ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(offscreen, 0, 0);
-      }
+      ctx.drawImage(offscreen, 0, 0);
     };
-
     renderOnionSkin();
-    return () => { isCancelled = true; };
   }, [onionSkinEnabled, advancedOnionSkinEnabled, onionSkinBefore, onionSkinAfter, currentFrameIndex, frames, isPlaying, width, height]);
 
   useEffect(() => {
     const compositeCtx = compositeCanvasRef.current?.getContext('2d');
     if (!compositeCtx) return;
-
-    let isCancelled = false;
-
     const renderComposite = async () => {
-      const layersToDraw = [...currentFrame.layers].reverse().filter(l => l.id !== activeLayerId && l.visible && l.imageData);
-      
       const offscreen = document.createElement('canvas');
       offscreen.width = width;
       offscreen.height = height;
       const oCtx = offscreen.getContext('2d')!;
-
-      for (const layer of layersToDraw) {
-        if (isCancelled) return;
+      for (const layer of [...currentFrame.layers].reverse().filter(l => l.id !== activeLayerId && l.visible && l.imageData)) {
         await new Promise((resolve) => {
           const img = new Image();
           img.src = layer.imageData;
-          img.onload = () => {
-            oCtx.drawImage(img, 0, 0);
-            resolve(null);
-          };
+          img.onload = () => { oCtx.drawImage(img, 0, 0); resolve(null); };
           img.onerror = () => resolve(null);
         });
       }
-      
-      if (!isCancelled) {
-        compositeCtx.clearRect(0, 0, width, height);
-        compositeCtx.drawImage(offscreen, 0, 0);
-      }
+      compositeCtx.clearRect(0, 0, width, height);
+      compositeCtx.drawImage(offscreen, 0, 0);
     };
-
     renderComposite();
-    return () => { isCancelled = true; };
   }, [currentFrame, activeLayerId, width, height]);
 
   useEffect(() => {
@@ -328,18 +281,14 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    if (activeLayer?.imageData === lastRenderedImageDataRef.current && activeLayerId === lastRenderedActiveLayerIdRef.current) {
-      return;
-    }
+    if (activeLayer?.imageData === lastRenderedImageDataRef.current && activeLayerId === lastRenderedActiveLayerIdRef.current) return;
 
     ctx.clearRect(0, 0, width, height);
-    
     if (activeLayer?.imageData && activeLayer.visible) {
       const img = new Image();
       img.src = activeLayer.imageData;
       img.onload = () => {
-        // Only draw to main canvas if we aren't currently transforming it
-        if (!isDrawingRef.current || (tool !== 'move')) {
+        if (!isDrawingRef.current || tool !== 'move') {
           ctx.drawImage(img, 0, 0);
         }
         lastRenderedImageDataRef.current = activeLayer.imageData;
@@ -349,9 +298,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       lastRenderedImageDataRef.current = '';
       lastRenderedActiveLayerIdRef.current = activeLayerId;
     }
-
-    const tCtx = tempCanvasRef.current?.getContext('2d');
-    if (tCtx && tool !== 'lasso' && tool !== 'move') tCtx.clearRect(0, 0, width, height);
   }, [activeLayerId, activeLayer?.imageData, activeLayer?.visible, width, height, tool]);
 
   const getPos = (e: React.PointerEvent) => {
@@ -368,34 +314,26 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     const b = { ...bounds };
     const cx = bounds.x + bounds.w / 2;
     const cy = bounds.y + bounds.h / 2;
-
     if (mode === 'translate') {
       b.x += (curX - startX);
       b.y += (curY - startY);
     } else if (mode === 'scale') {
       const scaleX = 1 + (curX - startX) / (width / 2);
       const scaleY = 1 + (curY - startY) / (height / 2);
-      const nw = bounds.w * scaleX;
-      const nh = bounds.h * scaleY;
-      b.x = cx - nw/2;
-      b.y = cy - nh/2;
-      b.w = nw;
-      b.h = nh;
+      b.w = Math.abs(bounds.w * scaleX);
+      b.h = Math.abs(bounds.h * scaleY);
+      b.x = cx - b.w / 2;
+      b.y = cy - b.h / 2;
     }
-    // Note: Rotate and Skew bounds are kept as standard rectangles for simplicity in this visual box
     return b;
   };
 
-  const applyTransform = (ctx: CanvasRenderingContext2D, img: HTMLImageElement, startX: number, startY: number, curX: number, curY: number, mode: MoveMode, bounds?: any) => {
-    const cx = bounds ? bounds.x + bounds.w / 2 : width / 2;
-    const cy = bounds ? bounds.y + bounds.h / 2 : height / 2;
-    
+  const applyTransform = (ctx: CanvasRenderingContext2D, img: HTMLImageElement, startX: number, startY: number, curX: number, curY: number, mode: MoveMode, bounds: { x: number, y: number, w: number, h: number }) => {
+    const cx = bounds.x + bounds.w / 2;
+    const cy = bounds.y + bounds.h / 2;
     ctx.save();
-    
     if (mode === 'translate') {
-      const dx = curX - startX;
-      const dy = curY - startY;
-      ctx.translate(dx, dy);
+      ctx.translate(curX - startX, curY - startY);
     } else if (mode === 'scale') {
       const scaleX = 1 + (curX - startX) / (width / 2);
       const scaleY = 1 + (curY - startY) / (height / 2);
@@ -412,7 +350,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       const skewY = (curY - startY) / (height / 2);
       ctx.transform(1, skewY, skewX, 1, 0, 0);
     }
-
     ctx.drawImage(img, 0, 0);
     ctx.restore();
   };
@@ -426,10 +363,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       if (canvas) {
         const ctx = canvas.getContext('2d')!;
         floodFill(ctx, pos.x, pos.y, color);
-        const dataUrl = canvas.toDataURL();
-        lastRenderedImageDataRef.current = dataUrl;
-        lastRenderedActiveLayerIdRef.current = activeLayerId;
-        onLayerUpdate(dataUrl);
+        onLayerUpdate(canvas.toDataURL());
       }
       return;
     }
@@ -443,62 +377,47 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     } else if (tool === 'move') {
       const canvas = mainCanvasRef.current;
       if (canvas && !movingSelection) {
-        const ctx = canvas.getContext('2d')!;
-        const bounds = calculateBounds(ctx);
+        const bounds = calculateBounds(canvas);
         setSelectionBounds(bounds);
         const img = new Image();
         img.src = canvas.toDataURL();
         img.onload = () => {
           setDragStartImage(img);
-          // Clear main canvas ONLY after image is ready, to prevent flicker
-          ctx.clearRect(0, 0, width, height);
+          canvas.getContext('2d')?.clearRect(0, 0, width, height);
         };
-      } else if (movingSelection) {
-        // Selection already lifted, just clear main to be safe
-        const ctx = canvas?.getContext('2d')!;
-        ctx.clearRect(0, 0, width, height);
       }
-    }
-
-    const immediateBrushes = ['pixel', 'calligraphy', 'airbrush', 'charcoal', 'crayon', 'watercolor', 'spray', 'chalk', 'custom'];
-    if (immediateBrushes.includes(tool)) {
-      draw(e);
     }
   };
 
   const draw = (e: React.PointerEvent) => {
     if (!isDrawingRef.current || isPlaying || !activeLayer.visible) return;
     const canvas = mainCanvasRef.current;
-    const tempCanvas = tempCanvasRef.current;
-    if (!canvas || !tempCanvas) return;
+    const tCtx = tempCanvasRef.current?.getContext('2d');
+    if (!canvas || !tCtx) return;
     const ctx = canvas.getContext('2d')!;
-    const tCtx = tempCanvas.getContext('2d')!;
 
     let pos = getPos(e);
 
     if (tool === 'move') {
       tCtx.clearRect(0, 0, width, height);
       const source = movingSelection || dragStartImage;
-      if (source) {
-        applyTransform(tCtx, source, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode, selectionBounds);
-        if (selectionBounds) {
-          const currentBounds = getTransformBounds(selectionBounds, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode);
-          drawSelectionBox(tCtx, currentBounds);
-        }
+      const bounds = selectionBounds;
+      if (source && bounds) {
+        applyTransform(tCtx, source, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode, bounds);
+        const currentBounds = getTransformBounds(bounds, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode);
+        drawSelectionBox(tCtx, currentBounds);
       }
       return;
     }
 
     if (tool === 'lasso') {
       lassoPointsRef.current.push(pos);
-      const points = lassoPointsRef.current;
       tCtx.clearRect(0, 0, width, height);
       tCtx.beginPath();
       tCtx.strokeStyle = '#82C9C9';
       tCtx.setLineDash([5, 5]);
-      tCtx.lineWidth = 1;
-      tCtx.moveTo(points[0]?.x, points[0]?.y);
-      points.forEach(p => tCtx.lineTo(p.x, p.y));
+      tCtx.moveTo(lassoPointsRef.current[0].x, lassoPointsRef.current[0].y);
+      lassoPointsRef.current.forEach(p => tCtx.lineTo(p.x, p.y));
       tCtx.stroke();
       tCtx.setLineDash([]);
       return;
@@ -520,9 +439,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
     const lastPos = lastPosRef.current;
     if (stabilizationEnabled) {
-      const factor = 0.25; 
-      pos.x = lastPos.x + (pos.x - lastPos.x) * factor;
-      pos.y = lastPos.y + (pos.y - lastPos.y) * factor;
+      pos.x = lastPos.x + (pos.x - lastPos.x) * 0.25;
+      pos.y = lastPos.y + (pos.y - lastPos.y) * 0.25;
     }
 
     const currentPressure = pressureEnabled ? e.pressure || 0.5 : 1;
@@ -530,10 +448,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
     ctx.save();
     ctx.globalAlpha = opacity / 100;
-
-    if (tool === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out';
-    } else {
+    if (tool === 'eraser') ctx.globalCompositeOperation = 'destination-out';
+    else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
@@ -543,261 +459,110 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     const angle = Math.atan2(pos.y - lastPos.y, pos.x - lastPos.x);
 
     if (tool === 'custom' && customBrushImage) {
-      const drawStamp = (x: number, y: number, r: number) => {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(r);
-        const offscreen = document.createElement('canvas');
-        offscreen.width = effectiveBrushSize * 2;
-        offscreen.height = effectiveBrushSize * 2;
-        const oCtx = offscreen.getContext('2d')!;
-        oCtx.drawImage(customBrushImage, 0, 0, offscreen.width, offscreen.height);
-        if (customBrushColorLink) {
-          oCtx.globalCompositeOperation = 'source-in';
-          oCtx.fillStyle = color;
-          oCtx.fillRect(0, 0, offscreen.width, offscreen.height);
-        }
-        ctx.drawImage(offscreen, -effectiveBrushSize, -effectiveBrushSize);
-        ctx.restore();
-      };
       const spacing = dynamicStampingEnabled ? effectiveBrushSize * 1.1 : Math.max(1, effectiveBrushSize / 10);
       const steps = Math.max(1, Math.ceil(dist / spacing));
       for (let i = 0; i < steps; i++) {
         const t = i / steps;
-        drawStamp(lastPos.x + (pos.x - lastPos.x) * t, lastPos.y + (pos.y - lastPos.y) * t, angle);
+        const curX = lastPos.x + (pos.x - lastPos.x) * t;
+        const curY = lastPos.y + (pos.y - lastPos.y) * t;
+        ctx.save();
+        ctx.translate(curX, curY);
+        ctx.rotate(angle);
+        const off = document.createElement('canvas');
+        off.width = off.height = effectiveBrushSize * 2;
+        const oCtx = off.getContext('2d')!;
+        oCtx.drawImage(customBrushImage, 0, 0, off.width, off.height);
+        if (customBrushColorLink) { oCtx.globalCompositeOperation = 'source-in'; oCtx.fillStyle = color; oCtx.fillRect(0, 0, off.width, off.height); }
+        ctx.drawImage(off, -effectiveBrushSize, -effectiveBrushSize);
+        ctx.restore();
       }
-    }
-    else if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink'].includes(tool)) {
-      ctx.lineWidth = effectiveBrushSize;
+    } else if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink', 'pencil', 'pixel'].includes(tool)) {
+      ctx.lineWidth = tool === 'pencil' ? Math.max(1, effectiveBrushSize / 2) : effectiveBrushSize;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       if (tool === 'highlighter') ctx.globalAlpha *= 0.5;
-      if (tool === 'brush') {
-        ctx.shadowBlur = (1 - (hardness / 100)) * effectiveBrushSize * 1.5;
-        ctx.shadowColor = color;
+      if (tool === 'pixel') {
+        const s = Math.max(1, Math.floor(effectiveBrushSize / 2));
+        ctx.fillRect(Math.floor(pos.x / s) * s, Math.floor(pos.y / s) * s, s, s);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(lastPos.x, lastPos.y);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
       }
-      ctx.beginPath();
-      ctx.moveTo(lastPos.x, lastPos.y);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
-    } 
-    else if (tool === 'pencil') {
-      ctx.globalAlpha *= (0.3 + (hardness / 100) * 0.4);
-      ctx.lineWidth = Math.max(1, effectiveBrushSize / 2);
-      ctx.beginPath();
-      ctx.moveTo(lastPos.x, lastPos.y);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
-    }
-    else if (tool === 'pixel') {
-      const size = Math.max(1, Math.floor(effectiveBrushSize / 2));
-      ctx.fillRect(Math.floor(pos.x / size) * size, Math.floor(pos.y / size) * size, size, size);
-    } 
-    else if (tool === 'calligraphy') {
-      const steps = Math.max(1, Math.ceil(dist / 2));
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        ctx.save();
-        ctx.translate(lastPos.x + (pos.x - lastPos.x) * t, lastPos.y + (pos.y - lastPos.y) * t);
-        ctx.rotate(Math.PI / 4);
-        ctx.fillRect(-effectiveBrushSize, -1, effectiveBrushSize * 2, 2);
-        ctx.restore();
-      }
-    } 
-    else if (['airbrush', 'spray', 'charcoal', 'crayon', 'watercolor', 'chalk'].includes(tool)) {
-      const density = 20 * (hardness / 100 + 0.5);
-      const spread = effectiveBrushSize * 1.5;
+    } else if (['airbrush', 'spray', 'charcoal', 'crayon', 'watercolor', 'chalk'].includes(tool)) {
       const steps = Math.max(1, Math.ceil(dist / 2));
       for (let s = 0; s < steps; s++) {
         const t = s / steps;
-        const interpX = lastPos.x + (pos.x - lastPos.x) * t;
-        const interpY = lastPos.y + (pos.y - lastPos.y) * t;
-        for (let i = 0; i < density / 5; i++) {
-          const r = Math.random() * spread;
-          const rndAngle = Math.random() * Math.PI * 2;
-          const x = interpX + r * Math.cos(rndAngle);
-          const y = interpY + r * Math.sin(rndAngle);
-          if (tool === 'watercolor') {
-            ctx.globalAlpha = (opacity / 200) * Math.random();
-            ctx.beginPath();
-            ctx.arc(x, y, Math.random() * 3, 0, Math.PI * 2);
-            ctx.fill();
-          } else {
-            ctx.fillRect(x, y, 1.5, 1.5);
-          }
+        const ix = lastPos.x + (pos.x - lastPos.x) * t;
+        const iy = lastPos.y + (pos.y - lastPos.y) * t;
+        for (let i = 0; i < 5; i++) {
+          const r = Math.random() * (effectiveBrushSize * 1.5);
+          const a = Math.random() * Math.PI * 2;
+          ctx.fillRect(ix + r * Math.cos(a), iy + r * Math.sin(a), 1.5, 1.5);
         }
       }
     }
-
     ctx.restore();
-    if (tool !== 'move' && tool !== 'lasso' && !shapeTools.includes(tool)) {
-      lastPosRef.current = pos;
-    }
+    lastPosRef.current = pos;
   };
 
   const stopDrawing = (e: React.PointerEvent) => {
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
-    
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
-
-    const handleUpdate = () => {
-      const dataUrl = canvas.toDataURL();
-      lastRenderedImageDataRef.current = dataUrl;
-      lastRenderedActiveLayerIdRef.current = activeLayerId;
-      onLayerUpdate(dataUrl);
-    };
+    const pos = getPos(e);
 
     if (tool === 'move') {
-      const pos = getPos(e);
       const source = movingSelection || dragStartImage;
-      if (source) {
-        // Clear main again before final commit to ensure we aren't layering on top of ghosts
+      const bounds = selectionBounds;
+      if (source && bounds) {
         ctx.clearRect(0, 0, width, height);
-        applyTransform(ctx, source, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode, selectionBounds);
-        handleUpdate();
-        
-        // Clean up interactive state
-        if (movingSelection) {
-          setMovingSelection(null);
-          setSelectionBounds(null);
-        }
+        applyTransform(ctx, source, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode, bounds);
+        onLayerUpdate(canvas.toDataURL());
+        setMovingSelection(null);
         setDragStartImage(null);
       }
-      const tCtx = tempCanvasRef.current?.getContext('2d');
-      if (tCtx) tCtx.clearRect(0, 0, width, height);
-      return;
-    }
-
-    const shapeTools = ['line', 'rectangle', 'circle', 'triangle'];
-    if (shapeTools.includes(tool)) {
-      const pos = getPos(e);
+    } else if (['line', 'rectangle', 'circle', 'triangle'].includes(tool)) {
       ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = brushSize;
-      ctx.globalAlpha = opacity / 100;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      ctx.strokeStyle = color; ctx.lineWidth = brushSize; ctx.globalAlpha = opacity / 100;
       drawShape(ctx, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, tool);
       ctx.restore();
-      handleUpdate();
-    } else if (tool === 'lasso') {
-      const points = lassoPointsRef.current;
-      if (points.length > 2) {
-        onLassoSelect?.(true);
-        const tCtx = tempCanvasRef.current?.getContext('2d')!;
-        tCtx.clearRect(0, 0, width, height);
-        tCtx.beginPath();
-        tCtx.strokeStyle = '#82C9C9';
-        tCtx.setLineDash([5, 5]);
-        tCtx.lineWidth = 2;
-        tCtx.moveTo(points[0].x, points[0].y);
-        points.forEach(p => tCtx.lineTo(p.x, p.y));
-        tCtx.closePath();
-        tCtx.stroke();
-        tCtx.setLineDash([]);
-      } else {
-        onLassoSelect?.(false);
-      }
-    } else if (tool !== 'bucket') {
-      handleUpdate();
+      onLayerUpdate(canvas.toDataURL());
+    } else if (tool !== 'lasso' && tool !== 'bucket') {
+      onLayerUpdate(canvas.toDataURL());
     }
-    
-    const tCtx = tempCanvasRef.current?.getContext('2d');
-    if (tCtx && tool !== 'lasso' && tool !== 'move') tCtx.clearRect(0, 0, width, height);
+    tempCanvasRef.current?.getContext('2d')?.clearRect(0, 0, width, height);
   };
 
-  const hexToRgb = (hex: string) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : { r: 0, g: 0, b: 0 };
-  };
-
-  const floodFill = (ctx: CanvasRenderingContext2D, startX: number, startY: number, fillColor: string) => {
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
-    const { r: fR, g: fG, b: fB } = hexToRgb(fillColor);
-    const fA = Math.floor((opacity / 100) * 255);
-
-    const x = Math.floor(startX);
-    const y = Math.floor(startY);
-    if (x < 0 || x >= width || y < 0 || y >= height) return;
-    
-    const startPosIdx = (y * width + x) * 4;
-    const sR = data[startPosIdx];
-    const sG = data[startPosIdx + 1];
-    const sB = data[startPosIdx + 2];
-    const sA = data[startPosIdx + 3];
-
-    if (sR === fR && sG === fG && sB === fB && sA === fA) return;
-
+  const floodFill = (ctx: CanvasRenderingContext2D, sX: number, sY: number, fill: string) => {
+    const img = ctx.getImageData(0, 0, width, height);
+    const d = img.data;
+    const x = Math.floor(sX), y = Math.floor(sY);
+    const start = (y * width + x) * 4;
+    const sR = d[start], sG = d[start+1], sB = d[start+2], sA = d[start+3];
+    const {r, g, b} = { r: parseInt(fill.slice(1,3),16), g: parseInt(fill.slice(3,5),16), b: parseInt(fill.slice(5,7),16) };
+    if (sR === r && sG === g && sB === b) return;
     const stack: [number, number][] = [[x, y]];
-
-    while (stack.length > 0) {
-      let [curX, curY] = stack.pop()!;
-      let pos = (curY * width + curX) * 4;
-      while (curY >= 0 && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
-        curY--;
-        pos -= width * 4;
-      }
-      pos += width * 4;
-      curY++;
-      let reachLeft = false;
-      let reachRight = false;
-      while (curY < height && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
-        data[pos] = fR;
-        data[pos + 1] = fG;
-        data[pos + 2] = fB;
-        data[pos + 3] = fA;
-        if (curX > 0) {
-          const leftPos = pos - 4;
-          if (data[leftPos] === sR && data[leftPos + 1] === sG && data[leftPos + 2] === sB && data[leftPos + 3] === sA) {
-            if (!reachLeft) {
-              stack.push([curX - 1, curY]);
-              reachLeft = true;
-            }
-          } else {
-            reachLeft = false;
-          }
-        }
-        if (curX < width - 1) {
-          const rightPos = pos + 4;
-          if (data[rightPos] === sR && data[rightPos + 1] === sG && data[rightPos + 2] === sB && data[rightPos + 3] === sA) {
-            if (!reachRight) {
-              stack.push([curX + 1, curY]);
-              reachRight = true;
-            }
-          } else {
-            reachRight = false;
-          }
-        }
-        curY++;
-        pos += width * 4;
+    while(stack.length) {
+      const [cx, cy] = stack.pop()!;
+      const i = (cy * width + cx) * 4;
+      if (cx>=0 && cx<width && cy>=0 && cy<height && d[i]===sR && d[i+1]===sG && d[i+2]===sB) {
+        d[i]=r; d[i+1]=g; d[i+2]=b; d[i+3]=255;
+        stack.push([cx+1, cy], [cx-1, cy], [cx, cy+1], [cx, cy-1]);
       }
     }
-    ctx.putImageData(imageData, 0, 0);
+    ctx.putImageData(img, 0, 0);
   };
 
-  const drawShape = (ctx: CanvasRenderingContext2D, sX: number, sY: number, eX: number, eY: number, shapeTool: string) => {
+  const drawShape = (ctx: CanvasRenderingContext2D, sX: number, sY: number, eX: number, eY: number, sT: string) => {
     ctx.beginPath();
-    if (shapeTool === 'line') {
-      ctx.moveTo(sX, sY);
-      ctx.lineTo(eX, eY);
-    } else if (shapeTool === 'rectangle') {
-      ctx.rect(sX, sY, eX - sX, eY - sY);
-    } else if (shapeTool === 'circle') {
-      ctx.arc(sX, sY, Math.sqrt(Math.pow(eX - sX, 2) + Math.pow(eY - sY, 2)), 0, 2 * Math.PI);
-    } else if (shapeTool === 'triangle') {
-      ctx.moveTo(sX + (eX - sX) / 2, sY);
-      ctx.lineTo(eX, eY);
-      ctx.lineTo(sX, eY);
-      ctx.closePath();
-    }
+    if (sT === 'line') { ctx.moveTo(sX, sY); ctx.lineTo(eX, eY); }
+    else if (sT === 'rectangle') ctx.rect(sX, sY, eX - sX, eY - sY);
+    else if (sT === 'circle') ctx.arc(sX, sY, Math.sqrt(Math.pow(eX - sX, 2) + Math.pow(eY - sY, 2)), 0, 2*Math.PI);
+    else if (sT === 'triangle') { ctx.moveTo(sX + (eX - sX)/2, sY); ctx.lineTo(eX, eY); ctx.lineTo(sX, eY); ctx.closePath(); }
     ctx.stroke();
   };
 
@@ -806,17 +571,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       <div className="absolute inset-0 bg-white" />
       <canvas ref={onionSkinCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none w-full h-full" />
       <canvas ref={compositeCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-0 w-full h-full" />
-      <canvas 
-        ref={mainCanvasRef} 
-        width={width} 
-        height={height}
-        onPointerDown={startDrawing} 
-        onPointerMove={draw} 
-        onPointerUp={stopDrawing} 
-        onPointerLeave={stopDrawing} 
-        className="absolute inset-0 touch-none block z-10 w-full h-full"
-        style={{ cursor: isPlaying ? 'default' : (tool === 'move' ? 'move' : 'crosshair'), opacity: activeLayer.visible ? 1 : 0.3 }}
-      />
+      <canvas ref={mainCanvasRef} width={width} height={height} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerLeave={stopDrawing} className="absolute inset-0 touch-none block z-10 w-full h-full" style={{ cursor: isPlaying ? 'default' : (tool === 'move' ? 'move' : 'crosshair'), opacity: activeLayer.visible ? 1 : 0.3 }} />
       <canvas ref={tempCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-20 w-full h-full" />
     </div>
   );
