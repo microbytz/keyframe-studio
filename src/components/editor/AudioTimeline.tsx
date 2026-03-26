@@ -1,10 +1,10 @@
+
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Square, Play, Trash2, Music, Volume2 } from 'lucide-react';
+import { Mic, Square, Trash2, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AudioMetadata, Frame } from '@/lib/types';
-import { Button } from '@/components/ui/button';
 
 interface AudioTimelineProps {
   audioData?: string;
@@ -86,8 +86,7 @@ export const AudioTimeline: React.FC<AudioTimelineProps> = ({
     });
 
     // Draw Frame/Beat Markers (The Grid)
-    ctx.strokeStyle = 'rgba(69, 77, 82, 0.15)';
-    ctx.lineWidth = 1;
+    // Professional visualization: make primary beats more prominent
     let accumulatedTime = 0;
     const totalAudioDuration = metadata.duration;
 
@@ -97,6 +96,9 @@ export const AudioTimeline: React.FC<AudioTimelineProps> = ({
       
       if (xPos < canvas.width) {
         ctx.beginPath();
+        // Alternate intensity for readability
+        ctx.strokeStyle = idx % 4 === 0 ? 'rgba(69, 77, 82, 0.4)' : 'rgba(69, 77, 82, 0.15)';
+        ctx.lineWidth = idx % 4 === 0 ? 1.5 : 1;
         ctx.moveTo(xPos, 0);
         ctx.lineTo(xPos, canvas.height);
         ctx.stroke();
@@ -107,10 +109,8 @@ export const AudioTimeline: React.FC<AudioTimelineProps> = ({
 
   }, [metadata, frames, fps]);
 
-  const animationDuration = totalFrames / fps;
-  // Calculate playhead pos based on actual frame timing (considering duration/exposure)
-  const totalTimeBefore = frames.slice(0, currentFrameIndex).reduce((acc, f) => acc + (f.duration || 1) / fps, 0);
   const totalProjectTime = frames.reduce((acc, f) => acc + (f.duration || 1) / fps, 0);
+  const totalTimeBefore = frames.slice(0, currentFrameIndex).reduce((acc, f) => acc + (f.duration || 1) / fps, 0);
   const playheadPos = totalProjectTime > 0 ? (totalTimeBefore / totalProjectTime) * 100 : 0;
 
   return (
@@ -184,7 +184,7 @@ export const AudioTimeline: React.FC<AudioTimelineProps> = ({
       <div className="flex justify-between px-1">
         <span className="text-[8px] font-mono opacity-40">0.0s</span>
         <div className="flex gap-4">
-          <span className="text-[8px] font-bold uppercase opacity-30 tracking-widest">Visual Beat Sync Active</span>
+          <span className="text-[8px] font-bold uppercase opacity-30 tracking-widest">Beat Sync Active</span>
           <span className="text-[8px] font-mono opacity-40">{totalProjectTime.toFixed(1)}s</span>
         </div>
       </div>

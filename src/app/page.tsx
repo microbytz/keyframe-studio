@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -132,7 +133,6 @@ export default function Home() {
   const [isMultiDrawDialogOpen, setIsMultiDrawDialogOpen] = useState(false);
   const [tempRange, setTempRange] = useState(multiDrawRange.toString());
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [hasLassoSelection, setHasLassoSelection] = useState(false);
   const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -235,9 +235,6 @@ export default function Home() {
     }
     if (action === 'move') {
       setTool('move');
-    }
-    if (action !== 'select') {
-      setHasLassoSelection(false);
     }
   };
 
@@ -512,7 +509,7 @@ export default function Home() {
           
           <div className="w-full max-w-full flex justify-center">
             <div className="shadow-xl bg-white sketch-border overflow-hidden w-full max-w-[800px]">
-              <SketchCanvas ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} onionSkinBefore={project.onionSkinBefore} onionSkinAfter={project.onionSkinAfter} tool={tool} moveMode={moveMode} color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} onLassoSelect={setHasLassoSelection} isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} dynamicStampingEnabled={dynamicStampingEnabled} customBrushColorLink={customBrushColorLink} customBrushData={customBrushData} />
+              <SketchCanvas ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} onionSkinBefore={project.onionSkinBefore} onionSkinAfter={project.onionSkinAfter} tool={tool} moveMode={moveMode} color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} onLassoSelect={() => {}} isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} dynamicStampingEnabled={dynamicStampingEnabled} customBrushColorLink={customBrushColorLink} customBrushData={customBrushData} />
             </div>
           </div>
           
