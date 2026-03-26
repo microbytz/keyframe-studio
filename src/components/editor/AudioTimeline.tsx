@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Play, Trash2, Music, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AudioMetadata } from '@/lib/types';
+import { AudioMetadata, Frame } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 
 interface AudioTimelineProps {
@@ -12,6 +12,7 @@ interface AudioTimelineProps {
   isPlaying: boolean;
   currentFrameIndex: number;
   totalFrames: number;
+  frames: Frame[];
   fps: number;
   onRecord: (blob: Blob) => void;
   onRemove: () => void;
@@ -23,6 +24,7 @@ export const AudioTimeline: React.FC<AudioTimelineProps> = ({
   isPlaying,
   currentFrameIndex,
   totalFrames,
+  frames,
   fps,
   onRecord,
   onRemove
@@ -74,17 +76,42 @@ export const AudioTimeline: React.FC<AudioTimelineProps> = ({
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#82C9C9';
     
+    // Draw Peaks
+    ctx.fillStyle = '#82C9C9';
     const barWidth = canvas.width / metadata.peaks.length;
     metadata.peaks.forEach((peak, i) => {
       const h = peak * canvas.height;
       ctx.fillRect(i * barWidth, (canvas.height - h) / 2, barWidth - 1, h);
     });
-  }, [metadata]);
+
+    // Draw Frame/Beat Markers (The Grid)
+    ctx.strokeStyle = 'rgba(69, 77, 82, 0.15)';
+    ctx.lineWidth = 1;
+    let accumulatedTime = 0;
+    const totalAudioDuration = metadata.duration;
+
+    frames.forEach((frame, idx) => {
+      const startTime = accumulatedTime;
+      const xPos = (startTime / totalAudioDuration) * canvas.width;
+      
+      if (xPos < canvas.width) {
+        ctx.beginPath();
+        ctx.moveTo(xPos, 0);
+        ctx.lineTo(xPos, canvas.height);
+        ctx.stroke();
+      }
+      
+      accumulatedTime += (frame.duration || 1) / fps;
+    });
+
+  }, [metadata, frames, fps]);
 
   const animationDuration = totalFrames / fps;
-  const playheadPos = (currentFrameIndex / totalFrames) * 100;
+  // Calculate playhead pos based on actual frame timing (considering duration/exposure)
+  const totalTimeBefore = frames.slice(0, currentFrameIndex).reduce((acc, f) => acc + (f.duration || 1) / fps, 0);
+  const totalProjectTime = frames.reduce((acc, f) => acc + (f.duration || 1) / fps, 0);
+  const playheadPos = totalProjectTime > 0 ? (totalTimeBefore / totalProjectTime) * 100 : 0;
 
   return (
     <div className="w-full sketch-card bg-slate-50 p-2 flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -137,7 +164,7 @@ export const AudioTimeline: React.FC<AudioTimelineProps> = ({
             ref={waveformRef} 
             width={800} 
             height={48} 
-            className="w-full h-full opacity-60"
+            className="w-full h-full opacity-70"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center opacity-20 italic text-[10px]">
@@ -156,7 +183,10 @@ export const AudioTimeline: React.FC<AudioTimelineProps> = ({
       
       <div className="flex justify-between px-1">
         <span className="text-[8px] font-mono opacity-40">0.0s</span>
-        <span className="text-[8px] font-mono opacity-40">{animationDuration.toFixed(1)}s</span>
+        <div className="flex gap-4">
+          <span className="text-[8px] font-bold uppercase opacity-30 tracking-widest">Visual Beat Sync Active</span>
+          <span className="text-[8px] font-mono opacity-40">{totalProjectTime.toFixed(1)}s</span>
+        </div>
       </div>
     </div>
   );

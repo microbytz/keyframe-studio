@@ -78,6 +78,7 @@ export interface AnimationProject {
   advancedOnionSkinEnabled?: boolean;
   onionSkinBefore?: number;
   onionSkinAfter?: number;
+  scrubWithSound?: boolean;
   groups: FrameGroup[];
   savedBrushes: SavedBrush[];
   audioData?: string; // Data URI for the audio

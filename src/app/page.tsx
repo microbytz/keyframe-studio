@@ -30,7 +30,8 @@ import {
   Check, 
   Clock, 
   Music,
-  Mic
+  Mic,
+  Volume2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -188,7 +189,7 @@ export default function Home() {
   const handleAddGroup = () => {
     const start = Math.max(0, parseInt(groupStart) - 1);
     const end = Math.min(project.frames.length - 1, parseInt(groupEnd) - 1);
-    if (isNaN(start) || iSNaN(end) || start > end) return;
+    if (isNaN(start) || isNaN(end) || start > end) return;
 
     const newGroup: FrameGroup = {
       id: Math.random().toString(36).substr(2, 9),
@@ -399,6 +400,17 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+
+                <div className="pt-2 border-t mt-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <Volume2 size={12} className="text-accent" />
+                    Audio Sync
+                  </h4>
+                  <div className="flex items-center justify-between space-x-2">
+                    <Label htmlFor="scrub-sound" className="text-xs">Scrub with Sound</Label>
+                    <Switch id="scrub-sound" checked={project.scrubWithSound} onCheckedChange={(checked) => setProject(p => ({ ...p, scrubWithSound: checked }))} />
+                  </div>
+                </div>
                 
                 <div className="pt-2 border-t mt-2">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Sync Tools</h4>
@@ -534,6 +546,7 @@ export default function Home() {
                 isPlaying={isPlaying}
                 currentFrameIndex={currentFrameIndex}
                 totalFrames={project.frames.length}
+                frames={project.frames}
                 fps={project.fps}
                 onRecord={(blob) => setAudio(blob, 'Recording')}
                 onRemove={removeAudio}
@@ -604,7 +617,7 @@ export default function Home() {
       </Dialog>
 
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Sync your animation to audio peaks for perfect timing! Use the record button for quick scratch tracks.
+        Tip: Sync your animation to audio peaks for perfect timing! Use the visual beat markers in the audio bar.
       </div>
     </main>
   );

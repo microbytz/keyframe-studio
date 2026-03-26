@@ -39,6 +39,7 @@ export function useAnimationState() {
     advancedOnionSkinEnabled: false,
     onionSkinBefore: 1,
     onionSkinAfter: 1,
+    scrubWithSound: true,
     groups: [],
     savedBrushes: [],
   });
@@ -246,8 +247,17 @@ export function useAnimationState() {
     if (audioRef.current && !isPlaying) {
       const totalTimeBefore = project.frames.slice(0, index).reduce((acc, f) => acc + (f.duration || 1) / project.fps, 0);
       audioRef.current.currentTime = totalTimeBefore;
+      
+      if (project.scrubWithSound) {
+        audioRef.current.play().catch(() => {});
+        setTimeout(() => {
+          if (!isPlaying && audioRef.current) {
+            audioRef.current.pause();
+          }
+        }, 80); // Quick chirp for scrubbing
+      }
     }
-  }, [currentFrameIndex, project.frames, project.fps, isPlaying]);
+  }, [currentFrameIndex, project.frames, project.fps, project.scrubWithSound, isPlaying]);
 
   const updateLayerData = useCallback((dataUrl: string) => {
     const newFrames = [...project.frames];
@@ -464,6 +474,10 @@ export function useAnimationState() {
       setSelectedFrameIndices([0]);
       setActiveLayerId(loadedProject.frames[0].layers[0].id);
       
+      if (loadedProject.audioData) {
+        audioRef.current = new Audio(loadedProject.audioData);
+      }
+      
       toast({
         title: "Project Loaded",
         description: "Successfully restored your last session.",
@@ -605,7 +619,6 @@ export function useAnimationState() {
     reader.onload = async (e) => {
       const dataUrl = e.target?.result as string;
       
-      // Process peaks for waveform
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const response = await fetch(dataUrl);
       const arrayBuffer = await response.arrayBuffer();
