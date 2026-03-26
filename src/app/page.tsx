@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -9,6 +10,7 @@ import { AudioTimeline } from '@/components/editor/AudioTimeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { LayersPanel } from '@/components/editor/LayersPanel';
+import { AIPanel } from '@/components/editor/AIPanel';
 import { 
   Save, 
   FolderOpen, 
@@ -256,8 +258,12 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center bg-background overflow-x-hidden">
-      <div className="w-full flex items-center justify-between max-w-7xl h-auto md:h-14 p-2 md:px-4 bg-white/30 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-50">
+    <main className="min-h-screen flex flex-col bg-background overflow-x-hidden">
+      {/* AI Panel Integrated */}
+      <AIPanel />
+
+      {/* Header / Top Bar */}
+      <div className="w-full flex items-center justify-between h-auto md:h-14 p-2 md:px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-[60]">
         <div className="flex flex-wrap items-center gap-2 md:gap-4">
           <h1 className="text-base md:text-lg font-bold italic tracking-tighter text-primary">
             SketchFlow <span className="text-accent">Studio</span>
@@ -340,7 +346,6 @@ export default function Home() {
                       <SelectItem value="2" className="text-xs">2.0x (Full HD - 1600px)</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[8px] opacity-40 italic">Higher resolution increases file size and processing time.</p>
                 </div>
 
                 <div className="space-y-2">
@@ -425,13 +430,6 @@ export default function Home() {
                   </div>
                   <input type="range" min="1" max="100" value={opacity} onChange={(e) => setOpacity(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-tighter">Hardness</label>
-                    <span className="text-[10px] font-mono">{hardness}%</span>
-                  </div>
-                  <input type="range" min="1" max="100" value={hardness} onChange={(e) => setHardness(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
-                </div>
               </PopoverContent>
             </Popover>
 
@@ -462,30 +460,10 @@ export default function Home() {
                       <Label htmlFor="main-onion-toggle" className="text-xs font-bold">Enable Onion Skin</Label>
                       <Switch id="main-onion-toggle" checked={project.onionSkinEnabled} onCheckedChange={toggleOnionSkin} />
                     </div>
-                    
                     <div className="flex items-center justify-between space-x-2">
                       <Label htmlFor="advanced-skin" className="text-xs">Multi-Skin Mode</Label>
                       <Switch id="advanced-skin" checked={project.advancedOnionSkinEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, advancedOnionSkinEnabled: checked }))} />
                     </div>
-                    
-                    {project.advancedOnionSkinEnabled && (
-                      <div className="space-y-2 animate-in slide-in-from-top-1 duration-200">
-                        <div className="space-y-1">
-                          <div className="flex justify-between items-center">
-                            <Label className="text-[9px] uppercase font-bold opacity-60">Skins Before</Label>
-                            <span className="text-[9px] font-mono">{project.onionSkinBefore}</span>
-                          </div>
-                          <input type="range" min="1" max="10" value={project.onionSkinBefore} onChange={(e) => setProject(p => ({ ...p, onionSkinBefore: parseInt(e.target.value) }))} className="w-full h-1 accent-accent cursor-pointer" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex justify-between items-center">
-                            <Label className="text-[9px] uppercase font-bold opacity-60">Skins After</Label>
-                            <span className="text-[9px] font-mono">{project.onionSkinAfter}</span>
-                          </div>
-                          <input type="range" min="1" max="10" value={project.onionSkinAfter} onChange={(e) => setProject(p => ({ ...p, onionSkinAfter: parseInt(e.target.value) }))} className="w-full h-1 accent-accent cursor-pointer" />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -514,45 +492,6 @@ export default function Home() {
                     <Switch id="multi-draw" checked={isMultiDrawEnabled} onCheckedChange={(checked) => { setIsMultiDrawEnabled(checked); if (checked) setIsMultiDrawDialogOpen(true); }} />
                   </div>
                 </div>
-
-                <div className="pt-2 border-t mt-2">
-                   <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Frame Groups (Variable FPS)</h4>
-                   <div className="space-y-2">
-                     <Button variant="outline" size="sm" onClick={() => setIsGroupDialogOpen(true)} className="w-full text-[10px] font-bold uppercase sketch-border h-7">
-                       <Plus size={12} className="mr-1" /> Create Group
-                     </Button>
-                     <div className="space-y-1">
-                       {project.groups?.map(group => (
-                         <div key={group.id} className="flex items-center justify-between p-1 bg-slate-50 border rounded text-[9px] group/item">
-                           <div className="flex items-center gap-1">
-                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color }} />
-                             <span className="font-bold">{group.name}</span>
-                             <span className="opacity-40">{group.startIndex+1}-{group.endIndex+1}</span>
-                             <span className="text-accent font-bold">{group.fps}F</span>
-                           </div>
-                           <button onClick={() => removeGroup(group.id)} className="opacity-0 group-hover/item:opacity-100 text-red-500 hover:scale-110 transition-all">
-                             <Trash2 size={10} />
-                           </button>
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                </div>
-
-                <div className="pt-2 border-t mt-2">
-                   <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Custom Brush Engine</h4>
-                   <div className="space-y-3">
-                     <CustomBrushDialog onSave={handleCustomBrushSave} currentBrush={customBrushData} layers={currentFrame.layers} width={project.width} height={project.height} />
-                     <div className="flex items-center justify-between space-x-2">
-                        <Label htmlFor="stamp-spacing" className="text-xs">Add spacing in custom tip?</Label>
-                        <Switch id="stamp-spacing" checked={dynamicStampingEnabled} onCheckedChange={setDynamicStampingEnabled} />
-                     </div>
-                     <div className="flex items-center justify-between space-x-2">
-                        <Label htmlFor="color-link" className="text-xs">Sync tip color with palette?</Label>
-                        <Switch id="color-link" checked={customBrushColorLink} onCheckedChange={setCustomBrushColorLink} />
-                     </div>
-                   </div>
-                </div>
               </PopoverContent>
             </Popover>
           </div>
@@ -574,12 +513,35 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row flex-1 w-full max-w-7xl items-center md:items-start py-4 md:py-6 relative">
-        <div className="w-full md:auto px-4 mb-4 md:mb-0 md:flex-none md:sticky md:top-20 z-40">
-          <Toolbar currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={flipCurrentLayer} canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled} savedBrushes={project.savedBrushes} customBrushData={customBrushData} setCustomBrushData={setCustomBrushData} deleteSavedBrush={deleteSavedBrush} />
+      {/* Main Workspace */}
+      <div className="flex-1 flex flex-col md:flex-row w-full max-w-7xl mx-auto py-4 md:py-6 relative min-h-0">
+        {/* Left Toolbar Column */}
+        <div className="w-full md:w-16 px-4 mb-4 md:mb-0 md:flex-none">
+          <Toolbar 
+            currentTool={tool} 
+            lastBrushTool={lastBrushTool} 
+            lastShapeTool={lastShapeTool} 
+            setTool={setTool} 
+            moveMode={moveMode} 
+            setMoveMode={setMoveMode} 
+            undo={undo} 
+            redo={redo} 
+            flip={flipCurrentLayer} 
+            canUndo={canUndo} 
+            canRedo={canRedo} 
+            color={color} 
+            onOpenLayers={() => setIsLayersOpen(true)} 
+            isMultiDrawEnabled={isMultiDrawEnabled} 
+            setIsMultiDrawEnabled={setIsMultiDrawEnabled} 
+            savedBrushes={project.savedBrushes} 
+            customBrushData={customBrushData} 
+            setCustomBrushData={setCustomBrushData} 
+            deleteSavedBrush={deleteSavedBrush} 
+          />
         </div>
 
-        <div className="flex-1 flex flex-col items-center px-4 gap-4 md:gap-6 pb-20 w-full overflow-hidden">
+        {/* Central Editor Area */}
+        <div className="flex-1 flex flex-col items-center px-4 gap-6 min-h-0">
           {tool === 'lasso' && (
             <div className="flex items-center gap-2 bg-white p-2 sketch-border animate-in slide-in-from-top duration-300 z-30 shadow-md">
                <span className="text-[10px] font-bold uppercase opacity-50 mr-2 px-2 border-r">Lasso Active</span>
@@ -598,13 +560,38 @@ export default function Home() {
             </div>
           )}
           
-          <div className="w-full max-w-full flex justify-center">
+          <div className="w-full flex justify-center">
             <div className="shadow-xl bg-white sketch-border overflow-hidden w-full max-w-[800px]">
-              <SketchCanvas ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} onionSkinBefore={project.onionSkinBefore} onionSkinAfter={project.onionSkinAfter} tool={tool} moveMode={moveMode} color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} onLassoSelect={() => {}} isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} dynamicStampingEnabled={dynamicStampingEnabled} customBrushColorLink={customBrushColorLink} customBrushData={customBrushData} />
+              <SketchCanvas 
+                ref={canvasRef} 
+                width={project.width} 
+                height={project.height} 
+                frames={project.frames} 
+                currentFrameIndex={currentFrameIndex} 
+                activeLayerId={activeLayerId} 
+                onionSkinEnabled={project.onionSkinEnabled} 
+                advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} 
+                onionSkinBefore={project.onionSkinBefore} 
+                onionSkinAfter={project.onionSkinAfter} 
+                tool={tool} 
+                moveMode={moveMode} 
+                color={color} 
+                brushSize={brushSize} 
+                opacity={opacity} 
+                hardness={hardness} 
+                onLayerUpdate={updateLayerData} 
+                isPlaying={isPlaying} 
+                pressureEnabled={pressureEnabled} 
+                stabilizationEnabled={stabilizationEnabled} 
+                dynamicStampingEnabled={dynamicStampingEnabled} 
+                customBrushColorLink={customBrushColorLink} 
+                customBrushData={customBrushData} 
+              />
             </div>
           </div>
           
-          <div className="w-full max-w-[800px] flex-none space-y-4">
+          {/* Bottom Timeline Column */}
+          <div className="w-full max-w-[800px] space-y-4 pb-12">
             <div className="flex items-center justify-between bg-white px-3 py-1.5 sketch-border">
               <div className="flex items-center gap-2">
                 <Clock size={14} className="text-accent" />
@@ -644,8 +631,10 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Overlays */}
       {isLayersOpen && <LayersPanel layers={currentFrame.layers} activeLayerId={activeLayerId} onSetActive={setActiveLayerId} onAdd={addLayer} onCopy={copyLayer} onPaste={pasteLayer} hasCopiedLayer={hasCopiedLayer} onDelete={deleteLayer} onReorder={reorderLayers} onToggleVisibility={toggleLayerVisibility} onToggleLock={toggleLayerLock} onOpacityChange={updateLayerOpacity} onBlendModeChange={updateLayerBlendMode} onClose={() => setIsLayersOpen(false)} />}
 
+      {/* Dialogs */}
       <Dialog open={isMultiDrawDialogOpen} onOpenChange={setIsMultiDrawDialogOpen}>
         <DialogContent className="sketch-card sm:max-w-xs">
           <DialogHeader>
@@ -666,45 +655,7 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
-        <DialogContent className="sketch-card sm:max-w-xs">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-              <Zap size={16} className="text-accent" />
-              Make FPS Group
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-[9px] uppercase font-bold opacity-60">From Frame</Label>
-                <Input type="number" value={groupStart} onChange={(e) => setGroupStart(e.target.value)} min="1" max={project.frames.length} className="sketch-border h-8 text-xs" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[9px] uppercase font-bold opacity-60">To Frame</Label>
-                <Input type="number" value={groupEnd} onChange={(e) => setGroupEnd(e.target.value)} min="1" max={project.frames.length} className="sketch-border h-8 text-xs" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[9px] uppercase font-bold opacity-60">Group Speed (FPS)</Label>
-              <Input type="number" value={groupFps} onChange={(e) => setGroupFps(e.target.value)} min="1" max={60} className="sketch-border h-8 text-xs" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[9px] uppercase font-bold opacity-60">Group Color</Label>
-              <div className="flex gap-2">
-                {['#82C9C9', '#F0A0A0', '#A0F0A0', '#A0A0F0', '#F0F0A0'].map(c => (
-                  <button key={c} onClick={() => setGroupColor(c)} className={cn("w-6 h-6 rounded-full border-2", groupColor === c ? "border-foreground" : "border-transparent")} style={{ backgroundColor: c }} />
-                ))}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleAddGroup} className="w-full bg-accent hover:bg-accent/90 font-bold uppercase text-xs sketch-border">Create Group</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
+      <div className="h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
         Tip: Sync your animation to audio peaks for perfect timing! Use the visual beat markers in the audio bar.
       </div>
     </main>
