@@ -14,6 +14,8 @@ export type ToolType =
   | 'spray'
   | 'chalk'
   | 'technical'
+  | 'blur'
+  | 'blend'
   | 'eraser' 
   | 'bucket' 
   | 'lasso'

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React from 'react';
@@ -38,7 +37,9 @@ import {
   RotateCcw,
   StretchHorizontal,
   Bookmark,
-  Trash2
+  Trash2,
+  Waves,
+  Cloud
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -110,6 +111,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'spray', icon: SprayCan, label: 'Spray Paint' },
     { id: 'chalk', icon: Ghost, label: 'Dusty Chalk' },
     { id: 'technical', icon: Type, label: 'Technical Pen' },
+    { id: 'blur', icon: Cloud, label: 'Blur Softener' },
+    { id: 'blend', icon: Waves, label: 'Smudge Blender' },
     { id: 'custom', icon: Settings2, label: 'Custom Brush' },
   ];
 
@@ -150,7 +153,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       previewStyles.borderRadius = '0px';
       previewStyles.backgroundImage = `linear-gradient(90deg, transparent 50%, ${color} 50%)`;
       previewStyles.backgroundSize = '8px 8px';
-    } else if (['airbrush', 'spray', 'charcoal', 'chalk'].includes(activeBrush.id as any)) {
+    } else if (['airbrush', 'spray', 'charcoal', 'chalk', 'blur', 'blend'].includes(activeBrush.id as any)) {
       previewStyles.backgroundColor = 'transparent';
       previewStyles.backgroundImage = `radial-gradient(${color} 15%, transparent 20%)`;
       previewStyles.backgroundSize = '4px 4px';

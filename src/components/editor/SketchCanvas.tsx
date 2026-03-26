@@ -210,7 +210,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
   }, [customBrushData]);
 
-  // Pre-render the tinted custom brush tip to avoid expensive canvas operations during PointerMove
   useEffect(() => {
     if (!customBrushImage) {
       tintedBrushCanvasRef.current = null;
@@ -256,10 +255,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
       const framesToRender: { index: number; opacity: number; color: string }[] = [];
 
-      const PREV_OPACITY = 0.25;
-      const NEXT_OPACITY = 0.15;
-      const PREV_COLOR = '#FF6B6B'; // Light Red
-      const NEXT_COLOR = '#6B9FFF'; // Light Blue
+      const PREV_OPACITY = 0.1;
+      const NEXT_OPACITY = 0.05;
+      const PREV_COLOR = '#FF6B6B';
+      const NEXT_COLOR = '#6B9FFF';
 
       if (advancedOnionSkinEnabled) {
         for (let i = 1; i <= (onionSkinBefore || 1); i++) {
@@ -518,8 +517,47 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
     const currentPressure = pressureEnabled ? e.pressure || 0.5 : 1;
     const effectiveBrushSize = brushSize * currentPressure;
+    
     ctx.save();
     ctx.globalAlpha = opacity / 100;
+    
+    if (tool === 'blur') {
+      const size = effectiveBrushSize * 2.5;
+      const offscreen = document.createElement('canvas');
+      offscreen.width = size;
+      offscreen.height = size;
+      const oCtx = offscreen.getContext('2d')!;
+      oCtx.drawImage(canvas, pos.x - size/2, pos.y - size/2, size, size, 0, 0, size, size);
+      
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, effectiveBrushSize, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.filter = `blur(${brushSize / 4}px)`;
+      ctx.drawImage(offscreen, pos.x - size/2, pos.y - size/2, size, size);
+      ctx.restore();
+      ctx.restore();
+      lastPosRef.current = pos;
+      return;
+    }
+
+    if (tool === 'blend') {
+      const size = effectiveBrushSize * 2;
+      const smudgeCanvas = document.createElement('canvas');
+      smudgeCanvas.width = size;
+      smudgeCanvas.height = size;
+      const sCtx = smudgeCanvas.getContext('2d')!;
+      sCtx.drawImage(canvas, lastPos.x - size/2, lastPos.y - size/2, size, size, 0, 0, size, size);
+      
+      ctx.save();
+      ctx.globalAlpha = 0.4;
+      ctx.drawImage(smudgeCanvas, pos.x - size/2, pos.y - size/2, size, size);
+      ctx.restore();
+      ctx.restore();
+      lastPosRef.current = pos;
+      return;
+    }
+
     if (tool === 'eraser') ctx.globalCompositeOperation = 'destination-out';
     else {
       ctx.globalCompositeOperation = 'source-over';
