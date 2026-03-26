@@ -36,11 +36,10 @@ export interface ProjectListItem {
 export function useAnimationState() {
   const { toast } = useToast();
   
-  // Initialize with a completely static state to avoid hydration mismatches
   const [project, setProject] = useState<AnimationProject>({
     id: '', 
     name: 'Untitled Sketch',
-    frames: [], // Empty initially
+    frames: [],
     fps: INITIAL_FPS,
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
@@ -82,6 +81,7 @@ export function useAnimationState() {
   const [isMultiDrawEnabled, setIsMultiDrawEnabled] = useState(false);
   const [multiDrawRange, setMultiDrawRange] = useState(5);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   const historyRef = useRef<Frame[][]>([]);
   const historyIndexRef = useRef<number>(0);
@@ -112,10 +112,9 @@ export function useAnimationState() {
     updateHistoryState();
   }, [updateHistoryState]);
 
-  // Fix Hydration Mismatch: Initialize dynamic content on client mount only
   useEffect(() => {
+    setMounted(true);
     const initializeProject = () => {
-      // Check for last worked on draft in local storage first
       const registryStr = localStorage.getItem('sketchflow_registry');
       if (registryStr) {
         try {
@@ -136,7 +135,6 @@ export function useAnimationState() {
         }
       }
 
-      // Default new project if nothing to restore
       const initialFrame = createNewFrame();
       const initialProject = {
         ...project,
@@ -588,6 +586,31 @@ export function useAnimationState() {
     reader.readAsDataURL(file);
   }, [toast]);
 
+  const saveSavedBrush = useCallback((data: string, name: string, keepInPens: boolean) => {
+    setCustomBrushData(data);
+    setTool('custom');
+    if (keepInPens) {
+      const newBrush: SavedBrush = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: name || 'Custom Tip',
+        data
+      };
+      setProject(prev => ({
+        ...prev,
+        savedBrushes: [...(prev.savedBrushes || []), newBrush]
+      }));
+    }
+    toast({ title: "Custom brush tip registered!" });
+  }, [handleSetTool, toast]);
+
+  const deleteSavedBrush = useCallback((id: string) => {
+    setProject(prev => ({
+      ...prev,
+      savedBrushes: (prev.savedBrushes || []).filter(b => b.id !== id)
+    }));
+    toast({ title: "Brush tip removed" });
+  }, [toast]);
+
   const exportToGif = useCallback(async (options: { scale: number, transparent: boolean, startFrame: number, endFrame: number }) => {
     setIsExporting(true);
     const framesToExport = project.frames.slice(options.startFrame, options.endFrame + 1);
@@ -646,13 +669,14 @@ export function useAnimationState() {
     moveMode, setMoveMode, color, setColor, brushSize, setBrushSize, opacity, setOpacity, hardness, setHardness,
     pressureEnabled, setPressureEnabled, stabilizationEnabled, setStabilizationEnabled,
     dynamicStampingEnabled, setDynamicStampingEnabled, customBrushColorLink, setCustomBrushColorLink,
-    customBrushData, setCustomBrushData, isMultiDrawEnabled, setIsMultiDrawEnabled, multiDrawRange, setMultiDrawRange,
+    customBrushData, setCustomBrushData, saveSavedBrush, deleteSavedBrush,
+    isMultiDrawEnabled, setIsMultiDrawEnabled, multiDrawRange, setMultiDrawRange,
     addFrame, deleteFrame: deleteSelectedFrames, duplicateFrame: duplicateSelectedFrames, reorderFrames,
     updateLayerData, updateFrameDuration, addLayer, copyLayer, pasteLayer, hasCopiedLayer: !!copiedLayerData, setCopiedLayerData,
     togglePlayback, toggleOnionSkin: () => setProject(p => ({ ...p, onionSkinEnabled: !p.onionSkinEnabled })),
     saveProject, downloadProject, uploadProject, exportToGif, isExporting, undo, redo,
     canUndo, canRedo,
     setAudio, removeAudio: () => setProject(p => { const { audioData, audioMetadata, ...r } = p; return r as any; }),
-    saveVersion, loadVersion, deleteVersion, isAutoSaving
+    saveVersion, loadVersion, deleteVersion, isAutoSaving, mounted
   };
 }

@@ -10,6 +10,7 @@ import { AudioTimeline } from '@/components/editor/AudioTimeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { LayersPanel } from '@/components/editor/LayersPanel';
 import { AIPanel } from '@/components/editor/AIPanel';
+import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { 
   Save, 
   Layers, 
@@ -34,7 +35,9 @@ import {
   Clock3,
   Eye,
   Settings2,
-  Zap
+  Zap,
+  Stamp,
+  Palette
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -87,6 +90,14 @@ export default function Home() {
     setPressureEnabled,
     stabilizationEnabled,
     setStabilizationEnabled,
+    dynamicStampingEnabled,
+    setDynamicStampingEnabled,
+    customBrushColorLink,
+    setCustomBrushColorLink,
+    customBrushData,
+    setCustomBrushData,
+    saveSavedBrush,
+    deleteSavedBrush,
     addFrame,
     deleteFrame,
     duplicateFrame,
@@ -121,19 +132,15 @@ export default function Home() {
     isMultiDrawEnabled,
     setIsMultiDrawEnabled,
     multiDrawRange,
-    setMultiDrawRange
+    setMultiDrawRange,
+    mounted
   } = useAnimationState();
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
   const [versionName, setVersionName] = useState('');
-  const [mounted, setMounted] = useState(false);
   const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Export Settings
   const [exportScale, setExportScale] = useState('1');
@@ -166,7 +173,7 @@ export default function Home() {
   );
 
   return (
-    <main className="min-h-screen flex flex-col bg-background selection:bg-accent/30">
+    <main className="min-h-screen flex flex-col bg-background selection:bg-accent/30 overflow-x-hidden">
       {/* Header - Sticky */}
       <header className="sticky top-0 h-14 flex items-center justify-between px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 z-[60] shrink-0">
         <div className="flex items-center gap-3">
@@ -343,6 +350,18 @@ export default function Home() {
                       <input type="range" min="1" max="100" value={opacity} onChange={(e) => setOpacity(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
                     </div>
                   </div>
+
+                  <div className="pt-2 border-t space-y-3">
+                    <h5 className="text-[10px] font-bold uppercase opacity-40">Brush Dynamics</h5>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><Palette size={12}/><Label className="text-xs">Color Link</Label></div>
+                      <Switch checked={customBrushColorLink} onCheckedChange={setCustomBrushColorLink} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><Stamp size={12}/><Label className="text-xs">Dynamic Stamping</Label></div>
+                      <Switch checked={dynamicStampingEnabled} onCheckedChange={setDynamicStampingEnabled} />
+                    </div>
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
@@ -418,14 +437,18 @@ export default function Home() {
       </header>
 
       {/* Main Workspace Area */}
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1 relative min-h-0">
         <aside className="sticky top-14 h-[calc(100vh-3.5rem)] w-16 flex-none bg-background border-r border-foreground/5 flex flex-col items-center py-4 z-20 overflow-y-auto scrollbar-none">
           <Toolbar 
             currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} 
             moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={() => {}} 
             canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} 
             isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled}
+            savedBrushes={project.savedBrushes} customBrushData={customBrushData} setCustomBrushData={setCustomBrushData} deleteSavedBrush={deleteSavedBrush}
           />
+          <div className="mt-auto pb-4">
+             <CustomBrushDialog onSave={saveSavedBrush} currentBrush={customBrushData} layers={currentFrame?.layers || []} width={project.width} height={project.height} />
+          </div>
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0">
@@ -467,6 +490,7 @@ export default function Home() {
                       color={color} brushSize={brushSize} opacity={opacity} hardness={80} onLayerUpdate={updateLayerData} 
                       isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} 
                       snapToGrid={project.snapToGrid} gridSize={project.gridSize} snapToAngle={project.snapToAngle}
+                      customBrushData={customBrushData} customBrushColorLink={customBrushColorLink} dynamicStampingEnabled={dynamicStampingEnabled}
                     />
                  </div>
                )}
