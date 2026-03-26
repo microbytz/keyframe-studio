@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Frame, FrameGroup } from '@/lib/types';
-import { Plus, Trash2, Copy, GripHorizontal, ZoomIn, ZoomOut } from 'lucide-react';
+import { Plus, Trash2, Copy, GripHorizontal, ZoomIn, ZoomOut, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Slider } from '@/components/ui/slider';
 
@@ -118,6 +118,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           const isSelected = selectedFrameIndices.includes(index);
           const isActive = currentFrameIndex === index;
           const group = groups.find(g => index >= g.startIndex && index <= g.endIndex);
+          const hold = frame.duration || 1;
           
           return (
             <div 
@@ -159,6 +160,13 @@ export const Timeline: React.FC<TimelineProps> = ({
               )} style={group && !isSelected ? { borderColor: group.color, color: group.color } : {}}>
                 {index + 1}
               </div>
+
+              {hold > 1 && (
+                <div className="absolute bottom-0 left-0 bg-orange-400 text-white text-[7px] px-0.5 font-bold flex items-center gap-0.5 rounded-tr">
+                  <Clock size={8} />
+                  {hold}
+                </div>
+              )}
 
               {group && (
                 <div className="absolute top-0 right-0 h-1 w-full" style={{ backgroundColor: group.color }} title={`Group: ${group.name} (${group.fps} FPS)`} />

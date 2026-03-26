@@ -8,7 +8,7 @@ import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { LayersPanel } from '@/components/editor/LayersPanel';
-import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2, Sparkles, Plus, Trash2, Zap, Ghost, Scissors, Copy, Move, Check } from 'lucide-react';
+import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2, Sparkles, Plus, Trash2, Zap, Ghost, Scissors, Copy, Move, Check, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -37,6 +37,8 @@ export default function Home() {
     activeLayerId,
     setActiveLayerId,
     isPlaying,
+    loopSelection,
+    setLoopSelection,
     tool,
     setTool,
     moveMode,
@@ -68,6 +70,7 @@ export default function Home() {
     duplicateFrame,
     reorderFrames,
     updateLayerData,
+    updateFrameDuration,
     addLayer,
     copyLayer,
     pasteLayer,
@@ -352,11 +355,14 @@ export default function Home() {
           <PlaybackControls 
             isPlaying={isPlaying}
             togglePlayback={togglePlayback}
+            loopSelection={loopSelection}
+            setLoopSelection={setLoopSelection}
             fps={currentFps}
             setFps={handleFpsChange}
             onPrev={() => selectFrame(Math.max(0, currentFrameIndex - 1))}
             onNext={() => selectFrame(Math.min(project.frames.length - 1, currentFrameIndex + 1))}
             activeGroup={activeGroup}
+            hasSelection={selectedFrameIndices.length > 1}
           />
         </div>
       </div>
@@ -391,7 +397,26 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="w-full max-w-[800px] flex-none">
+          <div className="w-full max-w-[800px] flex-none space-y-2">
+            <div className="flex items-center justify-between bg-white px-3 py-1.5 sketch-border">
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-accent" />
+                <span className="text-[10px] font-bold uppercase opacity-50">Hold Frame (Exposure)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="24" 
+                  value={currentFrame.duration || 1} 
+                  onChange={(e) => updateFrameDuration(currentFrameIndex, parseInt(e.target.value))}
+                  className="w-32 h-1 accent-accent cursor-pointer" 
+                />
+                <span className="text-[10px] font-mono font-bold w-12 text-center bg-accent/10 px-2 py-0.5 rounded">
+                  {currentFrame.duration || 1} Beats
+                </span>
+              </div>
+            </div>
             <Timeline frames={project.frames} groups={project.groups} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
           </div>
         </div>
@@ -458,7 +483,7 @@ export default function Home() {
       </Dialog>
 
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: The Lasso tool now has a rope icon! Use the top bar for Cut, Copy, and Move actions.
+        Tip: Set "Hold Frame" to keep an image on screen longer. Use "Loop Selection" for cycles!
       </div>
     </main>
   );

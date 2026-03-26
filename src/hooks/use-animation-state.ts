@@ -22,6 +22,7 @@ const createNewLayer = (name: string): Layer => ({
 const createNewFrame = (): Frame => ({
   id: Math.random().toString(36).substr(2, 9),
   layers: [createNewLayer('Layer 1')],
+  duration: 1,
 });
 
 export function useAnimationState() {
@@ -43,6 +44,7 @@ export function useAnimationState() {
   const [selectedFrameIndices, setSelectedFrameIndices] = useState<number[]>([0]);
   const [activeLayerId, setActiveLayerId] = useState<string>(project.frames[0].layers[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [loopSelection, setLoopSelection] = useState(false);
   const [tool, setTool] = useState<ToolType>('pen');
   const [moveMode, setMoveMode] = useState<MoveMode>('translate');
   const [color, setColor] = useState('#454D52');
@@ -162,6 +164,7 @@ export function useAnimationState() {
       const newFrame: Frame = {
         id: Math.random().toString(36).substr(2, 9),
         layers: frameToDup.layers.map(l => ({ ...l, id: Math.random().toString(36).substr(2, 9) })),
+        duration: frameToDup.duration || 1,
       };
       newFrames.splice(index + 1 + offset, 0, newFrame);
       newSelectedIndices.push(index + 1 + offset);
@@ -254,6 +257,15 @@ export function useAnimationState() {
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
   }, [project.frames, currentFrameIndex, activeLayerId, isMultiDrawEnabled, multiDrawRange, pushToHistory]);
+
+  const updateFrameDuration = useCallback((index: number, duration: number) => {
+    setProject(prev => {
+      const newFrames = [...prev.frames];
+      newFrames[index] = { ...newFrames[index], duration };
+      pushToHistory(newFrames);
+      return { ...prev, frames: newFrames };
+    });
+  }, [pushToHistory]);
 
   const addLayer = useCallback(() => {
     const newFrames = [...project.frames];
@@ -399,16 +411,28 @@ export function useAnimationState() {
       return;
     }
 
+    const currentFrame = project.frames[currentFrameIndex];
     const group = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
     const currentFps = group ? group.fps : project.fps;
+    const frameHold = currentFrame.duration || 1;
 
     playbackTimeoutRef.current = setTimeout(() => {
       setCurrentFrameIndex(prev => {
-        const nextIdx = (prev + 1) % project.frames.length;
+        let nextIdx;
+        if (loopSelection && selectedFrameIndices.length > 1) {
+          const sorted = [...selectedFrameIndices].sort((a, b) => a - b);
+          const currentInSelection = sorted.indexOf(prev);
+          nextIdx = currentInSelection === -1 || currentInSelection === sorted.length - 1 
+            ? sorted[0] 
+            : sorted[currentInSelection + 1];
+        } else {
+          nextIdx = (prev + 1) % project.frames.length;
+        }
+        
         setSelectedFrameIndices([nextIdx]);
         return nextIdx;
       });
-    }, 1000 / currentFps);
+    }, (1000 / currentFps) * frameHold);
 
     return () => {
       if (playbackTimeoutRef.current) {
@@ -416,7 +440,7 @@ export function useAnimationState() {
         playbackTimeoutRef.current = null;
       }
     };
-  }, [isPlaying, currentFrameIndex, project.fps, project.frames.length, project.groups]);
+  }, [isPlaying, currentFrameIndex, project.fps, project.frames, project.groups, loopSelection, selectedFrameIndices]);
 
   const saveProject = useCallback(() => {
     localStorage.setItem('sketchflow_project', JSON.stringify(project));
@@ -521,6 +545,8 @@ export function useAnimationState() {
     activeLayerId,
     setActiveLayerId,
     isPlaying,
+    loopSelection,
+    setLoopSelection,
     tool,
     setTool,
     moveMode,
@@ -552,6 +578,7 @@ export function useAnimationState() {
     duplicateFrame: duplicateSelectedFrames,
     reorderFrames,
     updateLayerData,
+    updateFrameDuration,
     addLayer,
     copyLayer,
     pasteLayer,

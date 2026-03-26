@@ -41,6 +41,7 @@ export interface Layer {
 export interface Frame {
   id: string;
   layers: Layer[];
+  duration?: number; // Number of beats to hold the frame (default 1)
 }
 
 export interface FrameGroup {
