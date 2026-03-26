@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, BlendMode, SavedBrush, AudioMetadata } from '@/lib/types';
+import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, BlendMode, SavedBrush, AudioMetadata, ProjectVersionMetadata } from '@/lib/types';
 import gifshot from 'gifshot';
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,8 +40,10 @@ export function useAnimationState() {
     onionSkinBefore: 1,
     onionSkinAfter: 1,
     scrubWithSound: true,
+    autoSaveEnabled: true,
     groups: [],
     savedBrushes: [],
+    versions: [],
   });
 
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
@@ -66,6 +68,7 @@ export function useAnimationState() {
 
   const [isMultiDrawEnabled, setIsMultiDrawEnabled] = useState(false);
   const [multiDrawRange, setMultiDrawRange] = useState(5);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
   
   const historyRef = useRef<Frame[][]>([[createNewFrame()]]);
   const historyIndexRef = useRef<number>(0);
@@ -77,6 +80,7 @@ export function useAnimationState() {
   
   const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateHistoryState = useCallback(() => {
     setCanUndo(historyIndexRef.current > 0);
@@ -430,24 +434,50 @@ export function useAnimationState() {
     };
   }, [project, currentFrameIndex, activeLayerId, updateLayerData]);
 
-  const saveProject = useCallback(() => {
+  const saveProject = useCallback((isAuto = false) => {
     try {
-      localStorage.setItem('sketchflow_project', JSON.stringify(project));
-      toast({
-        title: "Project Saved!",
-        description: "Your animation has been saved to your browser's local storage.",
-      });
+      if (isAuto) setIsAutoSaving(true);
+      const storageKey = isAuto ? 'sketchflow_draft' : 'sketchflow_project';
+      localStorage.setItem(storageKey, JSON.stringify(project));
+      
+      if (!isAuto) {
+        toast({
+          title: "Project Saved!",
+          description: "Your animation has been saved to your browser's local storage.",
+        });
+      }
+      
+      if (isAuto) {
+        setTimeout(() => setIsAutoSaving(false), 1000);
+      }
     } catch (e: any) {
       console.error("Failed to save to localStorage", e);
-      toast({
-        variant: "destructive",
-        title: "Save Failed",
-        description: e.name === 'QuotaExceededError' 
-          ? "Browser storage is full. Please use the 'Download Project' button instead."
-          : "Could not save your project. Check the console for more details.",
-      });
+      if (!isAuto) {
+        toast({
+          variant: "destructive",
+          title: "Save Failed",
+          description: e.name === 'QuotaExceededError' 
+            ? "Browser storage is full. Please use the 'Download Project' button instead."
+            : "Could not save your project. Check the console for more details.",
+        });
+      }
     }
   }, [project, toast]);
+
+  // Auto-save logic
+  useEffect(() => {
+    if (!project.autoSaveEnabled) return;
+
+    if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+    
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      saveProject(true);
+    }, 5000);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+    };
+  }, [project, saveProject]);
 
   const loadProject = useCallback(() => {
     try {
@@ -465,6 +495,7 @@ export function useAnimationState() {
       
       if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
       if (!loadedProject.groups) loadedProject.groups = [];
+      if (!loadedProject.versions) loadedProject.versions = [];
       
       setProject(loadedProject);
       historyRef.current = [loadedProject.frames];
@@ -491,6 +522,92 @@ export function useAnimationState() {
       });
     }
   }, [updateHistoryState, toast]);
+
+  // Crash recovery on mount
+  useEffect(() => {
+    const draft = localStorage.getItem('sketchflow_draft');
+    if (draft && project.frames.length === 1 && !project.frames[0].layers[0].imageData) {
+      try {
+        const loadedDraft = JSON.parse(draft);
+        setProject(loadedDraft);
+        historyRef.current = [loadedDraft.frames];
+        historyIndexRef.current = 0;
+        updateHistoryState();
+        
+        toast({
+          title: "Crash Recovery Active",
+          description: "Restored your last session automatically.",
+        });
+      } catch (e) {}
+    }
+  }, []);
+
+  const saveVersion = useCallback((name: string) => {
+    const versionId = Math.random().toString(36).substr(2, 9);
+    const newVersionMeta: ProjectVersionMetadata = {
+      id: versionId,
+      name: name || `Version ${project.versions?.length ? project.versions.length + 1 : 1}`,
+      timestamp: Date.now()
+    };
+
+    try {
+      localStorage.setItem(`sketchflow_vdata_${versionId}`, JSON.stringify(project.frames));
+      
+      setProject(prev => {
+        const next = {
+          ...prev,
+          versions: [...(prev.versions || []), newVersionMeta]
+        };
+        localStorage.setItem('sketchflow_project', JSON.stringify(next));
+        return next;
+      });
+
+      toast({
+        title: "Version Saved",
+        description: `Created snapshot: ${newVersionMeta.name}`,
+      });
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Version Save Failed",
+        description: "Storage is likely full.",
+      });
+    }
+  }, [project, toast]);
+
+  const loadVersion = useCallback((versionId: string) => {
+    const vdata = localStorage.getItem(`sketchflow_vdata_${versionId}`);
+    if (!vdata) {
+      toast({ variant: "destructive", title: "Version Not Found" });
+      return;
+    }
+
+    try {
+      const frames = JSON.parse(vdata);
+      setProject(prev => ({ ...prev, frames }));
+      historyRef.current = [frames];
+      historyIndexRef.current = 0;
+      updateHistoryState();
+      setCurrentFrameIndex(0);
+      setSelectedFrameIndices([0]);
+      setActiveLayerId(frames[0].layers[0].id);
+      
+      toast({ title: "Version Restored" });
+    } catch (e) {}
+  }, [updateHistoryState, toast]);
+
+  const deleteVersion = useCallback((versionId: string) => {
+    localStorage.removeItem(`sketchflow_vdata_${versionId}`);
+    setProject(prev => {
+      const next = {
+        ...prev,
+        versions: (prev.versions || []).filter(v => v.id !== versionId)
+      };
+      localStorage.setItem('sketchflow_project', JSON.stringify(next));
+      return next;
+    });
+    toast({ title: "Version Deleted" });
+  }, [toast]);
 
   const handleCustomBrushSave = useCallback((dataUrl: string, name: string, keepInPens: boolean) => {
     setCustomBrushData(dataUrl);
@@ -697,6 +814,7 @@ export function useAnimationState() {
         if (!loadedProject.frames || loadedProject.frames.length === 0) return;
         if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
         if (!loadedProject.groups) loadedProject.groups = [];
+        if (!loadedProject.versions) loadedProject.versions = [];
         
         setProject(loadedProject);
         
@@ -871,6 +989,10 @@ export function useAnimationState() {
     handleCustomBrushSave,
     deleteSavedBrush,
     setAudio,
-    removeAudio
+    removeAudio,
+    saveVersion,
+    loadVersion,
+    deleteVersion,
+    isAutoSaving
   };
 }

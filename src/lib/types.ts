@@ -67,6 +67,12 @@ export interface AudioMetadata {
   name: string;
 }
 
+export interface ProjectVersionMetadata {
+  id: string;
+  name: string;
+  timestamp: number;
+}
+
 export interface AnimationProject {
   id: string;
   name: string;
@@ -79,8 +85,10 @@ export interface AnimationProject {
   onionSkinBefore?: number;
   onionSkinAfter?: number;
   scrubWithSound?: boolean;
+  autoSaveEnabled?: boolean;
   groups: FrameGroup[];
   savedBrushes: SavedBrush[];
+  versions?: ProjectVersionMetadata[];
   audioData?: string; // Data URI for the audio
   audioMetadata?: AudioMetadata;
 }

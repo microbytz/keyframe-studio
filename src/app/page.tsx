@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -8,7 +7,6 @@ import { Toolbar } from '@/components/editor/Toolbar';
 import { Timeline } from '@/components/editor/Timeline';
 import { AudioTimeline } from '@/components/editor/AudioTimeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
-import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { LayersPanel } from '@/components/editor/LayersPanel';
 import { AIPanel } from '@/components/editor/AIPanel';
 import { 
@@ -33,7 +31,9 @@ import {
   Clock, 
   Music,
   Mic,
-  Volume2
+  Volume2,
+  History,
+  FileClock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -59,7 +59,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FrameGroup } from '@/lib/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function Home() {
   const {
@@ -134,23 +134,21 @@ export default function Home() {
     handleCustomBrushSave,
     deleteSavedBrush,
     setAudio,
-    removeAudio
+    removeAudio,
+    saveVersion,
+    loadVersion,
+    deleteVersion,
+    isAutoSaving
   } = useAnimationState();
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
   const [isMultiDrawDialogOpen, setIsMultiDrawDialogOpen] = useState(false);
   const [tempRange, setTempRange] = useState(multiDrawRange.toString());
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [versionName, setVersionName] = useState('');
   const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const audioTimelineRef = useRef<HTMLDivElement>(null);
-
-  const [groupStart, setGroupStart] = useState('1');
-  const [groupEnd, setGroupEnd] = useState('1');
-  const [groupName, setGroupName] = useState('New Action');
-  const [groupFps, setGroupFps] = useState('12');
-  const [groupColor, setGroupColor] = useState('#82C9C9');
 
   // Export Settings
   const [exportScale, setExportScale] = useState('1');
@@ -205,34 +203,6 @@ export default function Home() {
     }
   };
 
-  const handleAddGroup = () => {
-    const start = Math.max(0, parseInt(groupStart) - 1);
-    const end = Math.min(project.frames.length - 1, parseInt(groupEnd) - 1);
-    if (isNaN(start) || isNaN(end) || start > end) return;
-
-    const newGroup: FrameGroup = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: groupName,
-      startIndex: start,
-      endIndex: end,
-      fps: parseInt(groupFps) || 12,
-      color: groupColor
-    };
-
-    setProject(p => ({
-      ...p,
-      groups: [...(p.groups || []), newGroup]
-    }));
-    setIsGroupDialogOpen(false);
-  };
-
-  const removeGroup = (id: string) => {
-    setProject(p => ({
-      ...p,
-      groups: p.groups.filter(g => g.id !== id)
-    }));
-  };
-
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadProject(file);
@@ -273,12 +243,62 @@ export default function Home() {
             <button onClick={toggleOnionSkin} className={cn("p-1.5 hover:bg-accent transition-all rounded", project.onionSkinEnabled ? "bg-accent" : "transparent")} title="Onion Skinning">
               <Layers size={14} className="md:w-4 md:h-4" />
             </button>
-            <button onClick={saveProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Quick Save (Browser)">
+            <button onClick={() => saveProject()} className="p-1.5 hover:bg-accent transition-all rounded" title="Quick Save (Browser)">
               <Save size={14} className="md:w-4 md:h-4" />
             </button>
             <button onClick={loadProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Quick Load (Browser)">
               <FolderOpen size={14} className="md:w-4 md:h-4" />
             </button>
+            <div className="w-px h-4 bg-foreground/10 mx-1" />
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="p-1.5 hover:bg-accent transition-all rounded" title="Project Versions">
+                  <History size={14} className="md:w-4 md:h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="start">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">Project Snapshots</h4>
+                
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Snapshot Name" 
+                      value={versionName} 
+                      onChange={(e) => setVersionName(e.target.value)} 
+                      className="sketch-border h-8 text-[10px]"
+                    />
+                    <Button 
+                      size="sm" 
+                      onClick={() => { saveVersion(versionName); setVersionName(''); }}
+                      className="bg-accent h-8 px-2"
+                    >
+                      <Plus size={14} />
+                    </Button>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-48">
+                  <div className="space-y-2 pr-2">
+                    {project.versions?.length ? [...project.versions].reverse().map((v) => (
+                      <div key={v.id} className="p-2 border sketch-border bg-slate-50 flex items-center justify-between group">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-bold truncate">{v.name}</p>
+                          <p className="text-[8px] opacity-40">{new Date(v.timestamp).toLocaleString()}</p>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => loadVersion(v.id)} className="p-1 hover:text-accent" title="Restore"><FileClock size={12} /></button>
+                          <button onClick={() => deleteVersion(v.id)} className="p-1 hover:text-red-500" title="Delete"><Trash2 size={12} /></button>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="text-[10px] italic opacity-40 text-center py-4">No snapshots saved yet.</p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+
             <div className="w-px h-4 bg-foreground/10 mx-1" />
             
             <Popover>
@@ -441,13 +461,28 @@ export default function Home() {
               </PopoverTrigger>
               <PopoverContent className="w-64 sketch-card p-4 space-y-4 max-h-[80vh] overflow-y-auto" side="bottom" align="end">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">Editor Settings</h4>
-                <div className="flex items-center justify-between space-x-2">
-                  <Label htmlFor="pressure-mode" className="text-xs">Pressure Sensitivity</Label>
-                  <Switch id="pressure-mode" checked={pressureEnabled} onCheckedChange={setPressureEnabled} />
+                
+                <div className="pt-2 border-t mt-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Backup & Safety</h4>
+                  <div className="flex items-center justify-between space-x-2">
+                    <div className="flex flex-col">
+                      <Label htmlFor="auto-save" className="text-xs">Auto-save to browser</Label>
+                      <span className="text-[8px] opacity-40 uppercase">Saves every 5s</span>
+                    </div>
+                    <Switch id="auto-save" checked={project.autoSaveEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, autoSaveEnabled: checked }))} />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between space-x-2">
-                  <Label htmlFor="stabilization-mode" className="text-xs">Line Stabilization</Label>
-                  <Switch id="stabilization-mode" checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} />
+
+                <div className="pt-2 border-t mt-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Drawing Aids</h4>
+                  <div className="flex items-center justify-between space-x-2">
+                    <Label htmlFor="pressure-mode" className="text-xs">Pressure Sensitivity</Label>
+                    <Switch id="pressure-mode" checked={pressureEnabled} onCheckedChange={setPressureEnabled} />
+                  </div>
+                  <div className="flex items-center justify-between space-x-2">
+                    <Label htmlFor="stabilization-mode" className="text-xs">Line Stabilization</Label>
+                    <Switch id="stabilization-mode" checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} />
+                  </div>
                 </div>
 
                 <div className="pt-2 border-t mt-2">
@@ -631,6 +666,23 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Footer Status Bar */}
+      <div className="h-8 flex items-center justify-between w-full px-4 text-[8px] md:text-[10px] uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
+        <div className="flex items-center gap-4">
+          <span className="opacity-40">Tip: Sync your animation to audio peaks for perfect timing!</span>
+          {isAutoSaving && (
+            <div className="flex items-center gap-1.5 text-accent animate-pulse">
+              <Save size={10} />
+              <span>Auto-saving Draft...</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-4 opacity-40">
+           <span>{project.frames.length} Frames</span>
+           <span>{project.fps} FPS</span>
+        </div>
+      </div>
+
       {/* Overlays */}
       {isLayersOpen && <LayersPanel layers={currentFrame.layers} activeLayerId={activeLayerId} onSetActive={setActiveLayerId} onAdd={addLayer} onCopy={copyLayer} onPaste={pasteLayer} hasCopiedLayer={hasCopiedLayer} onDelete={deleteLayer} onReorder={reorderLayers} onToggleVisibility={toggleLayerVisibility} onToggleLock={toggleLayerLock} onOpacityChange={updateLayerOpacity} onBlendModeChange={updateLayerBlendMode} onClose={() => setIsLayersOpen(false)} />}
 
@@ -654,10 +706,6 @@ export default function Home() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <div className="h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Sync your animation to audio peaks for perfect timing! Use the visual beat markers in the audio bar.
-      </div>
     </main>
   );
 }
