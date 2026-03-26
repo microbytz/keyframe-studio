@@ -63,7 +63,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   const onionSkinCanvasRef = useRef<HTMLCanvasElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  // High performance drawing refs
   const isDrawingRef = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
   const startPosRef = useRef({ x: 0, y: 0 });
@@ -75,9 +74,33 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   const [dragStartImage, setDragStartImage] = useState<HTMLImageElement | null>(null);
   const [customBrushImage, setCustomBrushImage] = useState<HTMLImageElement | null>(null);
   const [movingSelection, setMovingSelection] = useState<HTMLImageElement | null>(null);
+  const [selectionBounds, setSelectionBounds] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
 
   const currentFrame = frames[currentFrameIndex];
   const activeLayer = currentFrame.layers.find(l => l.id === activeLayerId) || currentFrame.layers[0];
+
+  const calculateBounds = (ctx: CanvasRenderingContext2D) => {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    let minX = width, minY = height, maxX = 0, maxY = 0;
+    let found = false;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const alpha = data[(y * width + x) * 4 + 3];
+        if (alpha > 0) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          found = true;
+        }
+      }
+    }
+
+    if (!found) return null;
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  };
 
   useImperativeHandle(ref, () => ({
     executeLassoAction: (action) => {
@@ -105,6 +128,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         img.src = resultData;
         img.onload = () => {
           setMovingSelection(img);
+          const bounds = calculateBounds(oCtx);
+          setSelectionBounds(bounds);
         };
       }
 
@@ -138,9 +163,28 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
   }));
 
+  const drawSelectionBox = (ctx: CanvasRenderingContext2D, bounds: { x: number, y: number, w: number, h: number }) => {
+    ctx.save();
+    ctx.strokeStyle = '#82C9C9';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(bounds.x - 2, bounds.y - 2, bounds.w + 4, bounds.h + 4);
+    
+    // Draw handles
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#82C9C9';
+    const s = 6;
+    ctx.fillRect(bounds.x - 2 - s/2, bounds.y - 2 - s/2, s, s);
+    ctx.fillRect(bounds.x + bounds.w + 2 - s/2, bounds.y - 2 - s/2, s, s);
+    ctx.fillRect(bounds.x - 2 - s/2, bounds.y + bounds.h + 2 - s/2, s, s);
+    ctx.fillRect(bounds.x + bounds.w + 2 - s/2, bounds.y + bounds.h + 2 - s/2, s, s);
+    ctx.restore();
+  };
+
   useEffect(() => {
     if (tool !== 'move' && tool !== 'lasso') {
       setMovingSelection(null);
+      setSelectionBounds(null);
     }
   }, [tool]);
 
@@ -161,8 +205,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     if (tool === 'move' && movingSelection && !isDrawingRef.current) {
       tCtx.clearRect(0, 0, width, height);
       tCtx.drawImage(movingSelection, 0, 0);
+      if (selectionBounds) drawSelectionBox(tCtx, selectionBounds);
     }
-  }, [tool, movingSelection, width, height]);
+  }, [tool, movingSelection, width, height, selectionBounds]);
 
   useEffect(() => {
     const ctx = onionSkinCanvasRef.current?.getContext('2d');
@@ -306,9 +351,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     };
   };
 
-  const applyTransform = (ctx: CanvasRenderingContext2D, img: HTMLImageElement, startX: number, startY: number, curX: number, curY: number, mode: MoveMode) => {
-    const cx = width / 2;
-    const cy = height / 2;
+  const applyTransform = (ctx: CanvasRenderingContext2D, img: HTMLImageElement, startX: number, startY: number, curX: number, curY: number, mode: MoveMode, bounds?: any) => {
+    const cx = bounds ? bounds.x + bounds.w / 2 : width / 2;
+    const cy = bounds ? bounds.y + bounds.h / 2 : height / 2;
     
     ctx.save();
     
@@ -335,6 +380,14 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
     ctx.drawImage(img, 0, 0);
     ctx.restore();
+    
+    // Also return the new bounds for drawing the box
+    if (bounds) {
+      const b = { ...bounds };
+      if (mode === 'translate') { b.x += (curX - startX); b.y += (curY - startY); }
+      // Other transformations would need more complex vertex math to keep the box accurate
+      return b;
+    }
   };
 
   const startDrawing = (e: React.PointerEvent) => {
@@ -363,6 +416,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     } else if (tool === 'move' && !movingSelection) {
       const canvas = mainCanvasRef.current;
       if (canvas) {
+        const bounds = calculateBounds(canvas.getContext('2d')!);
+        setSelectionBounds(bounds);
         const img = new Image();
         img.src = canvas.toDataURL();
         img.onload = () => setDragStartImage(img);
@@ -388,10 +443,14 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     if (tool === 'move') {
       tCtx.clearRect(0, 0, width, height);
       if (movingSelection) {
-        applyTransform(tCtx, movingSelection, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode);
+        const newBounds = applyTransform(tCtx, movingSelection, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode, selectionBounds);
+        if (newBounds) drawSelectionBox(tCtx, newBounds);
       } else if (dragStartImage) {
         ctx.clearRect(0, 0, width, height);
-        applyTransform(ctx, dragStartImage, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode);
+        const newBounds = applyTransform(ctx, dragStartImage, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode, selectionBounds);
+        // Note: For full layer move, we draw selection box on temp canvas so it's not committed
+        tCtx.clearRect(0, 0, width, height);
+        if (newBounds) drawSelectionBox(tCtx, newBounds);
       }
       return;
     }
@@ -560,11 +619,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     if (tool === 'move') {
       const pos = getPos(e);
       if (movingSelection) {
-        applyTransform(ctx, movingSelection, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode);
+        applyTransform(ctx, movingSelection, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode, selectionBounds);
         setMovingSelection(null);
+        setSelectionBounds(null);
         handleUpdate();
       } else if (dragStartImage) {
         setDragStartImage(null);
+        // Box is already committed to ctx in 'draw' for dragStartImage, but handles were on temp
         handleUpdate();
       }
       const tCtx = tempCanvasRef.current?.getContext('2d');
