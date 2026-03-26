@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react';
-import { ToolType, MoveMode } from '@/lib/types';
+import { ToolType, MoveMode, SavedBrush } from '@/lib/types';
 import { 
   Pencil, 
   Eraser, 
@@ -35,7 +35,8 @@ import {
   Wand2,
   Maximize,
   RotateCcw,
-  StretchHorizontal
+  StretchHorizontal,
+  Bookmark
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -44,6 +45,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ToolbarProps {
   currentTool: ToolType;
@@ -59,6 +61,8 @@ interface ToolbarProps {
   onOpenLayers?: () => void;
   isMultiDrawEnabled?: boolean;
   setIsMultiDrawEnabled?: (enabled: boolean) => void;
+  savedBrushes?: SavedBrush[];
+  setCustomBrushData?: (data: string) => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -74,7 +78,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   color,
   onOpenLayers,
   isMultiDrawEnabled,
-  setIsMultiDrawEnabled
+  setIsMultiDrawEnabled,
+  savedBrushes = [],
+  setCustomBrushData
 }) => {
   const isMobile = useIsMobile();
   
@@ -112,7 +118,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   ];
 
   const activeBrush = brushTools.find(t => t.id === currentTool) || brushTools[0];
-  const BrushIcon = activeBrush.icon;
   const isBrushActive = brushTools.some(t => t.id === currentTool);
   const isShapeActive = shapeTools.some(t => t.id === currentTool);
   
@@ -167,34 +172,72 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               )}
               title="Brushes"
             >
-              <BrushIcon size={16} />
+              <activeBrush.icon size={16} />
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
                 <ChevronDown size={10} strokeWidth={4} />
               </div>
             </button>
           </PopoverTrigger>
-          <PopoverContent side={isMobile ? "bottom" : "right"} align="start" className="w-72 p-3 sketch-card z-[100]">
-            <div className="mb-4 p-3 sketch-border bg-background/50 flex flex-col items-center justify-center min-h-[80px]">
-              <span className="text-[10px] font-bold uppercase opacity-60 mb-2">{activeBrush.label} Preview</span>
-              {renderBrushPreview()}
+          <PopoverContent side={isMobile ? "bottom" : "right"} align="start" className="w-80 p-0 sketch-card z-[100] overflow-hidden">
+            <div className="p-3 border-b-2 border-foreground/5 bg-accent/5">
+              <div className="mb-2 p-3 sketch-border bg-white flex flex-col items-center justify-center min-h-[60px]">
+                <span className="text-[9px] font-bold uppercase opacity-60 mb-2">{activeBrush.label} Preview</span>
+                {renderBrushPreview()}
+              </div>
             </div>
-            <div className="grid grid-cols-5 gap-2">
-              {brushTools.map((t) => {
-                const ToolIcon = t.icon;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => setTool(t.id as ToolType)}
-                    className={cn(
-                      "p-2 sketch-border transition-all hover:bg-accent flex items-center justify-center",
-                      currentTool === t.id ? "bg-accent" : "bg-white"
-                    )}
-                  >
-                    <ToolIcon size={16} />
-                  </button>
-                );
-              })}
-            </div>
+            
+            <ScrollArea className="h-72">
+               <div className="p-3 space-y-4">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase opacity-40 mb-2 block tracking-widest">Standard Tools</span>
+                    <div className="grid grid-cols-4 gap-2">
+                      {brushTools.map((t) => {
+                        const ToolIcon = t.icon;
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => setTool(t.id as ToolType)}
+                            className={cn(
+                              "p-2.5 sketch-border transition-all hover:bg-accent flex items-center justify-center",
+                              currentTool === t.id ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
+                            )}
+                            title={t.label}
+                          >
+                            <ToolIcon size={16} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {savedBrushes.length > 0 && (
+                    <div className="animate-in slide-in-from-top-1 duration-300">
+                      <span className="text-[10px] font-bold uppercase opacity-40 mb-2 block tracking-widest flex items-center gap-1">
+                        <Bookmark size={10} className="text-accent" />
+                        My Saved Tips
+                      </span>
+                      <div className="grid grid-cols-4 gap-2">
+                        {savedBrushes.map((brush) => (
+                          <button
+                            key={brush.id}
+                            onClick={() => {
+                              setCustomBrushData?.(brush.data);
+                              setTool('custom');
+                            }}
+                            className={cn(
+                              "p-1 sketch-border transition-all hover:bg-accent flex items-center justify-center aspect-square pattern-checkered bg-white group",
+                              (currentTool === 'custom' && brush.data === brush.data) ? "border-accent ring-1 ring-accent/20" : ""
+                            )}
+                            title={brush.name}
+                          >
+                            <img src={brush.data} alt={brush.name} className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+               </div>
+            </ScrollArea>
           </PopoverContent>
         </Popover>
 

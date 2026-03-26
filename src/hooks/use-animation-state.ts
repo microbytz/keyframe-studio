@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, BlendMode } from '@/lib/types';
+import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, BlendMode, SavedBrush } from '@/lib/types';
 import gifshot from 'gifshot';
 
 const INITIAL_FPS = 12;
@@ -38,6 +38,7 @@ export function useAnimationState() {
     onionSkinBefore: 1,
     onionSkinAfter: 1,
     groups: [],
+    savedBrushes: [],
   });
 
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
@@ -398,6 +399,22 @@ export function useAnimationState() {
     };
   }, [project, currentFrameIndex, activeLayerId, updateLayerData]);
 
+  const handleCustomBrushSave = useCallback((dataUrl: string, name: string, keepInPens: boolean) => {
+    setCustomBrushData(dataUrl);
+    setTool('custom');
+    if (keepInPens) {
+      const newBrush: SavedBrush = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: name || `Tip ${project.savedBrushes.length + 1}`,
+        data: dataUrl
+      };
+      setProject(prev => ({
+        ...prev,
+        savedBrushes: [...(prev.savedBrushes || []), newBrush]
+      }));
+    }
+  }, [project.savedBrushes]);
+
   const togglePlayback = useCallback(() => {
     setIsPlaying(prev => !prev);
   }, []);
@@ -450,6 +467,7 @@ export function useAnimationState() {
     const saved = localStorage.getItem('sketchflow_project');
     if (saved) {
       const loadedProject = JSON.parse(saved);
+      if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
       setProject(loadedProject);
       historyRef.current = [loadedProject.frames];
       historyIndexRef.current = 0;
@@ -476,6 +494,7 @@ export function useAnimationState() {
     reader.onload = (e) => {
       try {
         const loadedProject = JSON.parse(e.target?.result as string);
+        if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
         setProject(loadedProject);
         historyRef.current = [loadedProject.frames];
         historyIndexRef.current = 0;
@@ -603,6 +622,7 @@ export function useAnimationState() {
     redo,
     flipCurrentLayer,
     canUndo,
-    canRedo
+    canRedo,
+    handleCustomBrushSave
   };
 }

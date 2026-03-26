@@ -28,6 +28,12 @@ export type MoveMode = 'translate' | 'scale' | 'rotate' | 'skew';
 
 export type BlendMode = 'source-over' | 'multiply' | 'overlay' | 'screen' | 'darken' | 'lighten';
 
+export interface SavedBrush {
+  id: string;
+  name: string;
+  data: string;
+}
+
 export interface Layer {
   id: string;
   name: string;
@@ -65,6 +71,7 @@ export interface AnimationProject {
   onionSkinBefore?: number;
   onionSkinAfter?: number;
   groups: FrameGroup[];
+  savedBrushes: SavedBrush[];
 }
 
 export interface DrawingState {

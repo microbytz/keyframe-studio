@@ -95,7 +95,8 @@ export default function Home() {
     flipCurrentLayer,
     canUndo,
     canRedo,
-    setCopiedLayerData
+    setCopiedLayerData,
+    handleCustomBrushSave
   } = useAnimationState();
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
@@ -368,7 +369,7 @@ export default function Home() {
                 <div className="pt-2 border-t mt-2">
                    <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Custom Brush Engine</h4>
                    <div className="space-y-3">
-                     <CustomBrushDialog onSave={setCustomBrushData} currentBrush={customBrushData} layers={currentFrame.layers} width={project.width} height={project.height} />
+                     <CustomBrushDialog onSave={handleCustomBrushSave} currentBrush={customBrushData} layers={currentFrame.layers} width={project.width} height={project.height} />
                      <div className="flex items-center justify-between space-x-2">
                         <Label htmlFor="stamp-spacing" className="text-xs">Add spacing in custom tip?</Label>
                         <Switch id="stamp-spacing" checked={dynamicStampingEnabled} onCheckedChange={setDynamicStampingEnabled} />
@@ -402,7 +403,7 @@ export default function Home() {
 
       <div className="flex flex-col md:flex-row flex-1 w-full max-w-7xl items-center md:items-start py-4 md:py-6 relative">
         <div className="w-full md:w-auto px-4 mb-4 md:mb-0 md:flex-none md:sticky md:top-20 z-40">
-          <Toolbar currentTool={tool} setTool={setTool} moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={flipCurrentLayer} canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled} />
+          <Toolbar currentTool={tool} setTool={setTool} moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={flipCurrentLayer} canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled} savedBrushes={project.savedBrushes} setCustomBrushData={setCustomBrushData} />
         </div>
 
         <div className="flex-1 flex flex-col items-center px-4 gap-4 md:gap-6 pb-20 w-full overflow-hidden">
