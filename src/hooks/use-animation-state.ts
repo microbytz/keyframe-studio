@@ -727,15 +727,24 @@ export function useAnimationState() {
     reader.readAsText(file);
   }, [updateHistoryState, toast]);
 
-  const exportToGif = useCallback(async () => {
+  const exportToGif = useCallback(async (settings: { scale: number, transparent: boolean }) => {
     setIsExporting(true);
+    const exportWidth = project.width * settings.scale;
+    const exportHeight = project.height * settings.scale;
+
     const images = await Promise.all(project.frames.map(async (frame) => {
       const canvas = document.createElement('canvas');
-      canvas.width = project.width;
-      canvas.height = project.height;
+      canvas.width = exportWidth;
+      canvas.height = exportHeight;
       const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = 'white'; 
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      if (!settings.transparent) {
+        ctx.fillStyle = 'white'; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      ctx.save();
+      ctx.scale(settings.scale, settings.scale);
       const layers = [...frame.layers].reverse();
       for (const layer of layers) {
         if (layer.visible && layer.imageData) {
@@ -754,14 +763,16 @@ export function useAnimationState() {
           });
         }
       }
+      ctx.restore();
       return canvas.toDataURL('image/png');
     }));
     
     gifshot.createGIF({
       images,
       interval: 1 / project.fps,
-      gifWidth: project.width,
-      gifHeight: project.height,
+      gifWidth: exportWidth,
+      gifHeight: exportHeight,
+      transparent: settings.transparent ? '#00000000' : null,
     }, (obj: any) => {
       setIsExporting(false);
       if (!obj.error) {

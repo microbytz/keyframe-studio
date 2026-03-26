@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -49,6 +48,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FrameGroup } from '@/lib/types';
@@ -143,6 +149,10 @@ export default function Home() {
   const [groupName, setGroupName] = useState('New Action');
   const [groupFps, setGroupFps] = useState('12');
   const [groupColor, setGroupColor] = useState('#82C9C9');
+
+  // Export Settings
+  const [exportScale, setExportScale] = useState('1');
+  const [exportTransparent, setExportTransparent] = useState(false);
 
   const currentFrame = project.frames[currentFrameIndex];
   const activeGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
@@ -299,10 +309,51 @@ export default function Home() {
             </button>
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".sketchflow,.json" className="hidden" />
             <div className="w-px h-4 bg-foreground/10 mx-1" />
-            <button onClick={exportToGif} disabled={isExporting} className="p-1.5 hover:bg-accent transition-all rounded flex items-center gap-1 group" title="Export as GIF">
-              {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} className="md:w-4 md:h-4" />}
-              <span className="text-[10px] font-bold hidden md:inline uppercase group-hover:text-primary transition-colors">Export GIF</span>
-            </button>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <button disabled={isExporting} className="p-1.5 hover:bg-accent transition-all rounded flex items-center gap-1 group" title="Export Settings">
+                  {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} className="md:w-4 md:h-4" />}
+                  <span className="text-[10px] font-bold hidden md:inline uppercase group-hover:text-primary transition-colors">Export GIF</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="start">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">GIF Export Settings</h4>
+                
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase opacity-60">Output Resolution</Label>
+                  <Select value={exportScale} onValueChange={setExportScale}>
+                    <SelectTrigger className="sketch-border h-8 text-xs font-bold">
+                      <SelectValue placeholder="Resolution" />
+                    </SelectTrigger>
+                    <SelectContent className="sketch-card">
+                      <SelectItem value="0.5" className="text-xs">0.5x (Small - 400px)</SelectItem>
+                      <SelectItem value="1" className="text-xs">1.0x (Standard - 800px)</SelectItem>
+                      <SelectItem value="1.5" className="text-xs">1.5x (Large - 1200px)</SelectItem>
+                      <SelectItem value="2" className="text-xs">2.0x (Full HD - 1600px)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[8px] opacity-40 italic">Higher resolution increases file size and processing time.</p>
+                </div>
+
+                <div className="flex items-center justify-between space-x-2 pt-2">
+                  <div className="flex flex-col">
+                    <Label htmlFor="transparent-export" className="text-xs font-bold">Transparent Background</Label>
+                    <span className="text-[8px] opacity-50 uppercase">Best for stickers/overlays</span>
+                  </div>
+                  <Switch id="transparent-export" checked={exportTransparent} onCheckedChange={setExportTransparent} />
+                </div>
+
+                <Button 
+                  onClick={() => exportToGif({ scale: parseFloat(exportScale), transparent: exportTransparent })} 
+                  disabled={isExporting}
+                  className="w-full mt-2 bg-accent hover:bg-accent/90 text-primary font-bold uppercase text-[10px] sketch-border h-9"
+                >
+                  {isExporting ? <Loader2 className="animate-spin mr-2" size={14} /> : <Download size={14} className="mr-2" />}
+                  Generate GIF
+                </Button>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="flex items-center gap-2 md:gap-3 bg-white px-2 py-1 sketch-border">
