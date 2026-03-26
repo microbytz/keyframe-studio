@@ -63,6 +63,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   const compositeAboveCanvasRef = useRef<HTMLCanvasElement>(null);
   const onionSkinCanvasRef = useRef<HTMLCanvasElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement>(null);
+  const tintedBrushCanvasRef = useRef<HTMLCanvasElement | null>(null);
   
   const isDrawingRef = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
@@ -208,6 +209,33 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       setCustomBrushImage(null);
     }
   }, [customBrushData]);
+
+  // Pre-render the tinted custom brush tip to avoid expensive canvas operations during PointerMove
+  useEffect(() => {
+    if (!customBrushImage) {
+      tintedBrushCanvasRef.current = null;
+      return;
+    }
+    
+    if (!tintedBrushCanvasRef.current) {
+      tintedBrushCanvasRef.current = document.createElement('canvas');
+    }
+    
+    const canvas = tintedBrushCanvasRef.current;
+    canvas.width = customBrushImage.naturalWidth || customBrushImage.width || 256;
+    canvas.height = customBrushImage.naturalHeight || customBrushImage.height || 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(customBrushImage, 0, 0, canvas.width, canvas.height);
+    
+    if (customBrushColorLink) {
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }, [customBrushImage, color, customBrushColorLink]);
 
   useEffect(() => {
     const ctx = onionSkinCanvasRef.current?.getContext('2d');
@@ -500,9 +528,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
     const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
     const angle = Math.atan2(pos.y - lastPos.y, pos.x - lastPos.x);
-    if (tool === 'custom' && customBrushImage) {
-      const spacing = dynamicStampingEnabled ? effectiveBrushSize * 1.1 : Math.max(1, effectiveBrushSize / 10);
+    
+    if (tool === 'custom' && tintedBrushCanvasRef.current) {
+      const spacing = Math.max(0.5, dynamicStampingEnabled ? effectiveBrushSize * 1.1 : effectiveBrushSize / 10);
       const steps = Math.max(1, Math.ceil(dist / spacing));
+      const brush = tintedBrushCanvasRef.current;
+      
       for (let i = 0; i < steps; i++) {
         const t = i / steps;
         const curX = lastPos.x + (pos.x - lastPos.x) * t;
@@ -510,12 +541,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         ctx.save();
         ctx.translate(curX, curY);
         ctx.rotate(angle);
-        const off = document.createElement('canvas');
-        off.width = off.height = effectiveBrushSize * 2;
-        const oCtx = off.getContext('2d')!;
-        oCtx.drawImage(customBrushImage, 0, 0, off.width, off.height);
-        if (customBrushColorLink) { oCtx.globalCompositeOperation = 'source-in'; oCtx.fillStyle = color; oCtx.fillRect(0, 0, off.width, off.height); }
-        ctx.drawImage(off, -effectiveBrushSize, -effectiveBrushSize);
+        ctx.drawImage(
+          brush, 
+          -effectiveBrushSize, 
+          -effectiveBrushSize, 
+          effectiveBrushSize * 2, 
+          effectiveBrushSize * 2
+        );
         ctx.restore();
       }
     } else if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink', 'pencil', 'pixel'].includes(tool)) {
