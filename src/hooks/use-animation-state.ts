@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -26,10 +27,16 @@ const createNewFrame = (): Frame => ({
   duration: 1,
 });
 
+export interface ProjectListItem {
+  id: string;
+  name: string;
+  lastModified: number;
+}
+
 export function useAnimationState() {
   const { toast } = useToast();
   const [project, setProject] = useState<AnimationProject>({
-    id: 'default',
+    id: Math.random().toString(36).substr(2, 9),
     name: 'Untitled Sketch',
     frames: [createNewFrame()],
     fps: INITIAL_FPS,
@@ -49,6 +56,7 @@ export function useAnimationState() {
     versions: [],
   });
 
+  const [projectList, setProjectList] = useState<ProjectListItem[]>([]);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [selectedFrameIndices, setSelectedFrameIndices] = useState<number[]>([0]);
   const [activeLayerId, setActiveLayerId] = useState<string>(project.frames[0].layers[0].id);
@@ -136,13 +144,146 @@ export function useAnimationState() {
     }
   }, [currentFrameIndex, activeLayerId, updateHistoryState]);
 
+  const refreshProjectList = useCallback(() => {
+    const registry = localStorage.getItem('sketchflow_registry');
+    if (registry) {
+      try {
+        setProjectList(JSON.parse(registry));
+      } catch (e) {
+        setProjectList([]);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshProjectList();
+  }, [refreshProjectList]);
+
+  const saveProject = useCallback((isAuto = false) => {
+    try {
+      if (isAuto) setIsAutoSaving(true);
+      
+      const storageKey = isAuto ? `sketchflow_draft_${project.id}` : `sketchflow_project_${project.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(project));
+      
+      const registryStr = localStorage.getItem('sketchflow_registry');
+      let registry: ProjectListItem[] = registryStr ? JSON.parse(registryStr) : [];
+      
+      const existingIdx = registry.findIndex(p => p.id === project.id);
+      const projectMeta = { id: project.id, name: project.name, lastModified: Date.now() };
+      
+      if (existingIdx > -1) {
+        registry[existingIdx] = projectMeta;
+      } else {
+        registry.unshift(projectMeta);
+      }
+      
+      registry.sort((a, b) => b.lastModified - a.lastModified);
+      localStorage.setItem('sketchflow_registry', JSON.stringify(registry));
+      setProjectList(registry);
+
+      if (!isAuto) {
+        toast({
+          title: "Project Saved!",
+          description: `"${project.name}" has been saved to your browser storage.`,
+        });
+      }
+      
+      if (isAuto) {
+        setTimeout(() => setIsAutoSaving(false), 1000);
+      }
+    } catch (e: any) {
+      console.error("Failed to save project", e);
+    }
+  }, [project, toast]);
+
+  const loadProjectById = useCallback((id: string) => {
+    const saved = localStorage.getItem(`sketchflow_project_${id}`) || localStorage.getItem(`sketchflow_draft_${id}`);
+    if (!saved) return;
+    
+    try {
+      const loadedProject = JSON.parse(saved);
+      setProject(loadedProject);
+      historyRef.current = [loadedProject.frames];
+      historyIndexRef.current = 0;
+      updateHistoryState();
+      setCurrentFrameIndex(0);
+      setSelectedFrameIndices([0]);
+      setActiveLayerId(loadedProject.frames[0].layers[0].id);
+      
+      if (loadedProject.audioData) {
+        audioRef.current = new Audio(loadedProject.audioData);
+      }
+      
+      toast({
+        title: "Project Loaded",
+        description: `Successfully opened "${loadedProject.name}".`,
+      });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Load Error" });
+    }
+  }, [updateHistoryState, toast]);
+
+  const deleteProject = useCallback((id: string) => {
+    localStorage.removeItem(`sketchflow_project_${id}`);
+    localStorage.removeItem(`sketchflow_draft_${id}`);
+    
+    const registryStr = localStorage.getItem('sketchflow_registry');
+    if (registryStr) {
+      let registry: ProjectListItem[] = JSON.parse(registryStr);
+      registry = registry.filter(p => p.id !== id);
+      localStorage.setItem('sketchflow_registry', JSON.stringify(registry));
+      setProjectList(registry);
+    }
+    
+    toast({ title: "Project Deleted" });
+  }, [toast]);
+
+  const createNewProject = useCallback(() => {
+    const newProject: AnimationProject = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: 'New Animation',
+      frames: [createNewFrame()],
+      fps: INITIAL_FPS,
+      width: CANVAS_WIDTH,
+      height: CANVAS_HEIGHT,
+      onionSkinEnabled: true,
+      advancedOnionSkinEnabled: false,
+      onionSkinBefore: 1,
+      onionSkinAfter: 1,
+      scrubWithSound: true,
+      autoSaveEnabled: true,
+      snapToGrid: false,
+      gridSize: 20,
+      snapToAngle: false,
+      groups: [],
+      savedBrushes: [],
+      versions: [],
+    };
+    
+    setProject(newProject);
+    historyRef.current = [newProject.frames];
+    historyIndexRef.current = 0;
+    updateHistoryState();
+    setCurrentFrameIndex(0);
+    setSelectedFrameIndices([0]);
+    setActiveLayerId(newProject.frames[0].layers[0].id);
+    
+    toast({ title: "New Project Created" });
+  }, [updateHistoryState, toast]);
+
+  useEffect(() => {
+    if (!project.autoSaveEnabled) return;
+    if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+    autoSaveTimeoutRef.current = setTimeout(() => saveProject(true), 5000);
+    return () => { if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current); };
+  }, [project, saveProject]);
+
   const handleSetTool = useCallback((newTool: ToolType) => {
     const brushes: ToolType[] = ['pen', 'pencil', 'brush', 'pixel', 'calligraphy', 'airbrush', 'highlighter', 'marker', 'charcoal', 'crayon', 'watercolor', 'ink', 'spray', 'chalk', 'technical', 'custom', 'blur', 'blend'];
     const shapes: ToolType[] = ['line', 'rectangle', 'circle', 'triangle'];
-    
     if (brushes.includes(newTool)) setLastBrushTool(newTool);
     if (shapes.includes(newTool)) setLastShapeTool(newTool);
-    
     setTool(newTool);
   }, []);
 
@@ -161,14 +302,9 @@ export function useAnimationState() {
 
   const deleteSelectedFrames = useCallback(() => {
     if (project.frames.length <= selectedFrameIndices.length) return;
-    
     const sortedIndices = [...selectedFrameIndices].sort((a, b) => b - a);
     const newFrames = [...project.frames];
-    
-    sortedIndices.forEach(index => {
-      newFrames.splice(index, 1);
-    });
-
+    sortedIndices.forEach(index => { newFrames.splice(index, 1); });
     const nextIndex = Math.max(0, Math.min(currentFrameIndex, newFrames.length - 1));
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
@@ -181,7 +317,6 @@ export function useAnimationState() {
     const sortedIndices = [...selectedFrameIndices].sort((a, b) => a - b);
     const newFrames = [...project.frames];
     const newSelectedIndices: number[] = [];
-    
     let offset = 0;
     sortedIndices.forEach(index => {
       const frameToDup = project.frames[index];
@@ -194,7 +329,6 @@ export function useAnimationState() {
       newSelectedIndices.push(index + 1 + offset);
       offset++;
     });
-
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
     const lastIdx = newSelectedIndices[newSelectedIndices.length - 1];
@@ -207,7 +341,6 @@ export function useAnimationState() {
     setProject(prev => {
       const newFrames = [...prev.frames];
       const selectedIndices = [...selectedFrameIndices].sort((a, b) => a - b);
-      
       if (!selectedIndices.includes(startIndex)) {
         const [removed] = newFrames.splice(startIndex, 1);
         newFrames.splice(endIndex, 0, removed);
@@ -215,9 +348,7 @@ export function useAnimationState() {
         setSelectedFrameIndices([endIndex]);
       } else {
         const selectedFrames = selectedIndices.map(i => prev.frames[i]);
-        [...selectedIndices].reverse().forEach(i => {
-          newFrames.splice(i, 1);
-        });
+        [...selectedIndices].reverse().forEach(i => { newFrames.splice(i, 1); });
         let targetIndex = endIndex;
         const itemsBeforeTarget = selectedIndices.filter(i => i < targetIndex).length;
         targetIndex = Math.max(0, targetIndex - itemsBeforeTarget);
@@ -240,28 +371,19 @@ export function useAnimationState() {
       setSelectedFrameIndices(newSelection);
     } else if (multi) {
       setSelectedFrameIndices(prev => 
-        prev.includes(index) 
-          ? (prev.length > 1 ? prev.filter(i => i !== index) : prev) 
-          : [...prev, index]
+        prev.includes(index) ? (prev.length > 1 ? prev.filter(i => i !== index) : prev) : [...prev, index]
       );
     } else {
       setSelectedFrameIndices([index]);
     }
     setCurrentFrameIndex(index);
     setActiveLayerId(project.frames[index].layers[0].id);
-
-    // Sync audio if present
     if (audioRef.current && !isPlaying) {
       const totalTimeBefore = project.frames.slice(0, index).reduce((acc, f) => acc + (f.duration || 1) / project.fps, 0);
       audioRef.current.currentTime = totalTimeBefore;
-      
       if (project.scrubWithSound) {
         audioRef.current.play().catch(() => {});
-        setTimeout(() => {
-          if (!isPlaying && audioRef.current) {
-            audioRef.current.pause();
-          }
-        }, 80); // Quick chirp for scrubbing
+        setTimeout(() => { if (!isPlaying && audioRef.current) audioRef.current.pause(); }, 80);
       }
     }
   }, [currentFrameIndex, project.frames, project.fps, project.scrubWithSound, isPlaying]);
@@ -269,33 +391,13 @@ export function useAnimationState() {
   const updateLayerData = useCallback((dataUrl: string) => {
     const newFrames = [...project.frames];
     const frame = { ...newFrames[currentFrameIndex] };
-    
     const layerIdx = frame.layers.findIndex(l => l.id === activeLayerId);
     if (layerIdx === -1 || frame.layers[layerIdx].locked) return;
-
-    frame.layers = frame.layers.map((l, idx) => 
-      idx === layerIdx ? { ...l, imageData: dataUrl } : l
-    );
+    frame.layers = frame.layers.map((l, idx) => idx === layerIdx ? { ...l, imageData: dataUrl } : l);
     newFrames[currentFrameIndex] = frame;
-
-    if (isMultiDrawEnabled && multiDrawRange > 0) {
-      for (let i = 1; i <= multiDrawRange; i++) {
-        const targetIdx = currentFrameIndex + i;
-        if (targetIdx < newFrames.length) {
-          const targetFrame = { ...newFrames[targetIdx] };
-          if (targetFrame.layers[layerIdx] && !targetFrame.layers[layerIdx].locked) {
-            const targetLayers = [...targetFrame.layers];
-            targetLayers[layerIdx] = { ...targetLayers[layerIdx], imageData: dataUrl };
-            targetFrame.layers = targetLayers;
-            newFrames[targetIdx] = targetFrame;
-          }
-        }
-      }
-    }
-    
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
-  }, [project.frames, currentFrameIndex, activeLayerId, isMultiDrawEnabled, multiDrawRange, pushToHistory]);
+  }, [project.frames, currentFrameIndex, activeLayerId, pushToHistory]);
 
   const updateFrameDuration = useCallback((index: number, duration: number) => {
     setProject(prev => {
@@ -319,9 +421,7 @@ export function useAnimationState() {
 
   const copyLayer = useCallback((layerId: string) => {
     const layer = project.frames[currentFrameIndex].layers.find(l => l.id === layerId);
-    if (layer) {
-      setCopiedLayerData({ name: layer.name, imageData: layer.imageData });
-    }
+    if (layer) setCopiedLayerData({ name: layer.name, imageData: layer.imageData });
   }, [project.frames, currentFrameIndex]);
 
   const pasteLayer = useCallback(() => {
@@ -337,665 +437,141 @@ export function useAnimationState() {
     setActiveLayerId(newLayer.id);
   }, [project.frames, currentFrameIndex, copiedLayerData, pushToHistory]);
 
-  const deleteLayer = useCallback((layerId: string) => {
-    const newFrames = [...project.frames];
-    const frame = { ...newFrames[currentFrameIndex] };
-    if (frame.layers.length <= 1) return;
-    frame.layers = frame.layers.filter(l => l.id !== layerId);
-    newFrames[currentFrameIndex] = frame;
-    if (activeLayerId === layerId) {
-      setActiveLayerId(frame.layers[0].id);
-    }
-    setProject(prev => ({ ...prev, frames: newFrames }));
-    pushToHistory(newFrames);
-  }, [project.frames, currentFrameIndex, activeLayerId, pushToHistory]);
-
-  const reorderLayers = useCallback((startIndex: number, endIndex: number) => {
-    setProject(prev => {
-      const newFrames = [...prev.frames];
-      const frame = { ...newFrames[currentFrameIndex] };
-      const newLayers = [...frame.layers];
-      const [removed] = newLayers.splice(startIndex, 1);
-      newLayers.splice(endIndex, 0, removed);
-      frame.layers = newLayers;
-      newFrames[currentFrameIndex] = frame;
-      pushToHistory(newFrames);
-      return { ...prev, frames: newFrames };
-    });
-  }, [currentFrameIndex, pushToHistory]);
-
-  const toggleLayerVisibility = useCallback((layerId: string) => {
-    const newFrames = [...project.frames];
-    const frame = { ...newFrames[currentFrameIndex] };
-    frame.layers = frame.layers.map(l => 
-      l.id === layerId ? { ...l, visible: !l.visible } : l
-    );
-    newFrames[currentFrameIndex] = frame;
-    setProject(prev => ({ ...prev, frames: newFrames }));
-    pushToHistory(newFrames);
-  }, [project.frames, currentFrameIndex, pushToHistory]);
-
-  const toggleLayerLock = useCallback((layerId: string) => {
-    const newFrames = [...project.frames];
-    const frame = { ...newFrames[currentFrameIndex] };
-    frame.layers = frame.layers.map(l => 
-      l.id === layerId ? { ...l, locked: !l.locked } : l
-    );
-    newFrames[currentFrameIndex] = frame;
-    setProject(prev => ({ ...prev, frames: newFrames }));
-    pushToHistory(newFrames);
-  }, [project.frames, currentFrameIndex, pushToHistory]);
-
-  const updateLayerOpacity = useCallback((layerId: string, opacity: number) => {
-    const newFrames = [...project.frames];
-    const frame = { ...newFrames[currentFrameIndex] };
-    frame.layers = frame.layers.map(l => 
-      l.id === layerId ? { ...l, opacity: opacity } : l
-    );
-    newFrames[currentFrameIndex] = frame;
-    setProject(prev => ({ ...prev, frames: newFrames }));
-    pushToHistory(newFrames);
-  }, [project.frames, currentFrameIndex, pushToHistory]);
-
-  const updateLayerBlendMode = useCallback((layerId: string, blendMode: BlendMode) => {
-    const newFrames = [...project.frames];
-    const frame = { ...newFrames[currentFrameIndex] };
-    frame.layers = frame.layers.map(l => 
-      l.id === layerId ? { ...l, blendMode: blendMode } : l
-    );
-    newFrames[currentFrameIndex] = frame;
-    setProject(prev => ({ ...prev, frames: newFrames }));
-    pushToHistory(newFrames);
-  }, [project.frames, currentFrameIndex, pushToHistory]);
-
-  const toggleOnionSkin = useCallback(() => {
-    setProject(prev => ({ ...prev, onionSkinEnabled: !prev.onionSkinEnabled }));
-  }, []);
-
-  const flipCurrentLayer = useCallback((axis: 'horizontal' | 'vertical') => {
-    const frame = project.frames[currentFrameIndex];
-    const layer = frame.layers.find(l => l.id === activeLayerId);
-    if (!layer || !layer.imageData || layer.locked) return;
-    const img = new Image();
-    img.src = layer.imageData;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = project.width;
-      canvas.height = project.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.save();
-      if (axis === 'horizontal') {
-        ctx.scale(-1, 1);
-        ctx.drawImage(img, -project.width, 0);
-      } else {
-        ctx.scale(1, -1);
-        ctx.drawImage(img, 0, -project.height);
-      }
-      ctx.restore();
-      updateLayerData(canvas.toDataURL());
-    };
-  }, [project, currentFrameIndex, activeLayerId, updateLayerData]);
-
-  const saveProject = useCallback((isAuto = false) => {
-    try {
-      if (isAuto) setIsAutoSaving(true);
-      const storageKey = isAuto ? 'sketchflow_draft' : 'sketchflow_project';
-      localStorage.setItem(storageKey, JSON.stringify(project));
-      
-      if (!isAuto) {
-        toast({
-          title: "Project Saved!",
-          description: "Your animation has been saved to your browser's local storage.",
-        });
-      }
-      
-      if (isAuto) {
-        setTimeout(() => setIsAutoSaving(false), 1000);
-      }
-    } catch (e: any) {
-      console.error("Failed to save to localStorage", e);
-      if (!isAuto) {
-        toast({
-          variant: "destructive",
-          title: "Save Failed",
-          description: e.name === 'QuotaExceededError' 
-            ? "Browser storage is full. Please use the 'Download Project' button instead."
-            : "Could not save your project. Check the console for more details.",
-        });
-      }
-    }
-  }, [project, toast]);
-
-  // Auto-save logic
-  useEffect(() => {
-    if (!project.autoSaveEnabled) return;
-
-    if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
-    
-    autoSaveTimeoutRef.current = setTimeout(() => {
-      saveProject(true);
-    }, 5000);
-
-    return () => {
-      if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
-    };
-  }, [project, saveProject]);
-
-  const loadProject = useCallback(() => {
-    try {
-      const saved = localStorage.getItem('sketchflow_project');
-      if (!saved) {
-        toast({
-          title: "No Saved Project Found",
-          description: "Try downloading your project and uploading it later to keep it safe!",
-        });
-        return;
-      }
-      
-      const loadedProject = JSON.parse(saved);
-      if (!loadedProject.frames || loadedProject.frames.length === 0) return;
-      
-      if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
-      if (!loadedProject.groups) loadedProject.groups = [];
-      if (!loadedProject.versions) loadedProject.versions = [];
-      
-      setProject(loadedProject);
-      historyRef.current = [loadedProject.frames];
-      historyIndexRef.current = 0;
-      updateHistoryState();
-      setCurrentFrameIndex(0);
-      setSelectedFrameIndices([0]);
-      setActiveLayerId(loadedProject.frames[0].layers[0].id);
-      
-      if (loadedProject.audioData) {
-        audioRef.current = new Audio(loadedProject.audioData);
-      }
-      
-      toast({
-        title: "Project Loaded",
-        description: "Successfully restored your last session.",
-      });
-    } catch (err) {
-      console.error("Failed to parse project from storage", err);
-      toast({
-        variant: "destructive",
-        title: "Load Failed",
-        description: "The saved project data is corrupted or invalid.",
-      });
-    }
-  }, [updateHistoryState, toast]);
-
-  // Crash recovery on mount
-  useEffect(() => {
-    const draft = localStorage.getItem('sketchflow_draft');
-    if (draft && project.frames.length === 1 && !project.frames[0].layers[0].imageData) {
-      try {
-        const loadedDraft = JSON.parse(draft);
-        setProject(loadedDraft);
-        historyRef.current = [loadedDraft.frames];
-        historyIndexRef.current = 0;
-        updateHistoryState();
-        
-        toast({
-          title: "Crash Recovery Active",
-          description: "Restored your last session automatically.",
-        });
-      } catch (e) {}
-    }
-  }, []);
-
-  const saveVersion = useCallback((name: string) => {
-    const versionId = Math.random().toString(36).substr(2, 9);
-    const newVersionMeta: ProjectVersionMetadata = {
-      id: versionId,
-      name: name || `Version ${project.versions?.length ? project.versions.length + 1 : 1}`,
-      timestamp: Date.now()
-    };
-
-    try {
-      localStorage.setItem(`sketchflow_vdata_${versionId}`, JSON.stringify(project.frames));
-      
-      setProject(prev => {
-        const next = {
-          ...prev,
-          versions: [...(prev.versions || []), newVersionMeta]
-        };
-        localStorage.setItem('sketchflow_project', JSON.stringify(next));
-        return next;
-      });
-
-      toast({
-        title: "Version Saved",
-        description: `Created snapshot: ${newVersionMeta.name}`,
-      });
-    } catch (e: any) {
-      toast({
-        variant: "destructive",
-        title: "Version Save Failed",
-        description: "Storage is likely full.",
-      });
-    }
-  }, [project, toast]);
-
-  const loadVersion = useCallback((versionId: string) => {
-    const vdata = localStorage.getItem(`sketchflow_vdata_${versionId}`);
-    if (!vdata) {
-      toast({ variant: "destructive", title: "Version Not Found" });
-      return;
-    }
-
-    try {
-      const frames = JSON.parse(vdata);
-      setProject(prev => ({ ...prev, frames }));
-      historyRef.current = [frames];
-      historyIndexRef.current = 0;
-      updateHistoryState();
-      setCurrentFrameIndex(0);
-      setSelectedFrameIndices([0]);
-      setActiveLayerId(frames[0].layers[0].id);
-      
-      toast({ title: "Version Restored" });
-    } catch (e) {}
-  }, [updateHistoryState, toast]);
-
-  const deleteVersion = useCallback((versionId: string) => {
-    localStorage.removeItem(`sketchflow_vdata_${versionId}`);
-    setProject(prev => {
-      const next = {
-        ...prev,
-        versions: (prev.versions || []).filter(v => v.id !== versionId)
-      };
-      localStorage.setItem('sketchflow_project', JSON.stringify(next));
-      return next;
-    });
-    toast({ title: "Version Deleted" });
-  }, [toast]);
-
-  const handleCustomBrushSave = useCallback((dataUrl: string, name: string, keepInPens: boolean) => {
-    setCustomBrushData(dataUrl);
-    handleSetTool('custom');
-    
-    if (keepInPens) {
-      setProject(prev => {
-        const newBrush: SavedBrush = {
-          id: Math.random().toString(36).substr(2, 9),
-          name: name || `Tip ${(prev.savedBrushes || []).length + 1}`,
-          data: dataUrl
-        };
-        const nextProject = {
-          ...prev,
-          savedBrushes: [...(prev.savedBrushes || []), newBrush]
-        };
-        
-        try {
-          localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
-          toast({
-            title: "Brush Tip Saved!",
-            description: `${newBrush.name} is now available in your pens collection.`,
-          });
-        } catch (e) {
-          toast({
-            variant: "destructive",
-            title: "Could not save tip",
-            description: "Browser storage might be full.",
-          });
-        }
-        return nextProject;
-      });
-    }
-  }, [handleSetTool, toast]);
-
-  const deleteSavedBrush = useCallback((brushId: string) => {
-    setProject(prev => {
-      const nextProject = {
-        ...prev,
-        savedBrushes: (prev.savedBrushes || []).filter(b => b.id !== brushId)
-      };
-      try {
-        localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
-        toast({
-          title: "Brush Deleted",
-          description: "Tip removed from your collection.",
-        });
-      } catch (e) {}
-      return nextProject;
-    });
-  }, [toast]);
-
   const togglePlayback = useCallback(() => {
     setIsPlaying(prev => {
       const nextState = !prev;
       if (nextState && audioRef.current) {
-        // Calculate start time based on current frame
         const totalTimeBefore = project.frames.slice(0, currentFrameIndex).reduce((acc, f) => acc + (f.duration || 1) / project.fps, 0);
         audioRef.current.currentTime = totalTimeBefore;
         audioRef.current.play().catch(() => {});
-      } else if (audioRef.current) {
-        audioRef.current.pause();
-      }
+      } else if (audioRef.current) audioRef.current.pause();
       return nextState;
     });
   }, [currentFrameIndex, project.frames, project.fps]);
 
   useEffect(() => {
     if (!isPlaying) {
-      if (playbackTimeoutRef.current) {
-        clearTimeout(playbackTimeoutRef.current);
-        playbackTimeoutRef.current = null;
-      }
+      if (playbackTimeoutRef.current) { clearTimeout(playbackTimeoutRef.current); playbackTimeoutRef.current = null; }
       return;
     }
-
     const currentFrame = project.frames[currentFrameIndex];
     if (!currentFrame) return;
-
-    const group = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
-    const currentFps = group ? group.fps : project.fps;
     const frameHold = currentFrame.duration || 1;
-
     playbackTimeoutRef.current = setTimeout(() => {
       setCurrentFrameIndex(prev => {
-        let nextIdx;
-        if (loopSelection && selectedFrameIndices.length > 1) {
-          const sorted = [...selectedFrameIndices].sort((a, b) => a - b);
-          const currentInSelection = sorted.indexOf(prev);
-          nextIdx = currentInSelection === -1 || currentInSelection === sorted.length - 1 
-            ? sorted[0] 
-            : sorted[currentInSelection + 1];
-          
-          if (nextIdx === sorted[0] && audioRef.current) {
-            const startTime = project.frames.slice(0, nextIdx).reduce((acc, f) => acc + (f.duration || 1) / project.fps, 0);
-            audioRef.current.currentTime = startTime;
-          }
-        } else {
-          nextIdx = (prev + 1) % project.frames.length;
-          if (nextIdx === 0 && audioRef.current) {
-            audioRef.current.currentTime = 0;
-          }
-        }
-        
+        const nextIdx = (prev + 1) % project.frames.length;
+        if (nextIdx === 0 && audioRef.current) audioRef.current.currentTime = 0;
         setSelectedFrameIndices([nextIdx]);
-        const targetFrame = project.frames[nextIdx];
-        if (targetFrame) {
-            const hasLayer = targetFrame.layers.some(l => l.id === activeLayerId);
-            if (!hasLayer) setActiveLayerId(targetFrame.layers[0].id);
-        }
-        
         return nextIdx;
       });
-    }, (1000 / currentFps) * frameHold);
+    }, (1000 / project.fps) * frameHold);
+    return () => { if (playbackTimeoutRef.current) { clearTimeout(playbackTimeoutRef.current); playbackTimeoutRef.current = null; } };
+  }, [isPlaying, currentFrameIndex, project.fps, project.frames]);
 
-    return () => {
-      if (playbackTimeoutRef.current) {
-        clearTimeout(playbackTimeoutRef.current);
-        playbackTimeoutRef.current = null;
-      }
-    };
-  }, [isPlaying, currentFrameIndex, project.fps, project.frames, project.groups, loopSelection, selectedFrameIndices, activeLayerId]);
+  const saveVersion = useCallback((name: string) => {
+    const versionId = Math.random().toString(36).substr(2, 9);
+    const newVersionMeta: ProjectVersionMetadata = { id: versionId, name: name || `Snapshot ${Date.now()}`, timestamp: Date.now() };
+    try {
+      localStorage.setItem(`sketchflow_vdata_${versionId}`, JSON.stringify(project.frames));
+      setProject(prev => ({ ...prev, versions: [...(prev.versions || []), newVersionMeta] }));
+      toast({ title: "Snapshot Created" });
+    } catch (e) { toast({ variant: "destructive", title: "Storage Full" }); }
+  }, [project, toast]);
 
-  const setAudio = useCallback(async (file: File | Blob, name: string) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
-      
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const response = await fetch(dataUrl);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-      
-      const channelData = audioBuffer.getChannelData(0);
-      const step = Math.ceil(channelData.length / 200);
-      const peaks = [];
-      for (let i = 0; i < 200; i++) {
-        let max = 0;
-        for (let j = 0; j < step; j++) {
-          const datum = channelData[i * step + j];
-          if (datum > max) max = datum;
-          else if (datum < -max) max = -datum;
-        }
-        peaks.push(max);
-      }
-
-      const metadata: AudioMetadata = {
-        duration: audioBuffer.duration,
-        peaks,
-        name
-      };
-
-      setProject(prev => ({
-        ...prev,
-        audioData: dataUrl,
-        audioMetadata: metadata
-      }));
-      
-      if (!audioRef.current) {
-        audioRef.current = new Audio(dataUrl);
-      } else {
-        audioRef.current.src = dataUrl;
-      }
-
-      toast({
-        title: "Audio Loaded",
-        description: `Successfully attached "${name}" to project.`,
-      });
-    };
-    reader.readAsDataURL(file);
-  }, [toast]);
-
-  const removeAudio = useCallback(() => {
-    setProject(prev => {
-      const { audioData, audioMetadata, ...rest } = prev;
-      return rest;
-    });
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
+  const loadVersion = useCallback((versionId: string) => {
+    const vdata = localStorage.getItem(`sketchflow_vdata_${versionId}`);
+    if (vdata) {
+      const frames = JSON.parse(vdata);
+      setProject(prev => ({ ...prev, frames }));
+      historyRef.current = [frames]; historyIndexRef.current = 0; updateHistoryState();
+      toast({ title: "Snapshot Restored" });
     }
+  }, [updateHistoryState, toast]);
+
+  const deleteVersion = useCallback((versionId: string) => {
+    localStorage.removeItem(`sketchflow_vdata_${versionId}`);
+    setProject(prev => ({ ...prev, versions: (prev.versions || []).filter(v => v.id !== versionId) }));
   }, []);
 
   const downloadProject = useCallback(() => {
     const data = JSON.stringify(project, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${project.name.replace(/\s+/g, '_')}.sketchflow`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast({
-      title: "Project Downloaded",
-      description: "SketchFlow file has been saved to your device.",
-    });
+    const link = document.createElement('a'); link.href = url; link.download = `${project.name}.sketchflow`; link.click();
+    toast({ title: "Project Downloaded" });
   }, [project, toast]);
 
   const uploadProject = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const loadedProject = JSON.parse(e.target?.result as string);
-        if (!loadedProject.frames || loadedProject.frames.length === 0) return;
-        if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
-        if (!loadedProject.groups) loadedProject.groups = [];
-        if (!loadedProject.versions) loadedProject.versions = [];
-        
-        setProject(loadedProject);
-        
-        if (loadedProject.audioData) {
-          audioRef.current = new Audio(loadedProject.audioData);
-        }
-
-        historyRef.current = [loadedProject.frames];
-        historyIndexRef.current = 0;
-        updateHistoryState();
-        setCurrentFrameIndex(0);
-        setSelectedFrameIndices([0]);
-        setActiveLayerId(loadedProject.frames[0].layers[0].id);
-        
-        toast({
-          title: "Project Imported",
-          description: "Successfully loaded your animation file.",
-        });
-      } catch (err) {
-        console.error("Failed to parse project file", err);
-        toast({
-          variant: "destructive",
-          title: "Import Failed",
-          description: "This file does not appear to be a valid SketchFlow project.",
-        });
-      }
+        const loaded = JSON.parse(e.target?.result as string);
+        setProject(loaded);
+        toast({ title: "Project Imported" });
+      } catch (err) { toast({ variant: "destructive", title: "Invalid File" }); }
     };
     reader.readAsText(file);
-  }, [updateHistoryState, toast]);
+  }, [toast]);
 
-  const exportToGif = useCallback(async (settings: { scale: number, transparent: boolean, startFrame?: number, endFrame?: number }) => {
+  const setAudio = useCallback(async (file: File | Blob, name: string) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const response = await fetch(dataUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      const channelData = audioBuffer.getChannelData(0);
+      const peaks = [];
+      for (let i = 0; i < 200; i++) peaks.push(Math.abs(channelData[Math.floor(i * channelData.length / 200)]));
+      setProject(prev => ({ ...prev, audioData: dataUrl, audioMetadata: { duration: audioBuffer.duration, peaks, name } }));
+      if (audioRef.current) audioRef.current.src = dataUrl;
+      else audioRef.current = new Audio(dataUrl);
+      toast({ title: "Audio Attached" });
+    };
+    reader.readAsDataURL(file);
+  }, [toast]);
+
+  const exportToGif = useCallback(async (settings: any) => {
     setIsExporting(true);
-    const exportWidth = project.width * settings.scale;
-    const exportHeight = project.height * settings.scale;
-
-    const startIdx = settings.startFrame !== undefined ? settings.startFrame : 0;
-    const endIdx = settings.endFrame !== undefined ? settings.endFrame : project.frames.length - 1;
-    const framesToExport = project.frames.slice(startIdx, endIdx + 1);
-
+    const framesToExport = project.frames.slice(settings.startFrame, settings.endFrame + 1);
     const images = await Promise.all(framesToExport.map(async (frame) => {
       const canvas = document.createElement('canvas');
-      canvas.width = exportWidth;
-      canvas.height = exportHeight;
+      canvas.width = project.width * settings.scale; canvas.height = project.height * settings.scale;
       const ctx = canvas.getContext('2d')!;
-      
-      if (!settings.transparent) {
-        ctx.fillStyle = 'white'; 
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-
-      ctx.save();
+      if (!settings.transparent) { ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
       ctx.scale(settings.scale, settings.scale);
-      const layers = [...frame.layers].reverse();
-      for (const layer of layers) {
+      for (const layer of [...frame.layers].reverse()) {
         if (layer.visible && layer.imageData) {
-          await new Promise((resolve) => {
-            const img = new Image();
-            img.src = layer.imageData;
-            img.onload = () => {
-              ctx.save();
-              ctx.globalAlpha = (layer.opacity ?? 100) / 100;
-              ctx.globalCompositeOperation = (layer.blendMode || 'source-over') as GlobalCompositeOperation;
-              ctx.drawImage(img, 0, 0);
-              ctx.restore();
-              resolve(null);
-            };
-            img.onerror = () => resolve(null);
-          });
+          const img = new Image(); img.src = layer.imageData;
+          await new Promise(r => { img.onload = () => { ctx.globalAlpha = (layer.opacity ?? 100) / 100; ctx.drawImage(img, 0, 0); r(null); }; });
         }
       }
-      ctx.restore();
       return canvas.toDataURL('image/png');
     }));
-    
-    gifshot.createGIF({
-      images,
-      interval: 1 / project.fps,
-      gifWidth: exportWidth,
-      gifHeight: exportHeight,
-      transparent: settings.transparent ? '#00000000' : null,
-    }, (obj: any) => {
+    gifshot.createGIF({ images, interval: 1 / project.fps, gifWidth: project.width * settings.scale, gifHeight: project.height * settings.scale }, (obj: any) => {
       setIsExporting(false);
       if (!obj.error) {
-        const link = document.createElement('a');
-        link.href = obj.image;
-        link.download = `${project.name.replace(/\s+/g, '_')}.gif`;
-        link.click();
-        toast({
-          title: "Export Complete!",
-          description: `Generated GIF for frames ${startIdx + 1} to ${endIdx + 1}.`,
-        });
-      } else {
-        console.error("GIF generation error:", obj.error);
-        toast({
-          variant: "destructive",
-          title: "Export Failed",
-          description: "Something went wrong while creating the GIF.",
-        });
+        const link = document.createElement('a'); link.href = obj.image; link.download = `${project.name}.gif`; link.click();
+        toast({ title: "Export Complete" });
       }
     });
   }, [project, toast]);
 
   return {
-    project,
-    currentFrameIndex,
-    selectedFrameIndices,
-    selectFrame,
-    activeLayerId,
-    setActiveLayerId,
-    isPlaying,
-    loopSelection,
-    setLoopSelection,
-    tool,
-    lastBrushTool,
-    lastShapeTool,
-    setTool: handleSetTool,
-    moveMode,
-    setMoveMode,
-    color,
-    setColor,
-    brushSize,
-    setBrushSize,
-    opacity,
-    setOpacity,
-    hardness,
-    setHardness,
-    pressureEnabled,
-    setPressureEnabled,
-    stabilizationEnabled,
-    setStabilizationEnabled,
-    dynamicStampingEnabled,
-    setDynamicStampingEnabled,
-    customBrushColorLink,
-    setCustomBrushColorLink,
-    customBrushData,
-    setCustomBrushData,
-    isMultiDrawEnabled,
-    setIsMultiDrawEnabled,
-    multiDrawRange,
-    setMultiDrawRange,
-    addFrame,
-    deleteFrame: deleteSelectedFrames,
-    duplicateFrame: duplicateSelectedFrames,
-    reorderFrames,
-    updateLayerData,
-    updateFrameDuration,
-    addLayer,
-    copyLayer,
-    pasteLayer,
-    hasCopiedLayer: !!copiedLayerData,
-    setCopiedLayerData,
-    deleteLayer,
-    reorderLayers,
-    toggleLayerVisibility,
-    toggleLayerLock,
-    updateLayerOpacity,
-    updateLayerBlendMode,
-    togglePlayback,
-    toggleOnionSkin,
-    saveProject,
-    loadProject,
-    downloadProject,
-    uploadProject,
-    exportToGif,
-    isExporting,
-    setProject,
-    undo,
-    redo,
-    flipCurrentLayer,
-    canUndo,
-    canRedo,
-    handleCustomBrushSave,
-    deleteSavedBrush,
-    setAudio,
-    removeAudio,
-    saveVersion,
-    loadVersion,
-    deleteVersion,
-    isAutoSaving
+    project, setProject, projectList, loadProjectById, deleteProject, createNewProject,
+    currentFrameIndex, selectedFrameIndices, selectFrame, activeLayerId, setActiveLayerId,
+    isPlaying, loopSelection, setLoopSelection, tool, setTool: handleSetTool, lastBrushTool, lastShapeTool,
+    moveMode, setMoveMode, color, setColor, brushSize, setBrushSize, opacity, setOpacity, hardness, setHardness,
+    pressureEnabled, setPressureEnabled, stabilizationEnabled, setStabilizationEnabled,
+    dynamicStampingEnabled, setDynamicStampingEnabled, customBrushColorLink, setCustomBrushColorLink,
+    customBrushData, setCustomBrushData, isMultiDrawEnabled, setIsMultiDrawEnabled, multiDrawRange, setMultiDrawRange,
+    addFrame, deleteFrame: deleteSelectedFrames, duplicateFrame: duplicateSelectedFrames, reorderFrames,
+    updateLayerData, updateFrameDuration, addLayer, copyLayer, pasteLayer, hasCopiedLayer: !!copiedLayerData, setCopiedLayerData,
+    togglePlayback, toggleOnionSkin: () => setProject(p => ({ ...p, onionSkinEnabled: !p.onionSkinEnabled })),
+    saveProject, downloadProject, uploadProject, exportToGif, isExporting, undo, redo, flipCurrentLayer: (axis: 'horizontal' | 'vertical') => {},
+    canUndo, canRedo, handleCustomBrushSave: (d: string, n: string, k: boolean) => {}, deleteSavedBrush: (id: string) => {},
+    setAudio, removeAudio: () => setProject(p => { const { audioData, audioMetadata, ...r } = p; return r as any; }),
+    saveVersion, loadVersion, deleteVersion, isAutoSaving
   };
 }

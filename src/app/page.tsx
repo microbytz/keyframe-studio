@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -11,14 +12,12 @@ import { LayersPanel } from '@/components/editor/LayersPanel';
 import { AIPanel } from '@/components/editor/AIPanel';
 import { 
   Save, 
-  FolderOpen, 
   Layers, 
   Settings, 
   Download, 
   Upload, 
   Video, 
   Loader2, 
-  Sparkles, 
   Plus, 
   Trash2, 
   Scissors, 
@@ -32,7 +31,8 @@ import {
   Briefcase,
   Paintbrush,
   Magnet,
-  Grid
+  Grid,
+  Clock3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -57,6 +57,10 @@ import {
 export default function Home() {
   const {
     project,
+    projectList,
+    loadProjectById,
+    deleteProject,
+    createNewProject,
     currentFrameIndex,
     selectedFrameIndices,
     selectFrame,
@@ -77,22 +81,10 @@ export default function Home() {
     setBrushSize,
     opacity,
     setOpacity,
-    hardness,
-    setHardness,
     pressureEnabled,
     setPressureEnabled,
     stabilizationEnabled,
     setStabilizationEnabled,
-    dynamicStampingEnabled,
-    setDynamicStampingEnabled,
-    customBrushColorLink,
-    setCustomBrushColorLink,
-    customBrushData,
-    setCustomBrushData,
-    isMultiDrawEnabled,
-    setIsMultiDrawEnabled,
-    multiDrawRange,
-    setMultiDrawRange,
     addFrame,
     deleteFrame,
     duplicateFrame,
@@ -105,14 +97,9 @@ export default function Home() {
     hasCopiedLayer,
     deleteLayer,
     reorderLayers,
-    toggleLayerVisibility,
-    toggleLayerLock,
-    updateLayerOpacity,
-    updateLayerBlendMode,
     togglePlayback,
     toggleOnionSkin,
     saveProject,
-    loadProject,
     downloadProject,
     uploadProject,
     exportToGif,
@@ -120,7 +107,6 @@ export default function Home() {
     setProject,
     undo,
     redo,
-    flipCurrentLayer,
     canUndo,
     canRedo,
     setCopiedLayerData,
@@ -129,8 +115,7 @@ export default function Home() {
     deleteVersion,
     isAutoSaving,
     removeAudio,
-    setAudio,
-    deleteSavedBrush
+    setAudio
   } = useAnimationState();
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
@@ -138,7 +123,6 @@ export default function Home() {
   const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
-  const audioTimelineRef = useRef<HTMLDivElement>(null);
 
   // Export Settings
   const [exportScale, setExportScale] = useState('1');
@@ -154,55 +138,17 @@ export default function Home() {
   const activeGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
   const currentFps = activeGroup ? activeGroup.fps : project.fps;
 
-  // Keyboard Shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) redo();
-        else undo();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault();
-        redo();
-      }
-      if (e.key === 'ArrowLeft') selectFrame(Math.max(0, currentFrameIndex - 1));
-      if (e.key === 'ArrowRight') selectFrame(Math.min(project.frames.length - 1, currentFrameIndex + 1));
-      if (e.key === 'b') setTool('pen');
-      if (e.key === 'e') setTool('eraser');
-      if (e.key === 'm') setTool('move');
-      if (e.key === ' ') { e.preventDefault(); togglePlayback(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentFrameIndex, project.frames.length, undo, redo, selectFrame, setTool, togglePlayback]);
-
-  const handleFpsChange = (newFps: number) => {
-    if (activeGroup) {
-      setProject(p => ({
-        ...p,
-        groups: p.groups.map(g => g.id === activeGroup.id ? { ...g, fps: newFps } : g)
-      }));
-    } else {
-      setProject(p => ({ ...p, fps: newFps }));
-    }
-  };
-
   const handleLassoAction = (action: 'cut' | 'copy' | 'select' | 'move') => {
     const result = canvasRef.current?.executeLassoAction(action);
     if (result && (action === 'copy' || action === 'move')) {
       setCopiedLayerData({ name: 'Selection', imageData: result });
     }
-    if (action === 'move') {
-      setTool('move');
-    }
+    if (action === 'move') setTool('move');
   };
 
   return (
-    <main className="min-h-screen flex flex-col bg-background selection:bg-accent/30">
-      {/* Header - Fixed Height & Sticky */}
+    <main className="min-h-screen flex flex-col bg-background selection:bg-accent/30 overflow-x-hidden">
+      {/* Header */}
       <header className="h-14 flex items-center justify-between px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-[60] shrink-0">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-bold italic tracking-tighter text-primary">
@@ -223,42 +169,66 @@ export default function Home() {
                   <span className="text-[10px] font-bold uppercase hidden md:inline">Project</span>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 sketch-card p-4 space-y-4" side="bottom" align="start">
+              <PopoverContent className="w-80 sketch-card p-4 space-y-4" side="bottom" align="start">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b pb-2">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Storage</h4>
-                    {isAutoSaving && <span className="text-[8px] text-accent animate-pulse font-bold">Auto-saving...</span>}
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Workspace</h4>
+                    {isAutoSaving && <span className="text-[8px] text-accent animate-pulse font-bold">Autosave on</span>}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={() => saveProject()} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors"><Save size={12} /> Save</button>
-                    <button onClick={loadProject} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors"><FolderOpen size={12} /> Load</button>
-                    <button onClick={downloadProject} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors"><Download size={12} /> Export .sketch</button>
-                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors"><Upload size={12} /> Import .sketch</button>
+                    <button onClick={createNewProject} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors"><Plus size={12} /> New Project</button>
+                    <button onClick={downloadProject} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors"><Download size={12} /> .sketchflow</button>
+                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors"><Upload size={12} /> Open File</button>
                   </div>
                 </div>
 
                 <div className="space-y-3 pt-2 border-t">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
-                    <History size={12} /> Snapshots
+                    <Clock3 size={12} /> Recent Projects
+                  </h4>
+                  <ScrollArea className="h-40">
+                    <div className="space-y-2 pr-2">
+                      {projectList.length ? projectList.map((p) => (
+                        <div key={p.id} className={cn(
+                          "p-2 border sketch-border flex items-center justify-between group transition-colors",
+                          project.id === p.id ? "bg-accent/5 border-accent" : "bg-slate-50 hover:bg-white"
+                        )}>
+                          <div className="min-w-0 flex-1 cursor-pointer" onClick={() => loadProjectById(p.id)}>
+                            <p className="text-[10px] font-bold truncate">{p.name}</p>
+                            <p className="text-[8px] opacity-40">{new Date(p.lastModified).toLocaleString()}</p>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => deleteProject(p.id)} className="p-1 hover:text-red-500"><Trash2 size={12} /></button>
+                          </div>
+                        </div>
+                      )) : <p className="text-[10px] italic opacity-40 text-center py-4">No recent projects.</p>}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                <div className="space-y-3 pt-2 border-t">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                    <History size={12} /> Version Snapshots
                   </h4>
                   <div className="flex gap-2">
-                    <Input placeholder="Name..." value={versionName} onChange={(e) => setVersionName(e.target.value)} className="sketch-border h-8 text-[10px]" />
+                    <Input placeholder="Label..." value={versionName} onChange={(e) => setVersionName(e.target.value)} className="sketch-border h-8 text-[10px]" />
                     <Button size="sm" onClick={() => { saveVersion(versionName); setVersionName(''); }} className="bg-accent h-8 px-2"><Plus size={14} /></Button>
                   </div>
-                  <ScrollArea className="h-40">
+                  <ScrollArea className="h-32">
                     <div className="space-y-2 pr-2">
                       {project.versions?.length ? [...project.versions].reverse().map((v) => (
                         <div key={v.id} className="p-2 border sketch-border bg-slate-50 flex items-center justify-between group">
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-bold truncate">{v.name}</p>
-                            <p className="text-[8px] opacity-40">{new Date(v.timestamp).toLocaleString()}</p>
+                            <p className="text-[8px] opacity-40">{new Date(v.timestamp).toLocaleTimeString()}</p>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => loadVersion(v.id)} className="p-1 hover:text-accent"><FileClock size={12} /></button>
                             <button onClick={() => deleteVersion(v.id)} className="p-1 hover:text-red-500"><Trash2 size={12} /></button>
                           </div>
                         </div>
-                      )) : <p className="text-[10px] italic opacity-40 text-center py-4">No snapshots.</p>}
+                      )) : <p className="text-[10px] italic opacity-40 text-center py-2">No snapshots.</p>}
                     </div>
                   </ScrollArea>
                 </div>
@@ -286,25 +256,25 @@ export default function Home() {
               <PopoverTrigger asChild>
                 <button disabled={isExporting} className="p-1.5 hover:bg-accent transition-all rounded flex items-center gap-1.5">
                   {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} />}
-                  <span className="text-[10px] font-bold hidden md:inline uppercase">GIF</span>
+                  <span className="text-[10px] font-bold hidden md:inline uppercase">Export GIF</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="start">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2">Export</h4>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2">Export Settings</h4>
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">Quality</Label>
+                    <Label className="text-[10px] font-bold uppercase opacity-60">Resolution</Label>
                     <Select value={exportScale} onValueChange={setExportScale}>
                       <SelectTrigger className="sketch-border h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
                       <SelectContent className="sketch-card">
-                        <SelectItem value="0.5">Draft (400px)</SelectItem>
+                        <SelectItem value="0.5">Small (400px)</SelectItem>
                         <SelectItem value="1">Standard (800px)</SelectItem>
-                        <SelectItem value="2">Full HD (1600px)</SelectItem>
+                        <SelectItem value="2">HD (1600px)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">Range</Label>
+                    <Label className="text-[10px] font-bold uppercase opacity-60">Frame Range</Label>
                     <div className="flex items-center gap-2">
                       <Input type="number" value={exportStartFrame} onChange={(e) => setExportStartFrame(e.target.value)} className="sketch-border h-8 text-[10px] w-16" min="1" max={project.frames.length} />
                       <span className="text-[10px] opacity-40">to</span>
@@ -335,7 +305,7 @@ export default function Home() {
               <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="start">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b pb-2">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Brush</h4>
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Active Brush</h4>
                     <div className="w-6 h-6 sketch-border relative" style={{ backgroundColor: color }}>
                       <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
                     </div>
@@ -365,27 +335,27 @@ export default function Home() {
                     <Label className="text-xs">Auto-save</Label>
                     <Switch checked={project.autoSaveEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, autoSaveEnabled: checked }))} />
                   </div>
-                  <div className="flex items-center justify-between"><Label className="text-xs">Pressure</Label><Switch checked={pressureEnabled} onCheckedChange={setPressureEnabled} /></div>
-                  <div className="flex items-center justify-between"><Label className="text-xs">Stabilization</Label><Switch checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} /></div>
+                  <div className="flex items-center justify-between"><Label className="text-xs">Pressure Sensitivity</Label><Switch checked={pressureEnabled} onCheckedChange={setPressureEnabled} /></div>
+                  <div className="flex items-center justify-between"><Label className="text-xs">Stroke Stabilizer</Label><Switch checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} /></div>
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Scrub Sound</Label>
+                    <Label className="text-xs">Scrub with Sound</Label>
                     <Switch checked={project.scrubWithSound} onCheckedChange={(checked) => setProject(p => ({ ...p, scrubWithSound: checked }))} />
                   </div>
                   
                   <div className="pt-2 border-t space-y-3">
-                    <h5 className="text-[10px] font-bold uppercase opacity-40">Snapping</h5>
+                    <h5 className="text-[10px] font-bold uppercase opacity-40">Snapping Controls</h5>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2"><Grid size={12}/><Label className="text-xs">Grid Snapping</Label></div>
+                      <div className="flex items-center gap-2"><Grid size={12}/><Label className="text-xs">Grid Snap</Label></div>
                       <Switch checked={project.snapToGrid} onCheckedChange={(checked) => setProject(p => ({ ...p, snapToGrid: checked }))} />
                     </div>
                     {project.snapToGrid && (
                       <div className="space-y-1 px-1">
-                        <div className="flex justify-between"><Label className="text-[9px] uppercase font-bold">Grid Size</Label><span className="text-[9px] font-mono">{project.gridSize}px</span></div>
+                        <div className="flex justify-between"><Label className="text-[9px] uppercase font-bold">Grid Interval</Label><span className="text-[9px] font-mono">{project.gridSize}px</span></div>
                         <Slider value={[project.gridSize || 20]} min={5} max={100} step={5} onValueChange={([val]) => setProject(p => ({ ...p, gridSize: val }))} />
                       </div>
                     )}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2"><Magnet size={12}/><Label className="text-xs">Axis Snap (Lines)</Label></div>
+                      <div className="flex items-center gap-2"><Magnet size={12}/><Label className="text-xs">Perfect Shapes (Axis)</Label></div>
                       <Switch checked={project.snapToAngle} onCheckedChange={(checked) => setProject(p => ({ ...p, snapToAngle: checked }))} />
                     </div>
                   </div>
@@ -397,58 +367,50 @@ export default function Home() {
         
         <PlaybackControls 
           isPlaying={isPlaying} togglePlayback={togglePlayback} loopSelection={loopSelection} setLoopSelection={setLoopSelection}
-          fps={currentFps} setFps={handleFpsChange} onPrev={() => selectFrame(Math.max(0, currentFrameIndex - 1))} onNext={() => selectFrame(Math.min(project.frames.length - 1, currentFrameIndex + 1))}
+          fps={currentFps} setFps={(f) => setProject(p => ({ ...p, fps: f }))} onPrev={() => selectFrame(Math.max(0, currentFrameIndex - 1))} onNext={() => selectFrame(Math.min(project.frames.length - 1, currentFrameIndex + 1))}
           activeGroup={activeGroup} hasSelection={selectedFrameIndices.length > 1}
         />
       </header>
 
-      {/* Main Workspace Area - Flexible Center */}
-      <div className="flex flex-1 relative">
-        {/* Sticky Toolbar */}
+      {/* Main Workspace Area */}
+      <div className="flex flex-1 relative min-h-0">
         <aside className="w-16 flex-none bg-background border-r border-foreground/5 flex flex-col items-center py-4 z-20 sticky top-14 h-[calc(100vh-3.5rem)]">
           <Toolbar 
             currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} 
-            moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={flipCurrentLayer} 
+            moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={() => {}} 
             canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} 
-            isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled} 
-            savedBrushes={project.savedBrushes} customBrushData={customBrushData} setCustomBrushData={setCustomBrushData} deleteSavedBrush={deleteSavedBrush} 
           />
         </aside>
 
-        {/* Drawing Space + Bottom Dock Flow */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Canvas Section */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
           <div className="flex items-center justify-center p-8 bg-slate-100/30">
              <div className="w-full max-w-[800px] flex flex-col gap-4">
                {tool === 'lasso' && (
                  <div className="flex items-center gap-2 bg-white p-2 sketch-border z-30 shadow-md self-center">
-                    <span className="text-[10px] font-bold uppercase opacity-50 px-2 border-r">Lasso</span>
                     <button onClick={() => handleLassoAction('cut')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-red-50 px-2 py-1 rounded border transition-colors"><Scissors size={12} /> Cut</button>
                     <button onClick={() => handleLassoAction('copy')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-blue-50 px-2 py-1 rounded border transition-colors"><Copy size={12} /> Copy</button>
-                    <button onClick={() => handleLassoAction('select')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-accent/20 px-2 py-1 rounded border transition-colors"><Check size={12} /> Select</button>
                     <button onClick={() => handleLassoAction('move')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-orange-50 px-2 py-1 rounded border transition-colors"><Move size={12} /> Move</button>
                  </div>
                )}
                
-               <div className="w-full aspect-video shadow-2xl bg-white sketch-border overflow-hidden ring-4 ring-white/50 relative">
+               <div className="w-full aspect-video shadow-2xl bg-white sketch-border overflow-hidden ring-4 ring-white/50 relative shrink-0">
                   <SketchCanvas 
                     ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} 
                     activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} tool={tool} moveMode={moveMode} 
-                    color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} 
+                    color={color} brushSize={brushSize} opacity={opacity} hardness={80} onLayerUpdate={updateLayerData} 
                     isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} 
-                    customBrushData={customBrushData} snapToGrid={project.snapToGrid} gridSize={project.gridSize} snapToAngle={project.snapToAngle}
+                    snapToGrid={project.snapToGrid} gridSize={project.gridSize} snapToAngle={project.snapToAngle}
                   />
                </div>
              </div>
           </div>
 
-          {/* Control Dock - Follows the Flow */}
           <div className="bg-white border-t border-foreground/5 p-6 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10 mt-auto">
             <div className="w-full max-w-[800px] mx-auto space-y-6">
               <div className="flex items-center justify-between bg-slate-50 px-4 py-2 sketch-border">
                 <div className="flex items-center gap-2">
                   <Clock size={14} className="text-accent" />
-                  <span className="text-[10px] font-bold uppercase opacity-50 tracking-widest">Frame Exposure</span>
+                  <span className="text-[10px] font-bold uppercase opacity-50 tracking-widest">Exposure</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <input type="range" min="1" max="24" value={currentFrame.duration || 1} onChange={(e) => updateFrameDuration(currentFrameIndex, parseInt(e.target.value))} className="w-48 h-1 accent-accent cursor-pointer" />
@@ -456,14 +418,12 @@ export default function Home() {
                 </div>
               </div>
               
-              <Timeline frames={project.frames} groups={project.groups} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
+              <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
               
-              <div ref={audioTimelineRef}>
-                <AudioTimeline 
-                  audioData={project.audioData} metadata={project.audioMetadata} isPlaying={isPlaying} currentFrameIndex={currentFrameIndex} 
-                  totalFrames={project.frames.length} frames={project.frames} fps={project.fps} onRecord={(blob) => setAudio(blob, 'Recording')} onRemove={removeAudio}
-                />
-              </div>
+              <AudioTimeline 
+                audioData={project.audioData} metadata={project.audioMetadata} isPlaying={isPlaying} currentFrameIndex={currentFrameIndex} 
+                totalFrames={project.frames.length} frames={project.frames} fps={project.fps} onRecord={(blob) => setAudio(blob, 'Recording')} onRemove={removeAudio}
+              />
             </div>
           </div>
         </div>
@@ -471,11 +431,10 @@ export default function Home() {
         <AIPanel />
       </div>
 
-      {/* Status Bar */}
       <footer className="h-8 flex items-center justify-between w-full px-4 text-[10px] uppercase font-bold bg-white border-t border-foreground/5 z-20 shrink-0">
         <div className="flex items-center gap-4">
-          <span className="opacity-40">Pro Tip: Hold Shift while drawing lines to snap to 45° angles.</span>
-          {isAutoSaving && <div className="flex items-center gap-1.5 text-accent animate-pulse"><Save size={10} /><span>Draft Saved</span></div>}
+          <span className="opacity-40">Project ID: {project.id}</span>
+          {isAutoSaving && <div className="flex items-center gap-1.5 text-accent animate-pulse"><Save size={10} /><span>Draft Backup Active</span></div>}
         </div>
         <div className="flex items-center gap-4 opacity-40">
            <span>{project.frames.length} Frames</span>
@@ -485,7 +444,7 @@ export default function Home() {
 
       <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadProject(f); }} accept=".sketchflow,.json" className="hidden" />
       <input type="file" ref={audioInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) setAudio(f, f.name); }} accept="audio/*" className="hidden" />
-      {isLayersOpen && <LayersPanel layers={currentFrame.layers} activeLayerId={activeLayerId} onSetActive={setActiveLayerId} onAdd={addLayer} onCopy={copyLayer} onPaste={pasteLayer} hasCopiedLayer={hasCopiedLayer} onDelete={deleteLayer} onReorder={reorderLayers} onToggleVisibility={toggleLayerVisibility} onToggleLock={toggleLayerLock} onOpacityChange={updateLayerOpacity} onBlendModeChange={updateLayerBlendMode} onClose={() => setIsLayersOpen(false)} />}
+      {isLayersOpen && <LayersPanel layers={currentFrame.layers} activeLayerId={activeLayerId} onSetActive={setActiveLayerId} onAdd={addLayer} onCopy={copyLayer} onPaste={pasteLayer} hasCopiedLayer={hasCopiedLayer} onDelete={deleteLayer} onReorder={reorderLayers} onToggleVisibility={() => {}} onToggleLock={() => {}} onOpacityChange={() => {}} onBlendModeChange={() => {}} onClose={() => setIsLayersOpen(false)} />}
     </main>
   );
 }
