@@ -211,7 +211,10 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
             </div>
 
             {/* Controls */}
-            <div className="px-1 pb-1 space-y-3 mt-1 animate-in fade-in duration-300">
+            <div 
+              className="px-1 pb-1 space-y-3 mt-1 animate-in fade-in duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
                   <span className="text-[9px] font-bold uppercase opacity-50">Opacity</span>
