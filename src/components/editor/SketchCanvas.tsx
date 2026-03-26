@@ -222,35 +222,37 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       const oCtx = offscreen.getContext('2d')!;
       const framesToRender: { index: number; opacity: number }[] = [];
 
+      const PREV_OPACITY = 0.06;
+      const NEXT_OPACITY = 0.03;
+
       if (advancedOnionSkinEnabled) {
         for (let i = 1; i <= onionSkinBefore; i++) {
           const idx = currentFrameIndex - i;
           if (idx >= 0) {
-            framesToRender.push({ index: idx, opacity: 0.1 * (1 - (i - 1) / onionSkinBefore) });
+            framesToRender.push({ index: idx, opacity: PREV_OPACITY * (1 - (i - 1) / onionSkinBefore) });
           }
         }
         for (let i = 1; i <= onionSkinAfter; i++) {
           const idx = currentFrameIndex + i;
           if (idx < frames.length) {
-            framesToRender.push({ index: idx, opacity: 0.05 * (1 - (i - 1) / onionSkinAfter) });
+            framesToRender.push({ index: idx, opacity: NEXT_OPACITY * (1 - (i - 1) / onionSkinAfter) });
           }
         }
       } else {
-        if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: 0.1 });
-        if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: 0.05 });
+        if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: PREV_OPACITY });
+        if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: NEXT_OPACITY });
       }
 
       for (const item of framesToRender) {
         const frame = frames[item.index];
-        oCtx.save();
-        oCtx.globalAlpha = item.opacity;
         for (const layer of [...frame.layers].reverse().filter(l => l.visible && l.imageData)) {
           await new Promise((resolve) => {
             const img = new Image();
             img.src = layer.imageData;
             img.onload = () => { 
               oCtx.save();
-              oCtx.globalAlpha = (layer.opacity ?? 100) / 100;
+              // FIX: Correctly multiply the frame factor with the layer's own opacity
+              oCtx.globalAlpha = item.opacity * ((layer.opacity ?? 100) / 100);
               oCtx.globalCompositeOperation = (layer.blendMode || 'source-over') as GlobalCompositeOperation;
               oCtx.drawImage(img, 0, 0); 
               oCtx.restore();
@@ -259,7 +261,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
             img.onerror = () => resolve(null);
           });
         }
-        oCtx.restore();
       }
       ctx.drawImage(offscreen, 0, 0);
     };
