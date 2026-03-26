@@ -127,7 +127,7 @@ export function useAnimationState() {
   }, [currentFrameIndex, activeLayerId, updateHistoryState]);
 
   const handleSetTool = useCallback((newTool: ToolType) => {
-    const brushes: ToolType[] = ['pen', 'pencil', 'brush', 'pixel', 'calligraphy', 'airbrush', 'highlighter', 'marker', 'charcoal', 'crayon', 'watercolor', 'ink', 'spray', 'chalk', 'technical', 'custom'];
+    const brushes: ToolType[] = ['pen', 'pencil', 'brush', 'pixel', 'calligraphy', 'airbrush', 'highlighter', 'marker', 'charcoal', 'crayon', 'watercolor', 'ink', 'spray', 'chalk', 'technical', 'custom', 'blur', 'blend'];
     const shapes: ToolType[] = ['line', 'rectangle', 'circle', 'triangle'];
     
     if (brushes.includes(newTool)) setLastBrushTool(newTool);
@@ -412,6 +412,38 @@ export function useAnimationState() {
     };
   }, [project, currentFrameIndex, activeLayerId, updateLayerData]);
 
+  const saveProject = useCallback(() => {
+    try {
+      localStorage.setItem('sketchflow_project', JSON.stringify(project));
+    } catch (e) {
+      console.error("Failed to save to localStorage (likely size limit). Use Download instead.", e);
+    }
+  }, [project]);
+
+  const loadProject = useCallback(() => {
+    const saved = localStorage.getItem('sketchflow_project');
+    if (saved) {
+      try {
+        const loadedProject = JSON.parse(saved);
+        if (!loadedProject.frames || loadedProject.frames.length === 0) return;
+        
+        // Ensure defaults for missing fields
+        if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
+        if (!loadedProject.groups) loadedProject.groups = [];
+        
+        setProject(loadedProject);
+        historyRef.current = [loadedProject.frames];
+        historyIndexRef.current = 0;
+        updateHistoryState();
+        setCurrentFrameIndex(0);
+        setSelectedFrameIndices([0]);
+        setActiveLayerId(loadedProject.frames[0].layers[0].id);
+      } catch (err) {
+        console.error("Failed to parse project from storage", err);
+      }
+    }
+  }, [updateHistoryState]);
+
   const handleCustomBrushSave = useCallback((dataUrl: string, name: string, keepInPens: boolean) => {
     setCustomBrushData(dataUrl);
     handleSetTool('custom');
@@ -426,8 +458,10 @@ export function useAnimationState() {
           ...prev,
           savedBrushes: [...(prev.savedBrushes || []), newBrush]
         };
-        // Auto-persist brushes to local storage
-        localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
+        // Auto-persist immediately
+        try {
+          localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
+        } catch (e) {}
         return nextProject;
       });
     }
@@ -439,8 +473,9 @@ export function useAnimationState() {
         ...prev,
         savedBrushes: (prev.savedBrushes || []).filter(b => b.id !== brushId)
       };
-      // Auto-persist deletion
-      localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
+      try {
+        localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
+      } catch (e) {}
       return nextProject;
     });
   }, []);
@@ -459,6 +494,8 @@ export function useAnimationState() {
     }
 
     const currentFrame = project.frames[currentFrameIndex];
+    if (!currentFrame) return;
+
     const group = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
     const currentFps = group ? group.fps : project.fps;
     const frameHold = currentFrame.duration || 1;
@@ -477,6 +514,13 @@ export function useAnimationState() {
         }
         
         setSelectedFrameIndices([nextIdx]);
+        // Sync active layer ID to the new frame's first layer if the old one doesn't exist
+        const targetFrame = project.frames[nextIdx];
+        if (targetFrame) {
+            const hasLayer = targetFrame.layers.some(l => l.id === activeLayerId);
+            if (!hasLayer) setActiveLayerId(targetFrame.layers[0].id);
+        }
+        
         return nextIdx;
       });
     }, (1000 / currentFps) * frameHold);
@@ -487,26 +531,7 @@ export function useAnimationState() {
         playbackTimeoutRef.current = null;
       }
     };
-  }, [isPlaying, currentFrameIndex, project.fps, project.frames, project.groups, loopSelection, selectedFrameIndices]);
-
-  const saveProject = useCallback(() => {
-    localStorage.setItem('sketchflow_project', JSON.stringify(project));
-  }, [project]);
-
-  const loadProject = useCallback(() => {
-    const saved = localStorage.getItem('sketchflow_project');
-    if (saved) {
-      const loadedProject = JSON.parse(saved);
-      if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
-      setProject(loadedProject);
-      historyRef.current = [loadedProject.frames];
-      historyIndexRef.current = 0;
-      updateHistoryState();
-      setCurrentFrameIndex(0);
-      setSelectedFrameIndices([0]);
-      setActiveLayerId(loadedProject.frames[0].layers[0].id);
-    }
-  }, [updateHistoryState]);
+  }, [isPlaying, currentFrameIndex, project.fps, project.frames, project.groups, loopSelection, selectedFrameIndices, activeLayerId]);
 
   const downloadProject = useCallback(() => {
     const data = JSON.stringify(project, null, 2);
@@ -524,7 +549,10 @@ export function useAnimationState() {
     reader.onload = (e) => {
       try {
         const loadedProject = JSON.parse(e.target?.result as string);
+        if (!loadedProject.frames || loadedProject.frames.length === 0) return;
         if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
+        if (!loadedProject.groups) loadedProject.groups = [];
+        
         setProject(loadedProject);
         historyRef.current = [loadedProject.frames];
         historyIndexRef.current = 0;
