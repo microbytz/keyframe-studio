@@ -72,7 +72,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-64 bg-white shadow-2xl z-[100] border-l-2 border-foreground/10 flex flex-col animate-in slide-in-from-right duration-300">
+    <div className="fixed inset-y-0 right-0 w-72 bg-white shadow-2xl z-[100] border-l-2 border-foreground/10 flex flex-col animate-in slide-in-from-right duration-300">
       <div className="p-4 border-b-2 border-foreground/5 flex items-center justify-between bg-accent/5">
         <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
           <LayersIcon size={18} className="text-accent" />
@@ -94,7 +94,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
             onDragEnd={() => setDraggedIndex(null)}
             onClick={() => onSetActive(layer.id)}
             className={cn(
-              "p-2 sketch-border flex flex-col gap-2 cursor-pointer transition-all group relative",
+              "p-3 sketch-border flex flex-col gap-2 cursor-pointer transition-all group relative",
               activeLayerId === layer.id ? "bg-accent/10 border-accent shadow-[2px_2px_0px_0px_rgba(130,201,201,0.3)]" : "bg-white hover:bg-accent/5",
               draggedIndex === index && "opacity-30 border-dashed",
               layer.locked && "opacity-80"
@@ -121,7 +121,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                 </button>
               </div>
               
-              <div className="w-12 h-10 sketch-border bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
+              <div className="w-14 h-12 sketch-border bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:4px_4px]" />
                 {layer.imageData ? (
                   <img 
@@ -134,19 +134,19 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                     style={{ opacity: (layer.opacity ?? 100) / 100 }}
                   />
                 ) : (
-                  <ImageIcon size={12} className="opacity-10" />
+                  <ImageIcon size={14} className="opacity-10" />
                 )}
               </div>
 
               <div className="flex-1 min-w-0">
                 <p className={cn(
-                  "text-[10px] font-bold truncate uppercase tracking-tighter leading-tight flex items-center gap-1",
+                  "text-xs font-bold truncate uppercase leading-tight flex items-center gap-1.5",
                   !layer.visible && "opacity-40"
                 )}>
                   {layer.name}
-                  {layer.locked && <Lock size={10} className="text-accent" />}
+                  {layer.locked && <Lock size={12} className="text-accent" />}
                 </p>
-                <p className="text-[8px] opacity-40 font-mono">
+                <p className="text-[9px] opacity-40 font-mono mt-0.5">
                   {activeLayerId === layer.id ? "ACTIVE" : ""}
                 </p>
               </div>
@@ -187,10 +187,10 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
             </div>
 
             {/* Opacity Slider */}
-            <div className="px-2 pb-1 space-y-1 animate-in fade-in duration-300">
+            <div className="px-1 pb-1 space-y-1.5 mt-1 animate-in fade-in duration-300">
               <div className="flex justify-between items-center">
-                <span className="text-[8px] font-bold uppercase opacity-40">Opacity</span>
-                <span className="text-[8px] font-mono opacity-40">{layer.opacity ?? 100}%</span>
+                <span className="text-[9px] font-bold uppercase opacity-50">Opacity</span>
+                <span className="text-[9px] font-mono opacity-50">{layer.opacity ?? 100}%</span>
               </div>
               <Slider 
                 value={[layer.opacity ?? 100]} 
@@ -203,7 +203,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
             </div>
             
             {activeLayerId === layer.id && (
-              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-accent rounded-full" />
+              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-accent rounded-full" />
             )}
           </div>
         ))}
@@ -212,7 +212,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
       <div className="p-4 border-t-2 border-foreground/5 bg-slate-50/50 space-y-2">
         <button 
           onClick={onAdd}
-          className="w-full py-2 bg-accent text-white font-bold sketch-border flex items-center justify-center gap-2 hover:translate-y-[-1px] hover:shadow-md active:translate-y-[1px] transition-all text-xs"
+          className="w-full py-2.5 bg-accent text-white font-bold sketch-border flex items-center justify-center gap-2 hover:translate-y-[-1px] hover:shadow-md active:translate-y-[1px] transition-all text-xs uppercase"
         >
           <Plus size={14} />
           New Layer
@@ -220,12 +220,12 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
         <button 
           onClick={onPaste}
           disabled={!hasCopiedLayer}
-          className="w-full py-2 bg-white text-foreground font-bold sketch-border flex items-center justify-center gap-2 hover:translate-y-[-1px] hover:shadow-md active:translate-y-[1px] transition-all disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+          className="w-full py-2.5 bg-white text-foreground font-bold sketch-border flex items-center justify-center gap-2 hover:translate-y-[-1px] hover:shadow-md active:translate-y-[1px] transition-all disabled:opacity-30 disabled:cursor-not-allowed text-xs uppercase"
         >
           <ClipboardPaste size={14} />
           Paste Layer
         </button>
-        <p className="text-[8px] text-center mt-3 opacity-40 font-bold uppercase tracking-widest">
+        <p className="text-[9px] text-center mt-3 opacity-40 font-bold uppercase tracking-widest">
           Stack: Top to Bottom
         </p>
       </div>
