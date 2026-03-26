@@ -36,6 +36,12 @@ export interface SavedBrush {
   data: string;
 }
 
+export interface BrushPack {
+  id: string;
+  name: string;
+  brushes: SavedBrush[];
+}
+
 export interface Layer {
   id: string;
   name: string;
@@ -91,6 +97,7 @@ export interface AnimationProject {
   snapToAngle?: boolean;
   groups: FrameGroup[];
   savedBrushes: SavedBrush[];
+  brushPacks?: BrushPack[];
   versions?: ProjectVersionMetadata[];
   audioData?: string; // Data URI for the audio
   audioMetadata?: AudioMetadata;

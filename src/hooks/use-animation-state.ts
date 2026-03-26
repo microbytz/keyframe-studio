@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, BlendMode, SavedBrush, AudioMetadata, ProjectVersionMetadata } from '@/lib/types';
+import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, SavedBrush, BrushPack, AudioMetadata, ProjectVersionMetadata } from '@/lib/types';
 import gifshot from 'gifshot';
 import { useToast } from "@/hooks/use-toast";
 
@@ -54,6 +54,7 @@ export function useAnimationState() {
     snapToAngle: false,
     groups: [],
     savedBrushes: [],
+    brushPacks: [],
     versions: [],
   });
 
@@ -302,6 +303,7 @@ export function useAnimationState() {
       snapToAngle: false,
       groups: [],
       savedBrushes: [],
+      brushPacks: [],
       versions: [],
     };
     
@@ -578,11 +580,17 @@ export function useAnimationState() {
       try {
         const loaded = JSON.parse(e.target?.result as string);
         setProject(loaded);
+        historyRef.current = [loaded.frames];
+        historyIndexRef.current = 0;
+        updateHistoryState();
+        setCurrentFrameIndex(0);
+        setSelectedFrameIndices([0]);
+        if (loaded.frames[0]) setActiveLayerId(loaded.frames[0].layers[0].id);
         toast({ title: "Project Imported" });
       } catch (err) { toast({ variant: "destructive", title: "Invalid File" }); }
     };
     reader.readAsText(file);
-  }, [toast]);
+  }, [updateHistoryState, toast]);
 
   const setAudio = useCallback(async (file: File | Blob, name: string) => {
     const reader = new FileReader();
@@ -618,12 +626,16 @@ export function useAnimationState() {
       }));
     }
     toast({ title: "Custom brush tip registered!" });
-  }, [handleSetTool, toast]);
+  }, [toast]);
 
   const deleteSavedBrush = useCallback((id: string) => {
     setProject(prev => ({
       ...prev,
-      savedBrushes: (prev.savedBrushes || []).filter(b => b.id !== id)
+      savedBrushes: (prev.savedBrushes || []).filter(b => b.id !== id),
+      brushPacks: (prev.brushPacks || []).map(p => ({
+        ...p,
+        brushes: p.brushes.filter(b => b.id !== id)
+      }))
     }));
     toast({ title: "Brush tip removed" });
   }, [toast]);
@@ -679,6 +691,115 @@ export function useAnimationState() {
     });
   }, [project, toast]);
 
+  // --- Brush Pack Management ---
+  const createBrushPack = useCallback((name: string) => {
+    const newPack: BrushPack = {
+      id: Math.random().toString(36).substr(2, 9),
+      name,
+      brushes: []
+    };
+    setProject(prev => ({
+      ...prev,
+      brushPacks: [...(prev.brushPacks || []), newPack]
+    }));
+    toast({ title: "New brush pack created" });
+  }, [toast]);
+
+  const addBrushToPack = useCallback((packId: string, brush: SavedBrush) => {
+    setProject(prev => ({
+      ...prev,
+      brushPacks: (prev.brushPacks || []).map(p => 
+        p.id === packId ? { ...p, brushes: [...p.brushes, brush] } : p
+      ),
+      savedBrushes: prev.savedBrushes.filter(b => b.id !== brush.id)
+    }));
+    toast({ title: `Added to pack: ${brush.name}` });
+  }, [toast]);
+
+  const removeBrushFromPack = useCallback((packId: string, brushId: string) => {
+    setProject(prev => {
+      const pack = prev.brushPacks?.find(p => p.id === packId);
+      const brush = pack?.brushes.find(b => b.id === brushId);
+      return {
+        ...prev,
+        brushPacks: (prev.brushPacks || []).map(p => 
+          p.id === packId ? { ...p, brushes: p.brushes.filter(b => b.id !== brushId) } : p
+        ),
+        savedBrushes: brush ? [...prev.savedBrushes, brush] : prev.savedBrushes
+      };
+    });
+    toast({ title: "Moved brush to loose pens" });
+  }, [toast]);
+
+  const deleteBrushPack = useCallback((packId: string, keepBrushes: boolean) => {
+    setProject(prev => {
+      const packToDelete = prev.brushPacks?.find(p => p.id === packId);
+      const remainingPacks = (prev.brushPacks || []).filter(p => p.id !== packId);
+      const newLooseBrushes = keepBrushes && packToDelete ? [...prev.savedBrushes, ...packToDelete.brushes] : prev.savedBrushes;
+      return {
+        ...prev,
+        brushPacks: remainingPacks,
+        savedBrushes: newLooseBrushes
+      };
+    });
+    toast({ title: "Brush pack deleted" });
+  }, [toast]);
+
+  const exportBrush = useCallback((brush: SavedBrush) => {
+    const data = JSON.stringify(brush, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${brush.name.replace(/\s+/g, '_')}.brush`;
+    link.click();
+    toast({ title: `Exported ${brush.name}` });
+  }, [toast]);
+
+  const exportBrushPack = useCallback((pack: BrushPack) => {
+    const data = JSON.stringify(pack, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${pack.name.replace(/\s+/g, '_')}.brushpack`;
+    link.click();
+    toast({ title: `Exported pack: ${pack.name}` });
+  }, [toast]);
+
+  const importBrushPack = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = JSON.parse(e.target?.result as string);
+        if ('brushes' in content) {
+          const newPack: BrushPack = {
+            ...content,
+            id: Math.random().toString(36).substr(2, 9)
+          };
+          setProject(prev => ({
+            ...prev,
+            brushPacks: [...(prev.brushPacks || []), newPack]
+          }));
+          toast({ title: "Imported brush pack!" });
+        } else if ('data' in content) {
+          const newBrush: SavedBrush = {
+            ...content,
+            id: Math.random().toString(36).substr(2, 9)
+          };
+          setProject(prev => ({
+            ...prev,
+            savedBrushes: [...prev.savedBrushes, newBrush]
+          }));
+          toast({ title: "Imported single brush!" });
+        }
+      } catch (err) {
+        toast({ variant: "destructive", title: "Invalid brush file" });
+      }
+    };
+    reader.readAsText(file);
+  }, [toast]);
+
   return {
     project, setProject, projectList, loadProjectById, deleteProject, createNewProject,
     currentFrameIndex, selectedFrameIndices, selectFrame, activeLayerId, setActiveLayerId,
@@ -694,6 +815,8 @@ export function useAnimationState() {
     saveProject, downloadProject, uploadProject, exportToGif, isExporting, undo, redo,
     canUndo, canRedo,
     setAudio, removeAudio: () => setProject(p => { const { audioData, audioMetadata, ...r } = p; return r as any; }),
-    saveVersion, loadVersion, deleteVersion, isAutoSaving, mounted
+    saveVersion, loadVersion, deleteVersion, isAutoSaving, mounted,
+    createBrushPack, addBrushToPack, removeBrushFromPack, deleteBrushPack, 
+    exportBrush, exportBrushPack, importBrushPack
   };
 }

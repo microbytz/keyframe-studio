@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -99,6 +98,14 @@ export default function Home() {
     setCustomBrushData,
     saveSavedBrush,
     deleteSavedBrush,
+    // Brush Pack Actions
+    createBrushPack,
+    addBrushToPack,
+    removeBrushFromPack,
+    deleteBrushPack,
+    exportBrush,
+    exportBrushPack,
+    importBrushPack,
     addFrame,
     deleteFrame,
     duplicateFrame,
@@ -449,7 +456,16 @@ export default function Home() {
             moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={() => {}} 
             canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} 
             isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled}
-            savedBrushes={project.savedBrushes} customBrushData={customBrushData} setCustomBrushData={setCustomBrushData} deleteSavedBrush={deleteSavedBrush}
+            savedBrushes={project.savedBrushes} 
+            brushPacks={project.brushPacks}
+            customBrushData={customBrushData} setCustomBrushData={setCustomBrushData} deleteSavedBrush={deleteSavedBrush}
+            createBrushPack={createBrushPack}
+            addBrushToPack={addBrushToPack}
+            removeBrushFromPack={removeBrushFromPack}
+            deleteBrushPack={deleteBrushPack}
+            exportBrush={exportBrush}
+            exportBrushPack={exportBrushPack}
+            importBrushPack={importBrushPack}
           />
         </aside>
 
@@ -544,4 +560,3 @@ export default function Home() {
     </main>
   );
 }
-

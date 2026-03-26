@@ -1,7 +1,8 @@
+
 "use client"
 
-import React from 'react';
-import { ToolType, MoveMode, SavedBrush } from '@/lib/types';
+import React, { useState, useRef } from 'react';
+import { ToolType, MoveMode, SavedBrush, BrushPack } from '@/lib/types';
 import { 
   Pencil, 
   Eraser, 
@@ -39,7 +40,14 @@ import {
   Bookmark,
   Trash2,
   Waves,
-  Cloud
+  Cloud,
+  Share2,
+  Download,
+  Upload,
+  Plus,
+  Package,
+  FolderPlus,
+  ArrowRightLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -49,6 +57,14 @@ import {
 } from "@/components/ui/popover";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  Accordion, 
+  AccordionContent, 
+  AccordionItem, 
+  AccordionTrigger 
+} from "@/components/ui/accordion";
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface ToolbarProps {
   currentTool: ToolType;
@@ -67,9 +83,17 @@ interface ToolbarProps {
   isMultiDrawEnabled?: boolean;
   setIsMultiDrawEnabled?: (enabled: boolean) => void;
   savedBrushes?: SavedBrush[];
+  brushPacks?: BrushPack[];
   customBrushData?: string | null;
   setCustomBrushData?: (data: string) => void;
   deleteSavedBrush?: (id: string) => void;
+  createBrushPack?: (name: string) => void;
+  addBrushToPack?: (packId: string, brush: SavedBrush) => void;
+  removeBrushFromPack?: (packId: string, brushId: string) => void;
+  deleteBrushPack?: (packId: string, keepBrushes: boolean) => void;
+  exportBrush?: (brush: SavedBrush) => void;
+  exportBrushPack?: (pack: BrushPack) => void;
+  importBrushPack?: (file: File) => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -89,11 +113,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   isMultiDrawEnabled,
   setIsMultiDrawEnabled,
   savedBrushes = [],
+  brushPacks = [],
   customBrushData,
   setCustomBrushData,
-  deleteSavedBrush
+  deleteSavedBrush,
+  createBrushPack,
+  addBrushToPack,
+  removeBrushFromPack,
+  deleteBrushPack,
+  exportBrush,
+  exportBrushPack,
+  importBrushPack
 }) => {
   const isMobile = useIsMobile();
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [newPackName, setNewPackName] = useState('');
   
   const brushTools = [
     { id: 'pen', icon: Pencil, label: 'Standard Pen' },
@@ -173,6 +207,91 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     );
   };
 
+  const handleCreatePack = () => {
+    if (newPackName.trim() && createBrushPack) {
+      createBrushPack(newPackName.trim());
+      setNewPackName('');
+    }
+  };
+
+  const renderBrushItem = (brush: SavedBrush, packId: string | null = null) => (
+    <div key={brush.id} className="relative group/item flex flex-col gap-1">
+      <div className="relative">
+        <button
+          onClick={() => {
+            setCustomBrushData?.(brush.data);
+            setTool('custom');
+          }}
+          className={cn(
+            "w-full p-1 sketch-border transition-all hover:bg-accent flex items-center justify-center aspect-square pattern-checkered bg-white overflow-hidden",
+            (currentTool === 'custom' && customBrushData === brush.data) ? "border-accent ring-2 ring-accent/30" : ""
+          )}
+          title={brush.name}
+        >
+          <img src={brush.data} alt={brush.name} className="max-w-full max-h-full object-contain group-hover/item:scale-110 transition-transform" />
+        </button>
+        
+        <div className="absolute -top-1 -right-1 flex gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity z-10">
+          {exportBrush && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); exportBrush(brush); }}
+              className="bg-accent text-white rounded-full p-1 shadow-sm hover:scale-110"
+              title="Share Brush"
+            >
+              <Share2 size={10} />
+            </button>
+          )}
+          <button 
+            onClick={(e) => { e.stopPropagation(); deleteSavedBrush?.(brush.id); }}
+            className="bg-red-500 text-white rounded-full p-1 shadow-sm hover:scale-110"
+            title="Delete Brush"
+          >
+            <Trash2 size={10} />
+          </button>
+        </div>
+
+        <div className="absolute -bottom-1 -right-1 opacity-0 group-hover/item:opacity-100 transition-opacity z-10">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button 
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white sketch-border text-foreground rounded-full p-1 shadow-sm hover:scale-110"
+                title="Move to Pack"
+              >
+                <ArrowRightLeft size={10} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-40 p-2 sketch-card" side="right">
+               <p className="text-[8px] font-bold uppercase opacity-40 mb-2 px-1">Move to...</p>
+               <ScrollArea className="max-h-32">
+                 <div className="space-y-1">
+                   {packId !== null && (
+                     <button 
+                       onClick={() => removeBrushFromPack?.(packId, brush.id)}
+                       className="w-full text-left text-[9px] font-bold uppercase p-1.5 hover:bg-accent/10 rounded flex items-center gap-2"
+                     >
+                       <Bookmark size={10} /> Loose Pens
+                     </button>
+                   )}
+                   {brushPacks.filter(p => p.id !== packId).map(p => (
+                     <button 
+                       key={p.id}
+                       onClick={() => addBrushToPack?.(p.id, brush)}
+                       className="w-full text-left text-[9px] font-bold uppercase p-1.5 hover:bg-accent/10 rounded flex items-center gap-2"
+                     >
+                       <Package size={10} /> {p.name}
+                     </button>
+                   ))}
+                 </div>
+               </ScrollArea>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+      <span className="text-[8px] font-bold truncate text-center opacity-60 px-1">{brush.name}</span>
+    </div>
+  );
+
   return (
     <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-start md:justify-center bg-white overflow-x-auto scrollbar-none touch-pan-x">
       <div className="flex flex-row md:flex-col gap-2 shrink-0">
@@ -200,7 +319,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               </div>
             </div>
             
-            <ScrollArea className="h-72">
+            <ScrollArea className="h-[400px]">
                <div className="p-3 space-y-4">
                   <div>
                     <span className="text-[10px] font-bold uppercase opacity-40 mb-2 block tracking-widest">Standard Tools</span>
@@ -224,43 +343,94 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     </div>
                   </div>
 
-                  {(savedBrushes || []).length > 0 && (
-                    <div className="animate-in slide-in-from-top-1 duration-300">
-                      <span className="text-[10px] font-bold uppercase opacity-40 mb-2 block tracking-widest flex items-center gap-1">
-                        <Bookmark size={10} className="text-accent" />
-                        My Saved Tips
-                      </span>
-                      <div className="grid grid-cols-4 gap-2">
-                        {savedBrushes?.map((brush) => (
-                          <div key={brush.id} className="relative group">
-                            <button
-                              onClick={() => {
-                                setCustomBrushData?.(brush.data);
-                                setTool('custom');
-                              }}
-                              className={cn(
-                                "w-full p-1 sketch-border transition-all hover:bg-accent flex items-center justify-center aspect-square pattern-checkered bg-white group/item overflow-hidden",
-                                (currentTool === 'custom' && customBrushData === brush.data) ? "border-accent ring-2 ring-accent/30" : ""
-                              )}
-                              title={brush.name}
-                            >
-                              <img src={brush.data} alt={brush.name} className="max-w-full max-h-full object-contain group-hover/item:scale-110 transition-transform" />
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-bold uppercase opacity-40 tracking-widest">My Pens & Packs</span>
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={() => importInputRef.current?.click()}
+                          className="p-1 hover:bg-accent/10 rounded" 
+                          title="Import Brush/Pack"
+                        >
+                          <Upload size={12} />
+                        </button>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="p-1 hover:bg-accent/10 rounded" title="Create New Pack">
+                              <FolderPlus size={12} />
                             </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteSavedBrush?.(brush.id);
-                              }}
-                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 shadow-sm z-10"
-                              title="Delete Tip"
-                            >
-                              <Trash2 size={10} />
-                            </button>
-                          </div>
-                        ))}
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48 p-2 sketch-card space-y-2">
+                            <Input 
+                              placeholder="Pack Name..." 
+                              value={newPackName} 
+                              onChange={(e) => setNewPackName(e.target.value)}
+                              className="h-8 text-[10px] sketch-border"
+                            />
+                            <Button onClick={handleCreatePack} size="sm" className="w-full h-8 text-[10px] font-bold uppercase bg-accent">
+                              Create Pack
+                            </Button>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
-                  )}
+
+                    <Accordion type="multiple" className="space-y-2">
+                      <AccordionItem value="loose" className="border-none">
+                        <AccordionTrigger className="hover:no-underline py-2 bg-slate-50 px-2 sketch-border text-[10px] font-bold uppercase">
+                          <div className="flex items-center gap-2">
+                            <Bookmark size={12} className="text-accent" />
+                            Loose Pens ({savedBrushes.length})
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-3">
+                          {savedBrushes.length > 0 ? (
+                            <div className="grid grid-cols-4 gap-2">
+                              {savedBrushes.map(b => renderBrushItem(b, null))}
+                            </div>
+                          ) : (
+                            <p className="text-[9px] italic opacity-40 text-center py-2">No individual brushes.</p>
+                          )}
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {brushPacks.map(pack => (
+                        <AccordionItem key={pack.id} value={pack.id} className="border-none">
+                          <AccordionTrigger className="hover:no-underline py-2 bg-slate-50 px-2 sketch-border text-[10px] font-bold uppercase">
+                            <div className="flex items-center justify-between w-full pr-4">
+                              <div className="flex items-center gap-2">
+                                <Package size={12} className="text-accent" />
+                                {pack.name} ({pack.brushes.length})
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-3 space-y-3">
+                            <div className="flex items-center justify-end gap-2 px-1">
+                               <button 
+                                 onClick={() => exportBrushPack?.(pack)}
+                                 className="flex items-center gap-1 text-[9px] font-bold uppercase bg-accent/10 px-2 py-1 rounded hover:bg-accent transition-colors"
+                               >
+                                 <Download size={10} /> Share Pack
+                               </button>
+                               <button 
+                                 onClick={() => deleteBrushPack?.(pack.id, true)}
+                                 className="flex items-center gap-1 text-[9px] font-bold uppercase bg-red-50 text-red-500 px-2 py-1 rounded hover:bg-red-100 transition-colors"
+                               >
+                                 <Trash2 size={10} /> Ungroup
+                               </button>
+                            </div>
+                            {pack.brushes.length > 0 ? (
+                              <div className="grid grid-cols-4 gap-2">
+                                {pack.brushes.map(b => renderBrushItem(b, pack.id))}
+                              </div>
+                            ) : (
+                              <p className="text-[9px] italic opacity-40 text-center py-2">This pack is empty.</p>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
                </div>
             </ScrollArea>
           </PopoverContent>
@@ -418,6 +588,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <Redo2 size={16} />
         </button>
       </div>
+
+      <input 
+        type="file" 
+        ref={importInputRef} 
+        onChange={(e) => { const f = e.target.files?.[0]; if (f && importBrushPack) importBrushPack(f); }} 
+        accept=".brush,.brushpack,.json" 
+        className="hidden" 
+      />
     </div>
   );
 };
