@@ -225,22 +225,28 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       if (advancedOnionSkinEnabled) {
         for (let i = 1; i <= onionSkinBefore; i++) {
           const idx = currentFrameIndex - i;
-          if (idx >= 0) framesToRender.push({ index: idx, opacity: 0.3 * (1 - (i - 1) / onionSkinBefore) });
+          if (idx >= 0) {
+            // Lowered opacity from 0.3 to 0.15 for subtle feedback
+            framesToRender.push({ index: idx, opacity: 0.15 * (1 - (i - 1) / onionSkinBefore) });
+          }
         }
         for (let i = 1; i <= onionSkinAfter; i++) {
           const idx = currentFrameIndex + i;
-          if (idx < frames.length) framesToRender.push({ index: idx, opacity: 0.15 * (1 - (i - 1) / onionSkinAfter) });
+          if (idx < frames.length) {
+            // Lowered opacity from 0.15 to 0.08 for subtle feedback
+            framesToRender.push({ index: idx, opacity: 0.08 * (1 - (i - 1) / onionSkinAfter) });
+          }
         }
       } else {
-        if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: 0.3 });
-        if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: 0.15 });
+        // Lowered opacity from 0.3 to 0.15 and 0.15 to 0.08
+        if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: 0.15 });
+        if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: 0.08 });
       }
 
       for (const item of framesToRender) {
         const frame = frames[item.index];
         oCtx.save();
         oCtx.globalAlpha = item.opacity;
-        // Onion skins are simple composites
         for (const layer of [...frame.layers].reverse().filter(l => l.visible && l.imageData)) {
           await new Promise((resolve) => {
             const img = new Image();
@@ -274,7 +280,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         offscreen.height = height;
         const oCtx = offscreen.getContext('2d')!;
         
-        // Reverse for bottom-to-top drawing
         for (const layer of [...targetLayers].reverse()) {
           if (!layer.visible || !layer.imageData) continue;
           await new Promise((resolve) => {
