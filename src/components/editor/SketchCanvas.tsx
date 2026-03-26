@@ -61,17 +61,17 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   const onionSkinCanvasRef = useRef<HTMLCanvasElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   
+  // High performance drawing refs
+  const isDrawingRef = useRef(false);
+  const lastPosRef = useRef({ x: 0, y: 0 });
+  const startPosRef = useRef({ x: 0, y: 0 });
+  const lassoPointsRef = useRef<{ x: number, y: number }[]>([]);
+  
   const lastRenderedImageDataRef = useRef<string>('');
   const lastRenderedActiveLayerIdRef = useRef<string>('');
 
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
-  const [lassoPoints, setLassoPoints] = useState<{ x: number, y: number }[]>([]);
   const [dragStartImage, setDragStartImage] = useState<HTMLImageElement | null>(null);
   const [customBrushImage, setCustomBrushImage] = useState<HTMLImageElement | null>(null);
-  
-  // Selection/Move state
   const [movingSelection, setMovingSelection] = useState<HTMLImageElement | null>(null);
 
   const currentFrame = frames[currentFrameIndex];
@@ -79,20 +79,20 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
   useImperativeHandle(ref, () => ({
     executeLassoAction: (action) => {
-      if (lassoPoints.length < 3 || !mainCanvasRef.current) return null;
+      const points = lassoPointsRef.current;
+      if (points.length < 3 || !mainCanvasRef.current) return null;
       const canvas = mainCanvasRef.current;
       const ctx = canvas.getContext('2d')!;
       let resultData: string | null = null;
 
-      // Create Selection Capture
       const offscreen = document.createElement('canvas');
       offscreen.width = width;
       offscreen.height = height;
       const oCtx = offscreen.getContext('2d')!;
       
       oCtx.beginPath();
-      oCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
-      lassoPoints.forEach(p => oCtx.lineTo(p.x, p.y));
+      oCtx.moveTo(points[0].x, points[0].y);
+      points.forEach(p => oCtx.lineTo(p.x, p.y));
       oCtx.closePath();
       oCtx.clip();
       oCtx.drawImage(canvas, 0, 0);
@@ -110,8 +110,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         ctx.save();
         ctx.globalCompositeOperation = 'destination-out';
         ctx.beginPath();
-        ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
-        lassoPoints.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.moveTo(points[0].x, points[0].y);
+        points.forEach(p => ctx.lineTo(p.x, p.y));
         ctx.closePath();
         ctx.fill();
         ctx.restore();
@@ -122,14 +122,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         onLayerUpdate(dataUrl);
       }
 
-      // Clear the lasso path from temp canvas
       const tCtx = tempCanvasRef.current?.getContext('2d');
       if (tCtx) {
         tCtx.clearRect(0, 0, width, height);
       }
 
       if (action !== 'select') {
-        setLassoPoints([]);
+        lassoPointsRef.current = [];
         onLassoSelect?.(false);
       }
 
@@ -137,14 +136,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
   }));
 
-  // Clear selection image if tool changes to something non-move
   useEffect(() => {
     if (tool !== 'move' && tool !== 'lasso') {
       setMovingSelection(null);
     }
   }, [tool]);
 
-  // Load custom brush image
   useEffect(() => {
     if (customBrushData) {
       const img = new Image();
@@ -155,18 +152,16 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
   }, [customBrushData]);
 
-  // Render the current move selection to the temp canvas immediately
   useEffect(() => {
     const tCtx = tempCanvasRef.current?.getContext('2d');
     if (!tCtx) return;
 
-    if (tool === 'move' && movingSelection && !isDrawing) {
+    if (tool === 'move' && movingSelection && !isDrawingRef.current) {
       tCtx.clearRect(0, 0, width, height);
       tCtx.drawImage(movingSelection, 0, 0);
     }
-  }, [tool, movingSelection, isDrawing, width, height]);
+  }, [tool, movingSelection, width, height]);
 
-  // Onion skin rendering
   useEffect(() => {
     const ctx = onionSkinCanvasRef.current?.getContext('2d');
     if (!ctx) return;
@@ -233,7 +228,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     return () => { isCancelled = true; };
   }, [onionSkinEnabled, advancedOnionSkinEnabled, onionSkinBefore, onionSkinAfter, currentFrameIndex, frames, isPlaying, width, height]);
 
-  // Composite background layers rendering
   useEffect(() => {
     const compositeCtx = compositeCanvasRef.current?.getContext('2d');
     if (!compositeCtx) return;
@@ -271,7 +265,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     return () => { isCancelled = true; };
   }, [currentFrame, activeLayerId, width, height]);
 
-  // Main active layer rendering
   useEffect(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
@@ -328,12 +321,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       return;
     }
 
-    setIsDrawing(true);
-    setStartPos(pos);
-    setLastPos(pos);
+    isDrawingRef.current = true;
+    startPosRef.current = pos;
+    lastPosRef.current = pos;
     
     if (tool === 'lasso') {
-      setLassoPoints([pos]);
+      lassoPointsRef.current = [pos];
     } else if (tool === 'move' && !movingSelection) {
       const canvas = mainCanvasRef.current;
       if (canvas) {
@@ -350,7 +343,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   };
 
   const draw = (e: React.PointerEvent) => {
-    if (!isDrawing || isPlaying || !activeLayer.visible) return;
+    if (!isDrawingRef.current || isPlaying || !activeLayer.visible) return;
     const canvas = mainCanvasRef.current;
     const tempCanvas = tempCanvasRef.current;
     if (!canvas || !tempCanvas) return;
@@ -362,12 +355,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     if (tool === 'move') {
       if (movingSelection) {
         tCtx.clearRect(0, 0, width, height);
-        const dx = pos.x - startPos.x;
-        const dy = pos.y - startPos.y;
+        const dx = pos.x - startPosRef.current.x;
+        const dy = pos.y - startPosRef.current.y;
         tCtx.drawImage(movingSelection, dx, dy);
       } else if (dragStartImage) {
-        const dx = pos.x - lastPos.x;
-        const dy = pos.y - lastPos.y;
+        const dx = pos.x - lastPosRef.current.x;
+        const dy = pos.y - lastPosRef.current.y;
         ctx.clearRect(0, 0, width, height);
         ctx.drawImage(dragStartImage, dx, dy);
       }
@@ -375,15 +368,15 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
 
     if (tool === 'lasso') {
-      setLassoPoints(prev => [...prev, pos]);
+      lassoPointsRef.current.push(pos);
+      const points = lassoPointsRef.current;
       tCtx.clearRect(0, 0, width, height);
       tCtx.beginPath();
       tCtx.strokeStyle = '#82C9C9';
       tCtx.setLineDash([5, 5]);
       tCtx.lineWidth = 1;
-      tCtx.moveTo(lassoPoints[0]?.x, lassoPoints[0]?.y);
-      lassoPoints.forEach(p => tCtx.lineTo(p.x, p.y));
-      tCtx.lineTo(pos.x, pos.y);
+      tCtx.moveTo(points[0]?.x, points[0]?.y);
+      points.forEach(p => tCtx.lineTo(p.x, p.y));
       tCtx.stroke();
       tCtx.setLineDash([]);
       return;
@@ -398,11 +391,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       tCtx.globalAlpha = opacity / 100;
       tCtx.lineCap = 'round';
       tCtx.lineJoin = 'round';
-      drawShape(tCtx, startPos.x, startPos.y, pos.x, pos.y, tool);
+      drawShape(tCtx, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, tool);
       tCtx.restore();
       return;
     }
 
+    const lastPos = lastPosRef.current;
     if (stabilizationEnabled) {
       const factor = 0.25; 
       pos.x = lastPos.x + (pos.x - lastPos.x) * factor;
@@ -536,13 +530,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
     ctx.restore();
     if (tool !== 'move' && tool !== 'lasso' && !shapeTools.includes(tool)) {
-      setLastPos(pos);
+      lastPosRef.current = pos;
     }
   };
 
   const stopDrawing = (e: React.PointerEvent) => {
-    if (!isDrawing) return;
-    setIsDrawing(false);
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
     
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
@@ -557,8 +551,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
     if (tool === 'move' && movingSelection) {
       const currentPos = getPos(e);
-      const dx = currentPos.x - startPos.x;
-      const dy = currentPos.y - startPos.y;
+      const dx = currentPos.x - startPosRef.current.x;
+      const dy = currentPos.y - startPosRef.current.y;
       
       ctx.drawImage(movingSelection, dx, dy);
       setMovingSelection(null);
@@ -578,11 +572,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       ctx.globalAlpha = opacity / 100;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      drawShape(ctx, startPos.x, startPos.y, pos.x, pos.y, tool);
+      drawShape(ctx, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, tool);
       ctx.restore();
       handleUpdate();
     } else if (tool === 'lasso') {
-      if (lassoPoints.length > 2) {
+      const points = lassoPointsRef.current;
+      if (points.length > 2) {
         onLassoSelect?.(true);
         const tCtx = tempCanvasRef.current?.getContext('2d')!;
         tCtx.clearRect(0, 0, width, height);
@@ -590,8 +585,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         tCtx.strokeStyle = '#82C9C9';
         tCtx.setLineDash([5, 5]);
         tCtx.lineWidth = 2;
-        tCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
-        lassoPoints.forEach(p => tCtx.lineTo(p.x, p.y));
+        tCtx.moveTo(points[0].x, points[0].y);
+        points.forEach(p => tCtx.lineTo(p.x, p.y));
         tCtx.closePath();
         tCtx.stroke();
         tCtx.setLineDash([]);
