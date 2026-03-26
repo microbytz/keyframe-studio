@@ -119,6 +119,42 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const selectedShapeTool = shapeTools.find(t => t.id === currentTool);
   const ShapeIcon = selectedShapeTool ? selectedShapeTool.icon : Square;
 
+  const renderBrushPreview = () => {
+    const previewStyles: React.CSSProperties = {
+      backgroundColor: color,
+      width: '100%',
+      height: '8px',
+      borderRadius: '99px',
+    };
+
+    if (currentTool === 'highlighter') {
+      previewStyles.opacity = 0.5;
+      previewStyles.borderRadius = '2px';
+      previewStyles.height = '12px';
+    } else if (currentTool === 'pixel') {
+      previewStyles.borderRadius = '0px';
+      previewStyles.backgroundImage = `linear-gradient(90deg, transparent 50%, ${color} 50%)`;
+      previewStyles.backgroundSize = '8px 8px';
+    } else if (['airbrush', 'spray', 'charcoal', 'chalk'].includes(currentTool)) {
+      previewStyles.backgroundColor = 'transparent';
+      previewStyles.backgroundImage = `radial-gradient(${color} 15%, transparent 20%)`;
+      previewStyles.backgroundSize = '4px 4px';
+      previewStyles.height = '16px';
+    } else if (['brush', 'watercolor'].includes(currentTool)) {
+      previewStyles.filter = 'blur(2px)';
+      previewStyles.opacity = 0.8;
+    } else if (currentTool === 'pencil') {
+      previewStyles.opacity = 0.7;
+      previewStyles.height = '4px';
+    }
+
+    return (
+      <div className="w-full px-8 flex items-center justify-center min-h-[32px]">
+        <div style={previewStyles} className="transition-all duration-200" />
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-start md:justify-center bg-white overflow-x-auto scrollbar-none touch-pan-x">
       <div className="flex flex-row md:flex-col gap-2 shrink-0">
@@ -138,11 +174,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </button>
           </PopoverTrigger>
           <PopoverContent side={isMobile ? "bottom" : "right"} align="start" className="w-72 p-3 sketch-card z-[100]">
-            <div className="mb-4 p-3 sketch-border bg-background/50 flex flex-col items-center justify-center min-h-[64px]">
-              <span className="text-[10px] font-bold uppercase opacity-60 mb-2">{activeBrush.label}</span>
-              <div className="w-full px-4">
-                <div style={{ backgroundColor: color, height: '6px', width: '100%', borderRadius: '99px' }} />
-              </div>
+            <div className="mb-4 p-3 sketch-border bg-background/50 flex flex-col items-center justify-center min-h-[80px]">
+              <span className="text-[10px] font-bold uppercase opacity-60 mb-2">{activeBrush.label} Preview</span>
+              {renderBrushPreview()}
             </div>
             <div className="grid grid-cols-5 gap-2">
               {brushTools.map((t) => {
