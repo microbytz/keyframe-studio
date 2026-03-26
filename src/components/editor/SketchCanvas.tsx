@@ -59,7 +59,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   customBrushData = null,
 }, ref) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
-  const compositeCanvasRef = useRef<HTMLCanvasElement>(null);
+  const compositeBelowCanvasRef = useRef<HTMLCanvasElement>(null);
+  const compositeAboveCanvasRef = useRef<HTMLCanvasElement>(null);
   const onionSkinCanvasRef = useRef<HTMLCanvasElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -77,7 +78,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   const [selectionBounds, setSelectionBounds] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
 
   const currentFrame = frames[currentFrameIndex];
-  const activeLayer = currentFrame.layers.find(l => l.id === activeLayerId) || currentFrame.layers[0];
+  const activeLayerIdx = currentFrame.layers.findIndex(l => l.id === activeLayerId);
+  const activeLayer = currentFrame.layers[activeLayerIdx] || currentFrame.layers[0];
 
   const calculateBounds = (canvas: HTMLCanvasElement) => {
     const ctx = canvas.getContext('2d')!;
@@ -238,6 +240,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         const frame = frames[item.index];
         oCtx.save();
         oCtx.globalAlpha = item.opacity;
+        // Onion skins are simple composites
         for (const layer of [...frame.layers].reverse().filter(l => l.visible && l.imageData)) {
           await new Promise((resolve) => {
             const img = new Image();
@@ -245,6 +248,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
             img.onload = () => { 
               oCtx.save();
               oCtx.globalAlpha = (layer.opacity ?? 100) / 100;
+              oCtx.globalCompositeOperation = (layer.blendMode || 'source-over') as GlobalCompositeOperation;
               oCtx.drawImage(img, 0, 0); 
               oCtx.restore();
               resolve(null); 
@@ -260,32 +264,48 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   }, [onionSkinEnabled, advancedOnionSkinEnabled, onionSkinBefore, onionSkinAfter, currentFrameIndex, frames, isPlaying, width, height]);
 
   useEffect(() => {
-    const compositeCtx = compositeCanvasRef.current?.getContext('2d');
-    if (!compositeCtx) return;
-    const renderComposite = async () => {
-      const offscreen = document.createElement('canvas');
-      offscreen.width = width;
-      offscreen.height = height;
-      const oCtx = offscreen.getContext('2d')!;
-      for (const layer of [...currentFrame.layers].reverse().filter(l => l.id !== activeLayerId && l.visible && l.imageData)) {
-        await new Promise((resolve) => {
-          const img = new Image();
-          img.src = layer.imageData;
-          img.onload = () => { 
-            oCtx.save();
-            oCtx.globalAlpha = (layer.opacity ?? 100) / 100;
-            oCtx.drawImage(img, 0, 0); 
-            oCtx.restore();
-            resolve(null); 
-          };
-          img.onerror = () => resolve(null);
-        });
-      }
-      compositeCtx.clearRect(0, 0, width, height);
-      compositeCtx.drawImage(offscreen, 0, 0);
+    const renderComposites = async () => {
+      if (!currentFrame) return;
+
+      const renderLayerSet = async (ctx: CanvasRenderingContext2D, targetLayers: Layer[]) => {
+        ctx.clearRect(0, 0, width, height);
+        const offscreen = document.createElement('canvas');
+        offscreen.width = width;
+        offscreen.height = height;
+        const oCtx = offscreen.getContext('2d')!;
+        
+        // Reverse for bottom-to-top drawing
+        for (const layer of [...targetLayers].reverse()) {
+          if (!layer.visible || !layer.imageData) continue;
+          await new Promise((resolve) => {
+            const img = new Image();
+            img.src = layer.imageData;
+            img.onload = () => {
+              oCtx.save();
+              oCtx.globalAlpha = (layer.opacity ?? 100) / 100;
+              oCtx.globalCompositeOperation = (layer.blendMode || 'source-over') as GlobalCompositeOperation;
+              oCtx.drawImage(img, 0, 0);
+              oCtx.restore();
+              resolve(null);
+            };
+            img.onerror = () => resolve(null);
+          });
+        }
+        ctx.drawImage(offscreen, 0, 0);
+      };
+
+      const belowLayers = currentFrame.layers.slice(activeLayerIdx + 1);
+      const aboveLayers = currentFrame.layers.slice(0, activeLayerIdx);
+
+      const belowCtx = compositeBelowCanvasRef.current?.getContext('2d');
+      const aboveCtx = compositeAboveCanvasRef.current?.getContext('2d');
+
+      if (belowCtx) await renderLayerSet(belowCtx, belowLayers);
+      if (aboveCtx) await renderLayerSet(aboveCtx, aboveLayers);
     };
-    renderComposite();
-  }, [currentFrame, activeLayerId, width, height]);
+    
+    renderComposites();
+  }, [currentFrame, activeLayerId, activeLayerIdx, width, height]);
 
   useEffect(() => {
     const canvas = mainCanvasRef.current;
@@ -295,6 +315,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
     if (activeLayer?.imageData === lastRenderedImageDataRef.current && activeLayerId === lastRenderedActiveLayerIdRef.current) {
       canvas.style.opacity = ((activeLayer.opacity ?? 100) / 100).toString();
+      canvas.style.mixBlendMode = (activeLayer.blendMode === 'source-over' ? 'normal' : activeLayer.blendMode) || 'normal';
       return;
     }
 
@@ -314,7 +335,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       lastRenderedActiveLayerIdRef.current = activeLayerId;
     }
     canvas.style.opacity = ((activeLayer.opacity ?? 100) / 100).toString();
-  }, [activeLayerId, activeLayer?.imageData, activeLayer?.visible, activeLayer?.opacity, width, height, tool]);
+    canvas.style.mixBlendMode = (activeLayer.blendMode === 'source-over' ? 'normal' : activeLayer.blendMode) || 'normal';
+  }, [activeLayerId, activeLayer?.imageData, activeLayer?.visible, activeLayer?.opacity, activeLayer?.blendMode, width, height, tool]);
 
   const getPos = (e: React.PointerEvent) => {
     const canvas = mainCanvasRef.current;
@@ -558,6 +580,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     const d = img.data;
     const x = Math.floor(sX), y = Math.floor(sY);
     const start = (y * width + x) * 4;
+    if (x < 0 || x >= width || y < 0 || y >= height) return;
     const sR = d[start], sG = d[start+1], sB = d[start+2], sA = d[start+3];
     const {r, g, b} = { r: parseInt(fill.slice(1,3),16), g: parseInt(fill.slice(3,5),16), b: parseInt(fill.slice(5,7),16) };
     if (sR === r && sG === g && sB === b) return;
@@ -586,8 +609,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     <div className="relative sketch-border shadow-lg bg-white overflow-hidden w-full aspect-video">
       <div className="absolute inset-0 bg-white" />
       <canvas ref={onionSkinCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none w-full h-full" />
-      <canvas ref={compositeCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-0 w-full h-full" />
+      <canvas ref={compositeBelowCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-0 w-full h-full" />
       <canvas ref={mainCanvasRef} width={width} height={height} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerLeave={stopDrawing} className="absolute inset-0 touch-none block z-10 w-full h-full" style={{ cursor: isPlaying || activeLayer.locked ? 'default' : (tool === 'move' ? 'move' : 'crosshair'), opacity: activeLayer.visible ? 1 : 0.3 }} />
+      <canvas ref={compositeAboveCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-[15] w-full h-full" />
       <canvas ref={tempCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-20 w-full h-full" />
     </div>
   );

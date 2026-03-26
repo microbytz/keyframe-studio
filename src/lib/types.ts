@@ -26,6 +26,8 @@ export type ToolType =
 
 export type MoveMode = 'translate' | 'scale' | 'rotate' | 'skew';
 
+export type BlendMode = 'source-over' | 'multiply' | 'overlay' | 'screen' | 'darken' | 'lighten';
+
 export interface Layer {
   id: string;
   name: string;
@@ -33,6 +35,7 @@ export interface Layer {
   visible: boolean;
   locked?: boolean;
   opacity: number;
+  blendMode?: BlendMode;
 }
 
 export interface Frame {

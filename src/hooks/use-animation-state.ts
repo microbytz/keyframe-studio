@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode } from '@/lib/types';
+import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, BlendMode } from '@/lib/types';
 import gifshot from 'gifshot';
 
 const INITIAL_FPS = 12;
@@ -16,6 +16,7 @@ const createNewLayer = (name: string): Layer => ({
   visible: true,
   locked: false,
   opacity: 100,
+  blendMode: 'source-over',
 });
 
 const createNewFrame = (): Frame => ({
@@ -345,6 +346,17 @@ export function useAnimationState() {
     pushToHistory(newFrames);
   }, [project.frames, currentFrameIndex, pushToHistory]);
 
+  const updateLayerBlendMode = useCallback((layerId: string, blendMode: BlendMode) => {
+    const newFrames = [...project.frames];
+    const frame = { ...newFrames[currentFrameIndex] };
+    frame.layers = frame.layers.map(l => 
+      l.id === layerId ? { ...l, blendMode: blendMode } : l
+    );
+    newFrames[currentFrameIndex] = frame;
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
+  }, [project.frames, currentFrameIndex, pushToHistory]);
+
   const toggleOnionSkin = useCallback(() => {
     setProject(prev => ({ ...prev, onionSkinEnabled: !prev.onionSkinEnabled }));
   }, []);
@@ -472,6 +484,7 @@ export function useAnimationState() {
             img.onload = () => {
               ctx.save();
               ctx.globalAlpha = (layer.opacity ?? 100) / 100;
+              ctx.globalCompositeOperation = (layer.blendMode || 'source-over') as GlobalCompositeOperation;
               ctx.drawImage(img, 0, 0);
               ctx.restore();
               resolve(null);
@@ -549,6 +562,7 @@ export function useAnimationState() {
     toggleLayerVisibility,
     toggleLayerLock,
     updateLayerOpacity,
+    updateLayerBlendMode,
     togglePlayback,
     toggleOnionSkin,
     saveProject,
