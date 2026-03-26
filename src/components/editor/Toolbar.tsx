@@ -1,3 +1,4 @@
+
 "use client"
 
 import React from 'react';
@@ -36,7 +37,8 @@ import {
   Maximize,
   RotateCcw,
   StretchHorizontal,
-  Bookmark
+  Bookmark,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -63,6 +65,7 @@ interface ToolbarProps {
   setIsMultiDrawEnabled?: (enabled: boolean) => void;
   savedBrushes?: SavedBrush[];
   setCustomBrushData?: (data: string) => void;
+  deleteSavedBrush?: (id: string) => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -80,7 +83,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   isMultiDrawEnabled,
   setIsMultiDrawEnabled,
   savedBrushes = [],
-  setCustomBrushData
+  setCustomBrushData,
+  deleteSavedBrush
 }) => {
   const isMobile = useIsMobile();
   
@@ -218,20 +222,31 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                       </span>
                       <div className="grid grid-cols-4 gap-2">
                         {savedBrushes.map((brush) => (
-                          <button
-                            key={brush.id}
-                            onClick={() => {
-                              setCustomBrushData?.(brush.data);
-                              setTool('custom');
-                            }}
-                            className={cn(
-                              "p-1 sketch-border transition-all hover:bg-accent flex items-center justify-center aspect-square pattern-checkered bg-white group",
-                              (currentTool === 'custom' && brush.data === brush.data) ? "border-accent ring-1 ring-accent/20" : ""
-                            )}
-                            title={brush.name}
-                          >
-                            <img src={brush.data} alt={brush.name} className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform" />
-                          </button>
+                          <div key={brush.id} className="relative group">
+                            <button
+                              onClick={() => {
+                                setCustomBrushData?.(brush.data);
+                                setTool('custom');
+                              }}
+                              className={cn(
+                                "w-full p-1 sketch-border transition-all hover:bg-accent flex items-center justify-center aspect-square pattern-checkered bg-white group/item",
+                                (currentTool === 'custom' && brush.data === brush.data) ? "border-accent ring-1 ring-accent/20" : ""
+                              )}
+                              title={brush.name}
+                            >
+                              <img src={brush.data} alt={brush.name} className="max-w-full max-h-full object-contain group-hover/item:scale-110 transition-transform" />
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteSavedBrush?.(brush.id);
+                              }}
+                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 shadow-sm z-10"
+                              title="Delete Tip"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     </div>

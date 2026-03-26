@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -415,6 +416,13 @@ export function useAnimationState() {
     }
   }, [project.savedBrushes]);
 
+  const deleteSavedBrush = useCallback((brushId: string) => {
+    setProject(prev => ({
+      ...prev,
+      savedBrushes: prev.savedBrushes.filter(b => b.id !== brushId)
+    }));
+  }, []);
+
   const togglePlayback = useCallback(() => {
     setIsPlaying(prev => !prev);
   }, []);
@@ -623,6 +631,7 @@ export function useAnimationState() {
     flipCurrentLayer,
     canUndo,
     canRedo,
-    handleCustomBrushSave
+    handleCustomBrushSave,
+    deleteSavedBrush
   };
 }
