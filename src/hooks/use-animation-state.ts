@@ -442,9 +442,26 @@ export function useAnimationState() {
     if (layerIdx === -1 || frame.layers[layerIdx].locked) return;
     frame.layers = frame.layers.map((l, idx) => idx === layerIdx ? { ...l, imageData: dataUrl } : l);
     newFrames[currentFrameIndex] = frame;
+    
+    // Multi-draw Sync Logic
+    if (isMultiDrawEnabled) {
+      const activeLayerName = frame.layers[layerIdx].name;
+      for (let i = 1; i <= multiDrawRange; i++) {
+        const nextIdx = currentFrameIndex + i;
+        if (nextIdx < newFrames.length) {
+          const nextFrame = { ...newFrames[nextIdx] };
+          const targetLayerIdx = nextFrame.layers.findIndex(l => l.name === activeLayerName);
+          if (targetLayerIdx !== -1 && !nextFrame.layers[targetLayerIdx].locked) {
+            nextFrame.layers = nextFrame.layers.map((l, idx) => idx === targetLayerIdx ? { ...l, imageData: dataUrl } : l);
+            newFrames[nextIdx] = nextFrame;
+          }
+        }
+      }
+    }
+
     setProject(prev => ({ ...prev, frames: newFrames }));
     pushToHistory(newFrames);
-  }, [project.frames, currentFrameIndex, activeLayerId, pushToHistory]);
+  }, [project.frames, currentFrameIndex, activeLayerId, isMultiDrawEnabled, multiDrawRange, pushToHistory]);
 
   const updateFrameDuration = useCallback((index: number, duration: number) => {
     setProject(prev => {
