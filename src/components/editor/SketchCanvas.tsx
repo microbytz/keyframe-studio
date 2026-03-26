@@ -226,21 +226,18 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         for (let i = 1; i <= onionSkinBefore; i++) {
           const idx = currentFrameIndex - i;
           if (idx >= 0) {
-            // Lowered opacity from 0.3 to 0.15 for subtle feedback
-            framesToRender.push({ index: idx, opacity: 0.15 * (1 - (i - 1) / onionSkinBefore) });
+            framesToRender.push({ index: idx, opacity: 0.1 * (1 - (i - 1) / onionSkinBefore) });
           }
         }
         for (let i = 1; i <= onionSkinAfter; i++) {
           const idx = currentFrameIndex + i;
           if (idx < frames.length) {
-            // Lowered opacity from 0.15 to 0.08 for subtle feedback
-            framesToRender.push({ index: idx, opacity: 0.08 * (1 - (i - 1) / onionSkinAfter) });
+            framesToRender.push({ index: idx, opacity: 0.05 * (1 - (i - 1) / onionSkinAfter) });
           }
         }
       } else {
-        // Lowered opacity from 0.3 to 0.15 and 0.15 to 0.08
-        if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: 0.15 });
-        if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: 0.08 });
+        if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: 0.1 });
+        if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: 0.05 });
       }
 
       for (const item of framesToRender) {
