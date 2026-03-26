@@ -70,6 +70,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   const [lassoPoints, setLassoPoints] = useState<{ x: number, y: number }[]>([]);
   const [dragStartImage, setDragStartImage] = useState<HTMLImageElement | null>(null);
   const [customBrushImage, setCustomBrushImage] = useState<HTMLImageElement | null>(null);
+  
+  // Selection/Move state
+  const [movingSelection, setMovingSelection] = useState<HTMLImageElement | null>(null);
 
   const currentFrame = frames[currentFrameIndex];
   const activeLayer = currentFrame.layers.find(l => l.id === activeLayerId) || currentFrame.layers[0];
@@ -81,19 +84,24 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       const ctx = canvas.getContext('2d')!;
       let resultData: string | null = null;
 
-      if (action === 'copy' || action === 'move') {
-        const offscreen = document.createElement('canvas');
-        offscreen.width = width;
-        offscreen.height = height;
-        const oCtx = offscreen.getContext('2d')!;
-        
-        oCtx.beginPath();
-        oCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
-        lassoPoints.forEach(p => oCtx.lineTo(p.x, p.y));
-        oCtx.closePath();
-        oCtx.clip();
-        oCtx.drawImage(canvas, 0, 0);
-        resultData = offscreen.toDataURL();
+      // Create Selection Capture
+      const offscreen = document.createElement('canvas');
+      offscreen.width = width;
+      offscreen.height = height;
+      const oCtx = offscreen.getContext('2d')!;
+      
+      oCtx.beginPath();
+      oCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+      lassoPoints.forEach(p => oCtx.lineTo(p.x, p.y));
+      oCtx.closePath();
+      oCtx.clip();
+      oCtx.drawImage(canvas, 0, 0);
+      resultData = offscreen.toDataURL();
+
+      if (action === 'move') {
+        const img = new Image();
+        img.src = resultData;
+        img.onload = () => setMovingSelection(img);
       }
 
       if (action === 'cut' || action === 'move' || action === 'copy') {
@@ -120,6 +128,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       return resultData;
     }
   }));
+
+  // Clear selection image if tool changes
+  useEffect(() => {
+    if (tool !== 'move') {
+      setMovingSelection(null);
+    }
+  }, [tool]);
 
   useEffect(() => {
     if (customBrushData) {
@@ -273,84 +288,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     };
   };
 
-  const hexToRgb = (hex: string) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : { r: 0, g: 0, b: 0 };
-  };
-
-  const floodFill = (ctx: CanvasRenderingContext2D, startX: number, startY: number, fillColor: string) => {
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
-    const { r: fR, g: fG, b: fB } = hexToRgb(fillColor);
-    const fA = Math.floor((opacity / 100) * 255);
-
-    const x = Math.floor(startX);
-    const y = Math.floor(startY);
-    const startPosIdx = (y * width + x) * 4;
-    const sR = data[startPosIdx];
-    const sG = data[startPosIdx + 1];
-    const sB = data[startPosIdx + 2];
-    const sA = data[startPosIdx + 3];
-
-    if (sR === fR && sG === fG && sB === fB && sA === fA) return;
-
-    const stack: [number, number][] = [[x, y]];
-
-    while (stack.length > 0) {
-      let [curX, curY] = stack.pop()!;
-      let pos = (curY * width + curX) * 4;
-
-      while (curY >= 0 && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
-        curY--;
-        pos -= width * 4;
-      }
-      pos += width * 4;
-      curY++;
-
-      let reachLeft = false;
-      let reachRight = false;
-
-      while (curY < height && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
-        data[pos] = fR;
-        data[pos + 1] = fG;
-        data[pos + 2] = fB;
-        data[pos + 3] = fA;
-
-        if (curX > 0) {
-          const leftPos = pos - 4;
-          if (data[leftPos] === sR && data[leftPos + 1] === sG && data[leftPos + 2] === sB && data[leftPos + 3] === sA) {
-            if (!reachLeft) {
-              stack.push([curX - 1, curY]);
-              reachLeft = true;
-            }
-          } else {
-            reachLeft = false;
-          }
-        }
-
-        if (curX < width - 1) {
-          const rightPos = pos + 4;
-          if (data[rightPos] === sR && data[rightPos + 1] === sG && data[rightPos + 2] === sB && data[rightPos + 3] === sA) {
-            if (!reachRight) {
-              stack.push([curX + 1, curY]);
-              reachRight = true;
-            }
-          } else {
-            reachRight = false;
-          }
-        }
-
-        curY++;
-        pos += width * 4;
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-  };
-
   const startDrawing = (e: React.PointerEvent) => {
     if (isPlaying || !activeLayer.visible) return;
     const pos = getPos(e);
@@ -374,7 +311,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     
     if (tool === 'lasso') {
       setLassoPoints([pos]);
-    } else if (tool === 'move') {
+    } else if (tool === 'move' && !movingSelection) {
       const canvas = mainCanvasRef.current;
       if (canvas) {
         const img = new Image();
@@ -389,25 +326,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
   };
 
-  const drawShape = (ctx: CanvasRenderingContext2D, sX: number, sY: number, eX: number, eY: number, shapeTool: string) => {
-    ctx.beginPath();
-    if (shapeTool === 'line') {
-      ctx.moveTo(sX, sY);
-      ctx.lineTo(eX, eY);
-    } else if (shapeTool === 'rectangle') {
-      ctx.rect(sX, sY, eX - sX, eY - sY);
-    } else if (shapeTool === 'circle') {
-      const radius = Math.sqrt(Math.pow(eX - sX, 2) + Math.pow(eY - sY, 2));
-      ctx.arc(sX, sY, radius, 0, 2 * Math.PI);
-    } else if (shapeTool === 'triangle') {
-      ctx.moveTo(sX + (eX - sX) / 2, sY);
-      ctx.lineTo(eX, eY);
-      ctx.lineTo(sX, eY);
-      ctx.closePath();
-    }
-    ctx.stroke();
-  };
-
   const draw = (e: React.PointerEvent) => {
     if (!isDrawing || isPlaying || !activeLayer.visible) return;
     const canvas = mainCanvasRef.current;
@@ -419,7 +337,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     let pos = getPos(e);
 
     if (tool === 'move') {
-      if (dragStartImage) {
+      if (movingSelection) {
+        tCtx.clearRect(0, 0, width, height);
+        const dx = pos.x - startPos.x;
+        const dy = pos.y - startPos.y;
+        tCtx.drawImage(movingSelection, dx, dy);
+      } else if (dragStartImage) {
         const dx = pos.x - lastPos.x;
         const dy = pos.y - lastPos.y;
         ctx.clearRect(0, 0, width, height);
@@ -609,6 +532,20 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       onLayerUpdate(dataUrl);
     };
 
+    if (tool === 'move' && movingSelection) {
+      const currentPos = getPos(e);
+      const dx = currentPos.x - startPos.x;
+      const dy = currentPos.y - startPos.y;
+      
+      ctx.drawImage(movingSelection, dx, dy);
+      setMovingSelection(null);
+      handleUpdate();
+      
+      const tCtx = tempCanvasRef.current?.getContext('2d');
+      if (tCtx) tCtx.clearRect(0, 0, width, height);
+      return;
+    }
+
     const shapeTools = ['line', 'rectangle', 'circle', 'triangle'];
     if (shapeTools.includes(tool)) {
       const pos = getPos(e);
@@ -645,6 +582,103 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     if (tool === 'move') setDragStartImage(null);
     const tCtx = tempCanvasRef.current?.getContext('2d');
     if (tCtx && tool !== 'lasso') tCtx.clearRect(0, 0, width, height);
+  };
+
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+  };
+
+  const floodFill = (ctx: CanvasRenderingContext2D, startX: number, startY: number, fillColor: string) => {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    const { r: fR, g: fG, b: fB } = hexToRgb(fillColor);
+    const fA = Math.floor((opacity / 100) * 255);
+
+    const x = Math.floor(startX);
+    const y = Math.floor(startY);
+    const startPosIdx = (y * width + x) * 4;
+    const sR = data[startPosIdx];
+    const sG = data[startPosIdx + 1];
+    const sB = data[startPosIdx + 2];
+    const sA = data[startPosIdx + 3];
+
+    if (sR === fR && sG === fG && sB === fB && sA === fA) return;
+
+    const stack: [number, number][] = [[x, y]];
+
+    while (stack.length > 0) {
+      let [curX, curY] = stack.pop()!;
+      let pos = (curY * width + curX) * 4;
+
+      while (curY >= 0 && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
+        curY--;
+        pos -= width * 4;
+      }
+      pos += width * 4;
+      curY++;
+
+      let reachLeft = false;
+      let reachRight = false;
+
+      while (curY < height && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
+        data[pos] = fR;
+        data[pos + 1] = fG;
+        data[pos + 2] = fB;
+        data[pos + 3] = fA;
+
+        if (curX > 0) {
+          const leftPos = pos - 4;
+          if (data[leftPos] === sR && data[leftPos + 1] === sG && data[leftPos + 2] === sB && data[leftPos + 3] === sA) {
+            if (!reachLeft) {
+              stack.push([curX - 1, curY]);
+              reachLeft = true;
+            }
+          } else {
+            reachLeft = false;
+          }
+        }
+
+        if (curX < width - 1) {
+          const rightPos = pos + 4;
+          if (data[rightPos] === sR && data[rightPos + 1] === sG && data[rightPos + 2] === sB && data[rightPos + 3] === sA) {
+            if (!reachRight) {
+              stack.push([curX + 1, curY]);
+              reachRight = true;
+            }
+          } else {
+            reachRight = false;
+          }
+        }
+
+        curY++;
+        pos += width * 4;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  };
+
+  const drawShape = (ctx: CanvasRenderingContext2D, sX: number, sY: number, eX: number, eY: number, shapeTool: string) => {
+    ctx.beginPath();
+    if (shapeTool === 'line') {
+      ctx.moveTo(sX, sY);
+      ctx.lineTo(eX, eY);
+    } else if (shapeTool === 'rectangle') {
+      ctx.rect(sX, sY, eX - sX, eY - sY);
+    } else if (shapeTool === 'circle') {
+      const radius = Math.sqrt(Math.pow(eX - sX, 2) + Math.pow(eY - sY, 2));
+      ctx.arc(sX, sY, radius, 0, 2 * Math.PI);
+    } else if (shapeTool === 'triangle') {
+      ctx.moveTo(sX + (eX - sX) / 2, sY);
+      ctx.lineTo(eX, eY);
+      ctx.lineTo(sX, eY);
+      ctx.closePath();
+    }
+    ctx.stroke();
   };
 
   return (

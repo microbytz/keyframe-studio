@@ -98,7 +98,6 @@ export default function Home() {
   const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Group Management State
   const [groupStart, setGroupStart] = useState('1');
   const [groupEnd, setGroupEnd] = useState('1');
   const [groupName, setGroupName] = useState('New Action');
@@ -107,7 +106,6 @@ export default function Home() {
 
   const currentFrame = project.frames[currentFrameIndex];
   const activeGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
-  
   const currentFps = activeGroup ? activeGroup.fps : project.fps;
 
   const handleFpsChange = (newFps: number) => {
@@ -124,7 +122,6 @@ export default function Home() {
   const handleAddGroup = () => {
     const start = Math.max(0, parseInt(groupStart) - 1);
     const end = Math.min(project.frames.length - 1, parseInt(groupEnd) - 1);
-    
     if (isNaN(start) || isNaN(end) || start > end) return;
 
     const newGroup: FrameGroup = {
