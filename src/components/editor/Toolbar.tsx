@@ -66,6 +66,7 @@ interface ToolbarProps {
   isMultiDrawEnabled?: boolean;
   setIsMultiDrawEnabled?: (enabled: boolean) => void;
   savedBrushes?: SavedBrush[];
+  customBrushData?: string | null;
   setCustomBrushData?: (data: string) => void;
   deleteSavedBrush?: (id: string) => void;
 }
@@ -87,6 +88,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   isMultiDrawEnabled,
   setIsMultiDrawEnabled,
   savedBrushes = [],
+  customBrushData,
   setCustomBrushData,
   deleteSavedBrush
 }) => {
@@ -219,14 +221,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     </div>
                   </div>
 
-                  {savedBrushes.length > 0 && (
+                  {(savedBrushes || []).length > 0 && (
                     <div className="animate-in slide-in-from-top-1 duration-300">
                       <span className="text-[10px] font-bold uppercase opacity-40 mb-2 block tracking-widest flex items-center gap-1">
                         <Bookmark size={10} className="text-accent" />
                         My Saved Tips
                       </span>
                       <div className="grid grid-cols-4 gap-2">
-                        {savedBrushes.map((brush) => (
+                        {savedBrushes?.map((brush) => (
                           <div key={brush.id} className="relative group">
                             <button
                               onClick={() => {
@@ -234,8 +236,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                                 setTool('custom');
                               }}
                               className={cn(
-                                "w-full p-1 sketch-border transition-all hover:bg-accent flex items-center justify-center aspect-square pattern-checkered bg-white group/item",
-                                (currentTool === 'custom' && brush.data === brush.data) ? "border-accent ring-1 ring-accent/20" : ""
+                                "w-full p-1 sketch-border transition-all hover:bg-accent flex items-center justify-center aspect-square pattern-checkered bg-white group/item overflow-hidden",
+                                (currentTool === 'custom' && customBrushData === brush.data) ? "border-accent ring-2 ring-accent/30" : ""
                               )}
                               title={brush.name}
                             >

@@ -416,23 +416,33 @@ export function useAnimationState() {
     setCustomBrushData(dataUrl);
     handleSetTool('custom');
     if (keepInPens) {
-      const newBrush: SavedBrush = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: name || `Tip ${project.savedBrushes.length + 1}`,
-        data: dataUrl
-      };
-      setProject(prev => ({
-        ...prev,
-        savedBrushes: [...(prev.savedBrushes || []), newBrush]
-      }));
+      setProject(prev => {
+        const newBrush: SavedBrush = {
+          id: Math.random().toString(36).substr(2, 9),
+          name: name || `Tip ${(prev.savedBrushes || []).length + 1}`,
+          data: dataUrl
+        };
+        const nextProject = {
+          ...prev,
+          savedBrushes: [...(prev.savedBrushes || []), newBrush]
+        };
+        // Auto-persist brushes to local storage
+        localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
+        return nextProject;
+      });
     }
-  }, [project.savedBrushes, handleSetTool]);
+  }, [handleSetTool]);
 
   const deleteSavedBrush = useCallback((brushId: string) => {
-    setProject(prev => ({
-      ...prev,
-      savedBrushes: prev.savedBrushes.filter(b => b.id !== brushId)
-    }));
+    setProject(prev => {
+      const nextProject = {
+        ...prev,
+        savedBrushes: (prev.savedBrushes || []).filter(b => b.id !== brushId)
+      };
+      // Auto-persist deletion
+      localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
+      return nextProject;
+    });
   }, []);
 
   const togglePlayback = useCallback(() => {
