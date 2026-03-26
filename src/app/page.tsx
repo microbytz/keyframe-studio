@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -6,10 +5,33 @@ import { useAnimationState } from '@/hooks/use-animation-state';
 import { SketchCanvas, SketchCanvasHandle } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { Timeline } from '@/components/editor/Timeline';
+import { AudioTimeline } from '@/components/editor/AudioTimeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { LayersPanel } from '@/components/editor/LayersPanel';
-import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2, Sparkles, Plus, Trash2, Zap, Ghost, Scissors, Copy, Move, Check, Clock } from 'lucide-react';
+import { 
+  Save, 
+  FolderOpen, 
+  Layers, 
+  Settings2, 
+  Settings, 
+  Download, 
+  Upload, 
+  Video, 
+  Loader2, 
+  Sparkles, 
+  Plus, 
+  Trash2, 
+  Zap, 
+  Ghost, 
+  Scissors, 
+  Copy, 
+  Move, 
+  Check, 
+  Clock, 
+  Music,
+  Mic
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -100,7 +122,9 @@ export default function Home() {
     canRedo,
     setCopiedLayerData,
     handleCustomBrushSave,
-    deleteSavedBrush
+    deleteSavedBrush,
+    setAudio,
+    removeAudio
   } = useAnimationState();
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
@@ -110,6 +134,8 @@ export default function Home() {
   const [hasLassoSelection, setHasLassoSelection] = useState(false);
   const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const audioTimelineRef = useRef<HTMLDivElement>(null);
 
   const [groupStart, setGroupStart] = useState('1');
   const [groupEnd, setGroupEnd] = useState('1');
@@ -162,7 +188,7 @@ export default function Home() {
   const handleAddGroup = () => {
     const start = Math.max(0, parseInt(groupStart) - 1);
     const end = Math.min(project.frames.length - 1, parseInt(groupEnd) - 1);
-    if (isNaN(start) || isNaN(end) || start > end) return;
+    if (isNaN(start) || iSNaN(end) || start > end) return;
 
     const newGroup: FrameGroup = {
       id: Math.random().toString(36).substr(2, 9),
@@ -190,6 +216,15 @@ export default function Home() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadProject(file);
+  };
+
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setAudio(file, file.name);
+  };
+
+  const scrollToAudio = () => {
+    audioTimelineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleLassoAction = (action: 'cut' | 'copy' | 'select' | 'move') => {
@@ -223,6 +258,40 @@ export default function Home() {
             <button onClick={loadProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Quick Load (Browser)">
               <FolderOpen size={14} className="md:w-4 md:h-4" />
             </button>
+            <div className="w-px h-4 bg-foreground/10 mx-1" />
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="p-1.5 hover:bg-accent transition-all rounded relative" title="Audio Hub">
+                  <Music size={14} className="md:w-4 md:h-4" />
+                  {project.audioData && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-accent rounded-full border border-white" />}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 sketch-card p-2 space-y-1" side="bottom" align="start">
+                 <button 
+                  onClick={() => audioInputRef.current?.click()}
+                  className="w-full text-left px-3 py-2 hover:bg-accent/10 rounded text-[10px] font-bold uppercase flex items-center gap-2"
+                 >
+                   <Upload size={12} /> Import Audio
+                 </button>
+                 <button 
+                  onClick={scrollToAudio}
+                  className="w-full text-left px-3 py-2 hover:bg-accent/10 rounded text-[10px] font-bold uppercase flex items-center gap-2"
+                 >
+                   <Mic size={12} /> Record Live
+                 </button>
+                 {project.audioData && (
+                   <button 
+                    onClick={removeAudio}
+                    className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-500 rounded text-[10px] font-bold uppercase flex items-center gap-2"
+                   >
+                     <Trash2 size={12} /> Clear Track
+                   </button>
+                 )}
+              </PopoverContent>
+            </Popover>
+            <input type="file" ref={audioInputRef} onChange={handleAudioUpload} accept="audio/*" className="hidden" />
+
             <div className="w-px h-4 bg-foreground/10 mx-1" />
             <button onClick={downloadProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Download Project File">
               <Download size={14} className="md:w-4 md:h-4" />
@@ -435,7 +504,7 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="w-full max-w-[800px] flex-none space-y-2">
+          <div className="w-full max-w-[800px] flex-none space-y-4">
             <div className="flex items-center justify-between bg-white px-3 py-1.5 sketch-border">
               <div className="flex items-center gap-2">
                 <Clock size={14} className="text-accent" />
@@ -455,7 +524,21 @@ export default function Home() {
                 </span>
               </div>
             </div>
+            
             <Timeline frames={project.frames} groups={project.groups} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
+            
+            <div ref={audioTimelineRef}>
+              <AudioTimeline 
+                audioData={project.audioData}
+                metadata={project.audioMetadata}
+                isPlaying={isPlaying}
+                currentFrameIndex={currentFrameIndex}
+                totalFrames={project.frames.length}
+                fps={project.fps}
+                onRecord={(blob) => setAudio(blob, 'Recording')}
+                onRemove={removeAudio}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -521,7 +604,7 @@ export default function Home() {
       </Dialog>
 
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Set "Hold Frame" to keep an image on screen longer. Use "Loop Selection" for cycles!
+        Tip: Sync your animation to audio peaks for perfect timing! Use the record button for quick scratch tracks.
       </div>
     </main>
   );

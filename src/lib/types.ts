@@ -61,6 +61,12 @@ export interface FrameGroup {
   color: string;
 }
 
+export interface AudioMetadata {
+  duration: number;
+  peaks: number[];
+  name: string;
+}
+
 export interface AnimationProject {
   id: string;
   name: string;
@@ -74,6 +80,8 @@ export interface AnimationProject {
   onionSkinAfter?: number;
   groups: FrameGroup[];
   savedBrushes: SavedBrush[];
+  audioData?: string; // Data URI for the audio
+  audioMetadata?: AudioMetadata;
 }
 
 export interface DrawingState {

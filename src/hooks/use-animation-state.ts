@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, BlendMode, SavedBrush } from '@/lib/types';
+import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, BlendMode, SavedBrush, AudioMetadata } from '@/lib/types';
 import gifshot from 'gifshot';
 import { useToast } from "@/hooks/use-toast";
 
@@ -75,6 +75,7 @@ export function useAnimationState() {
   const [copiedLayerData, setCopiedLayerData] = useState<{ name: string, imageData: string } | null>(null);
   
   const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const updateHistoryState = useCallback(() => {
     setCanUndo(historyIndexRef.current > 0);
@@ -240,7 +241,13 @@ export function useAnimationState() {
     }
     setCurrentFrameIndex(index);
     setActiveLayerId(project.frames[index].layers[0].id);
-  }, [currentFrameIndex, project.frames]);
+
+    // Sync audio if present
+    if (audioRef.current && !isPlaying) {
+      const totalTimeBefore = project.frames.slice(0, index).reduce((acc, f) => acc + (f.duration || 1) / project.fps, 0);
+      audioRef.current.currentTime = totalTimeBefore;
+    }
+  }, [currentFrameIndex, project.frames, project.fps, isPlaying]);
 
   const updateLayerData = useCallback((dataUrl: string) => {
     const newFrames = [...project.frames];
@@ -487,7 +494,6 @@ export function useAnimationState() {
           savedBrushes: [...(prev.savedBrushes || []), newBrush]
         };
         
-        // Auto-persist immediately
         try {
           localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
           toast({
@@ -524,8 +530,19 @@ export function useAnimationState() {
   }, [toast]);
 
   const togglePlayback = useCallback(() => {
-    setIsPlaying(prev => !prev);
-  }, []);
+    setIsPlaying(prev => {
+      const nextState = !prev;
+      if (nextState && audioRef.current) {
+        // Calculate start time based on current frame
+        const totalTimeBefore = project.frames.slice(0, currentFrameIndex).reduce((acc, f) => acc + (f.duration || 1) / project.fps, 0);
+        audioRef.current.currentTime = totalTimeBefore;
+        audioRef.current.play().catch(() => {});
+      } else if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      return nextState;
+    });
+  }, [currentFrameIndex, project.frames, project.fps]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -552,12 +569,19 @@ export function useAnimationState() {
           nextIdx = currentInSelection === -1 || currentInSelection === sorted.length - 1 
             ? sorted[0] 
             : sorted[currentInSelection + 1];
+          
+          if (nextIdx === sorted[0] && audioRef.current) {
+            const startTime = project.frames.slice(0, nextIdx).reduce((acc, f) => acc + (f.duration || 1) / project.fps, 0);
+            audioRef.current.currentTime = startTime;
+          }
         } else {
           nextIdx = (prev + 1) % project.frames.length;
+          if (nextIdx === 0 && audioRef.current) {
+            audioRef.current.currentTime = 0;
+          }
         }
         
         setSelectedFrameIndices([nextIdx]);
-        // Sync active layer ID to the new frame's first layer if the old one doesn't exist
         const targetFrame = project.frames[nextIdx];
         if (targetFrame) {
             const hasLayer = targetFrame.layers.some(l => l.id === activeLayerId);
@@ -575,6 +599,67 @@ export function useAnimationState() {
       }
     };
   }, [isPlaying, currentFrameIndex, project.fps, project.frames, project.groups, loopSelection, selectedFrameIndices, activeLayerId]);
+
+  const setAudio = useCallback(async (file: File | Blob, name: string) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      
+      // Process peaks for waveform
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const response = await fetch(dataUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await audioCtx.decodeAudioBuffer(arrayBuffer);
+      
+      const channelData = audioBuffer.getChannelData(0);
+      const step = Math.ceil(channelData.length / 200);
+      const peaks = [];
+      for (let i = 0; i < 200; i++) {
+        let max = 0;
+        for (let j = 0; j < step; j++) {
+          const datum = channelData[i * step + j];
+          if (datum > max) max = datum;
+          else if (datum < -max) max = -datum;
+        }
+        peaks.push(max);
+      }
+
+      const metadata: AudioMetadata = {
+        duration: audioBuffer.duration,
+        peaks,
+        name
+      };
+
+      setProject(prev => ({
+        ...prev,
+        audioData: dataUrl,
+        audioMetadata: metadata
+      }));
+      
+      if (!audioRef.current) {
+        audioRef.current = new Audio(dataUrl);
+      } else {
+        audioRef.current.src = dataUrl;
+      }
+
+      toast({
+        title: "Audio Loaded",
+        description: `Successfully attached "${name}" to project.`,
+      });
+    };
+    reader.readAsDataURL(file);
+  }, [toast]);
+
+  const removeAudio = useCallback(() => {
+    setProject(prev => {
+      const { audioData, audioMetadata, ...rest } = prev;
+      return rest;
+    });
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+  }, []);
 
   const downloadProject = useCallback(() => {
     const data = JSON.stringify(project, null, 2);
@@ -601,6 +686,11 @@ export function useAnimationState() {
         if (!loadedProject.groups) loadedProject.groups = [];
         
         setProject(loadedProject);
+        
+        if (loadedProject.audioData) {
+          audioRef.current = new Audio(loadedProject.audioData);
+        }
+
         historyRef.current = [loadedProject.frames];
         historyIndexRef.current = 0;
         updateHistoryState();
@@ -751,6 +841,8 @@ export function useAnimationState() {
     canUndo,
     canRedo,
     handleCustomBrushSave,
-    deleteSavedBrush
+    deleteSavedBrush,
+    setAudio,
+    removeAudio
   };
 }
