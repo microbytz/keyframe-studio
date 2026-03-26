@@ -8,7 +8,6 @@ import { Timeline } from '@/components/editor/Timeline';
 import { AudioTimeline } from '@/components/editor/AudioTimeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { LayersPanel } from '@/components/editor/LayersPanel';
-import { AIPanel } from '@/components/editor/AIPanel';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { 
   Save, 
@@ -538,8 +537,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-        
-        <AIPanel />
       </div>
 
       {/* Footer */}

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef } from 'react';
@@ -273,7 +272,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                        <Bookmark size={10} /> Loose Pens
                      </button>
                    )}
-                   {brushPacks.filter(p => p.id !== packId).map(p => (
+                   {brushPacks?.filter(p => p.id !== packId).map(p => (
                      <button 
                        key={p.id}
                        onClick={() => addBrushToPack?.(p.id, brush)}
@@ -305,7 +304,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               )}
               title="Brushes"
             >
-              <activeBrush.icon size={16} />
+              {React.createElement(activeBrush.icon, { size: 16 })}
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
                 <ChevronDown size={10} strokeWidth={4} />
               </div>
@@ -394,7 +393,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                         </AccordionContent>
                       </AccordionItem>
 
-                      {brushPacks.map(pack => (
+                      {brushPacks?.map(pack => (
                         <AccordionItem key={pack.id} value={pack.id} className="border-none">
                           <AccordionTrigger className="hover:no-underline py-2 bg-slate-50 px-2 sketch-border text-[10px] font-bold uppercase">
                             <div className="flex items-center justify-between w-full pr-4">
@@ -446,7 +445,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               )}
               title="Shapes"
             >
-              <ShapeIcon size={16} />
+              {React.createElement(ShapeIcon, { size: 16 })}
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
                 <ChevronDown size={10} strokeWidth={4} />
               </div>
