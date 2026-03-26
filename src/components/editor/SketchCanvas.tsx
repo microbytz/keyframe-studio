@@ -220,27 +220,44 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       offscreen.width = width;
       offscreen.height = height;
       const oCtx = offscreen.getContext('2d')!;
-      const framesToRender: { index: number; opacity: number }[] = [];
+      
+      const ghostCanvas = document.createElement('canvas');
+      ghostCanvas.width = width;
+      ghostCanvas.height = height;
+      const gCtx = ghostCanvas.getContext('2d')!;
 
-      const PREV_OPACITY = 0.06;
-      const NEXT_OPACITY = 0.03;
+      const framesToRender: { index: number; opacity: number; color: string }[] = [];
+
+      // Increased opacities slightly as requested (but tinted now)
+      const PREV_OPACITY = 0.25;
+      const NEXT_OPACITY = 0.15;
+      const PREV_COLOR = '#FF6B6B'; // Light Red
+      const NEXT_COLOR = '#6B9FFF'; // Light Blue
 
       if (advancedOnionSkinEnabled) {
         for (let i = 1; i <= onionSkinBefore; i++) {
           const idx = currentFrameIndex - i;
           if (idx >= 0) {
-            framesToRender.push({ index: idx, opacity: PREV_OPACITY * (1 - (i - 1) / onionSkinBefore) });
+            framesToRender.push({ 
+              index: idx, 
+              opacity: PREV_OPACITY * (1 - (i - 1) / onionSkinBefore),
+              color: PREV_COLOR
+            });
           }
         }
         for (let i = 1; i <= onionSkinAfter; i++) {
           const idx = currentFrameIndex + i;
           if (idx < frames.length) {
-            framesToRender.push({ index: idx, opacity: NEXT_OPACITY * (1 - (i - 1) / onionSkinAfter) });
+            framesToRender.push({ 
+              index: idx, 
+              opacity: NEXT_OPACITY * (1 - (i - 1) / onionSkinAfter),
+              color: NEXT_COLOR
+            });
           }
         }
       } else {
-        if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: PREV_OPACITY });
-        if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: NEXT_OPACITY });
+        if (currentFrameIndex > 0) framesToRender.push({ index: currentFrameIndex - 1, opacity: PREV_OPACITY, color: PREV_COLOR });
+        if (currentFrameIndex < frames.length - 1) framesToRender.push({ index: currentFrameIndex + 1, opacity: NEXT_OPACITY, color: NEXT_COLOR });
       }
 
       for (const item of framesToRender) {
@@ -250,12 +267,23 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
             const img = new Image();
             img.src = layer.imageData;
             img.onload = () => { 
+              // 1. Draw layer to ghost canvas
+              gCtx.clearRect(0, 0, width, height);
+              gCtx.save();
+              gCtx.drawImage(img, 0, 0);
+              
+              // 2. Tint it
+              gCtx.globalCompositeOperation = 'source-in';
+              gCtx.fillStyle = item.color;
+              gCtx.fillRect(0, 0, width, height);
+              gCtx.restore();
+
+              // 3. Draw tinted version to the offscreen with frame opacity
               oCtx.save();
-              // FIX: Correctly multiply the frame factor with the layer's own opacity
               oCtx.globalAlpha = item.opacity * ((layer.opacity ?? 100) / 100);
-              oCtx.globalCompositeOperation = (layer.blendMode || 'source-over') as GlobalCompositeOperation;
-              oCtx.drawImage(img, 0, 0); 
+              oCtx.drawImage(ghostCanvas, 0, 0);
               oCtx.restore();
+              
               resolve(null); 
             };
             img.onerror = () => resolve(null);

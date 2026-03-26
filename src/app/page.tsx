@@ -265,13 +265,19 @@ export default function Home() {
                 <div className="pt-2 border-t mt-2">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
                     <Ghost size={12} className="text-accent" />
-                    Advanced Onion Skinning
+                    Onion Skinning
                   </h4>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between space-x-2">
-                      <Label htmlFor="advanced-skin" className="text-xs">Enable Multi-Skin</Label>
+                      <Label htmlFor="main-onion-toggle" className="text-xs font-bold">Enable Onion Skin</Label>
+                      <Switch id="main-onion-toggle" checked={project.onionSkinEnabled} onCheckedChange={toggleOnionSkin} />
+                    </div>
+                    
+                    <div className="flex items-center justify-between space-x-2">
+                      <Label htmlFor="advanced-skin" className="text-xs">Multi-Skin Mode</Label>
                       <Switch id="advanced-skin" checked={project.advancedOnionSkinEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, advancedOnionSkinEnabled: checked }))} />
                     </div>
+                    
                     {project.advancedOnionSkinEnabled && (
                       <div className="space-y-2 animate-in slide-in-from-top-1 duration-200">
                         <div className="space-y-1">
