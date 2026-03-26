@@ -48,6 +48,8 @@ export function useAnimationState() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loopSelection, setLoopSelection] = useState(false);
   const [tool, setTool] = useState<ToolType>('pen');
+  const [lastBrushTool, setLastBrushTool] = useState<ToolType>('pen');
+  const [lastShapeTool, setLastShapeTool] = useState<ToolType>('rectangle');
   const [moveMode, setMoveMode] = useState<MoveMode>('translate');
   const [color, setColor] = useState('#454D52');
   const [brushSize, setBrushSize] = useState(4);
@@ -123,6 +125,16 @@ export function useAnimationState() {
       updateHistoryState();
     }
   }, [currentFrameIndex, activeLayerId, updateHistoryState]);
+
+  const handleSetTool = useCallback((newTool: ToolType) => {
+    const brushes: ToolType[] = ['pen', 'pencil', 'brush', 'pixel', 'calligraphy', 'airbrush', 'highlighter', 'marker', 'charcoal', 'crayon', 'watercolor', 'ink', 'spray', 'chalk', 'technical', 'custom'];
+    const shapes: ToolType[] = ['line', 'rectangle', 'circle', 'triangle'];
+    
+    if (brushes.includes(newTool)) setLastBrushTool(newTool);
+    if (shapes.includes(newTool)) setLastShapeTool(newTool);
+    
+    setTool(newTool);
+  }, []);
 
   const addFrame = useCallback(() => {
     const newFrame = createNewFrame();
@@ -402,7 +414,7 @@ export function useAnimationState() {
 
   const handleCustomBrushSave = useCallback((dataUrl: string, name: string, keepInPens: boolean) => {
     setCustomBrushData(dataUrl);
-    setTool('custom');
+    handleSetTool('custom');
     if (keepInPens) {
       const newBrush: SavedBrush = {
         id: Math.random().toString(36).substr(2, 9),
@@ -414,7 +426,7 @@ export function useAnimationState() {
         savedBrushes: [...(prev.savedBrushes || []), newBrush]
       }));
     }
-  }, [project.savedBrushes]);
+  }, [project.savedBrushes, handleSetTool]);
 
   const deleteSavedBrush = useCallback((brushId: string) => {
     setProject(prev => ({
@@ -575,7 +587,9 @@ export function useAnimationState() {
     loopSelection,
     setLoopSelection,
     tool,
-    setTool,
+    lastBrushTool,
+    lastShapeTool,
+    setTool: handleSetTool,
     moveMode,
     setMoveMode,
     color,

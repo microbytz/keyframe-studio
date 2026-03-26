@@ -51,6 +51,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ToolbarProps {
   currentTool: ToolType;
+  lastBrushTool?: ToolType;
+  lastShapeTool?: ToolType;
   setTool: (tool: ToolType) => void;
   moveMode: MoveMode;
   setMoveMode: (mode: MoveMode) => void;
@@ -70,6 +72,8 @@ interface ToolbarProps {
 
 export const Toolbar: React.FC<ToolbarProps> = ({
   currentTool,
+  lastBrushTool = 'pen',
+  lastShapeTool = 'rectangle',
   setTool,
   moveMode,
   setMoveMode,
@@ -121,12 +125,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'skew', icon: StretchHorizontal, label: 'Skew' },
   ];
 
-  const activeBrush = brushTools.find(t => t.id === currentTool) || brushTools[0];
   const isBrushActive = brushTools.some(t => t.id === currentTool);
   const isShapeActive = shapeTools.some(t => t.id === currentTool);
-  
-  const selectedShapeTool = shapeTools.find(t => t.id === currentTool);
-  const ShapeIcon = selectedShapeTool ? selectedShapeTool.icon : Square;
+
+  const activeBrush = brushTools.find(t => t.id === (isBrushActive ? currentTool : lastBrushTool)) || brushTools[0];
+  const selectedShapeTool = shapeTools.find(t => t.id === (isShapeActive ? currentTool : lastShapeTool)) || shapeTools[1];
+  const ShapeIcon = selectedShapeTool.icon;
 
   const renderBrushPreview = () => {
     const previewStyles: React.CSSProperties = {
@@ -136,23 +140,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       borderRadius: '99px',
     };
 
-    if (currentTool === 'highlighter') {
+    if (activeBrush.id === 'highlighter') {
       previewStyles.opacity = 0.5;
       previewStyles.borderRadius = '2px';
       previewStyles.height = '12px';
-    } else if (currentTool === 'pixel') {
+    } else if (activeBrush.id === 'pixel') {
       previewStyles.borderRadius = '0px';
       previewStyles.backgroundImage = `linear-gradient(90deg, transparent 50%, ${color} 50%)`;
       previewStyles.backgroundSize = '8px 8px';
-    } else if (['airbrush', 'spray', 'charcoal', 'chalk'].includes(currentTool)) {
+    } else if (['airbrush', 'spray', 'charcoal', 'chalk'].includes(activeBrush.id as any)) {
       previewStyles.backgroundColor = 'transparent';
       previewStyles.backgroundImage = `radial-gradient(${color} 15%, transparent 20%)`;
       previewStyles.backgroundSize = '4px 4px';
       previewStyles.height = '16px';
-    } else if (['brush', 'watercolor'].includes(currentTool)) {
+    } else if (['brush', 'watercolor'].includes(activeBrush.id as any)) {
       previewStyles.filter = 'blur(2px)';
       previewStyles.opacity = 0.8;
-    } else if (currentTool === 'pencil') {
+    } else if (activeBrush.id === 'pencil') {
       previewStyles.opacity = 0.7;
       previewStyles.height = '4px';
     }
@@ -170,6 +174,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <Popover>
           <PopoverTrigger asChild>
             <button
+              onClick={() => { if (!isBrushActive) setTool(lastBrushTool); }}
               className={cn(
                 "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
                 isBrushActive ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
@@ -259,6 +264,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <Popover>
           <PopoverTrigger asChild>
             <button
+              onClick={() => { if (!isShapeActive) setTool(lastShapeTool); }}
               className={cn(
                 "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
                 isShapeActive ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
