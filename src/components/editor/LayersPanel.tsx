@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from 'react';
@@ -13,9 +12,12 @@ import {
   GripVertical,
   Image as ImageIcon,
   Copy,
-  ClipboardPaste
+  ClipboardPaste,
+  Lock,
+  LockOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Slider } from '@/components/ui/slider';
 
 interface LayersPanelProps {
   layers: Layer[];
@@ -28,6 +30,8 @@ interface LayersPanelProps {
   onDelete: (id: string) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
   onToggleVisibility: (id: string) => void;
+  onToggleLock: (id: string) => void;
+  onOpacityChange: (id: string, opacity: number) => void;
   onClose: () => void;
 }
 
@@ -42,6 +46,8 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
   onDelete,
   onReorder,
   onToggleVisibility,
+  onToggleLock,
+  onOpacityChange,
   onClose
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -81,84 +87,119 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
         {layers.map((layer, index) => (
           <div 
             key={layer.id}
-            draggable
+            draggable={!layer.locked}
             onDragStart={(e) => handleDragStart(e, index)}
             onDragOver={(e) => handleDragOver(e, index)}
             onDrop={(e) => handleDrop(e, index)}
             onDragEnd={() => setDraggedIndex(null)}
             onClick={() => onSetActive(layer.id)}
             className={cn(
-              "p-2 sketch-border flex items-center gap-3 cursor-pointer transition-all group relative",
+              "p-2 sketch-border flex flex-col gap-2 cursor-pointer transition-all group relative",
               activeLayerId === layer.id ? "bg-accent/10 border-accent shadow-[2px_2px_0px_0px_rgba(130,201,201,0.3)]" : "bg-white hover:bg-accent/5",
-              draggedIndex === index && "opacity-30 border-dashed"
+              draggedIndex === index && "opacity-30 border-dashed",
+              layer.locked && "opacity-80"
             )}
           >
-            <div className="flex flex-col gap-2 items-center">
-              <div className="cursor-grab active:cursor-grabbing">
-                <GripVertical size={12} className="opacity-40 group-hover:opacity-80" />
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2 items-center">
+                {!layer.locked ? (
+                  <div className="cursor-grab active:cursor-grabbing">
+                    <GripVertical size={12} className="opacity-40 group-hover:opacity-80" />
+                  </div>
+                ) : (
+                  <div className="w-3" />
+                )}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleVisibility(layer.id);
+                  }}
+                  className="p-1 hover:bg-foreground/5 rounded transition-colors"
+                  title={layer.visible ? "Hide Layer" : "Show Layer"}
+                >
+                  {layer.visible ? <Eye size={14} className="text-foreground" /> : <EyeOff size={14} className="text-foreground/30" />}
+                </button>
               </div>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleVisibility(layer.id);
-                }}
-                className="p-1 hover:bg-foreground/5 rounded transition-colors"
-                title={layer.visible ? "Hide Layer" : "Show Layer"}
-              >
-                {layer.visible ? <Eye size={14} className="text-foreground" /> : <EyeOff size={14} className="text-foreground/30" />}
-              </button>
-            </div>
-            
-            <div className="w-12 h-10 sketch-border bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:4px_4px]" />
-              {layer.imageData ? (
-                <img 
-                  src={layer.imageData} 
-                  alt={layer.name} 
-                  className={cn(
-                    "max-w-full max-h-full object-contain pointer-events-none transition-opacity",
-                    !layer.visible && "opacity-30"
-                  )} 
-                />
-              ) : (
-                <ImageIcon size={12} className="opacity-10" />
-              )}
+              
+              <div className="w-12 h-10 sketch-border bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:4px_4px]" />
+                {layer.imageData ? (
+                  <img 
+                    src={layer.imageData} 
+                    alt={layer.name} 
+                    className={cn(
+                      "max-w-full max-h-full object-contain pointer-events-none transition-opacity",
+                      (!layer.visible || layer.locked) && "opacity-30"
+                    )} 
+                    style={{ opacity: (layer.opacity ?? 100) / 100 }}
+                  />
+                ) : (
+                  <ImageIcon size={12} className="opacity-10" />
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  "text-[10px] font-bold truncate uppercase tracking-tighter leading-tight flex items-center gap-1",
+                  !layer.visible && "opacity-40"
+                )}>
+                  {layer.name}
+                  {layer.locked && <Lock size={10} className="text-accent" />}
+                </p>
+                <p className="text-[8px] opacity-40 font-mono">
+                  {activeLayerId === layer.id ? "ACTIVE" : ""}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleLock(layer.id);
+                  }}
+                  className="p-1.5 hover:bg-accent/10 rounded transition-all"
+                  title={layer.locked ? "Unlock Layer" : "Lock Layer"}
+                >
+                  {layer.locked ? <Lock size={14} className="text-accent" /> : <LockOpen size={14} />}
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCopy(layer.id);
+                  }}
+                  className="p-1.5 hover:bg-accent/10 rounded transition-all"
+                  title="Copy Layer"
+                >
+                  <Copy size={14} />
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(layer.id);
+                  }}
+                  className="p-1.5 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                  disabled={layers.length <= 1}
+                  title="Delete Layer"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
 
-            <div className="flex-1 min-w-0">
-              <p className={cn(
-                "text-[10px] font-bold truncate uppercase tracking-tighter leading-tight",
-                !layer.visible && "opacity-40"
-              )}>
-                {layer.name}
-              </p>
-              <p className="text-[8px] opacity-40 font-mono">
-                {activeLayerId === layer.id ? "ACTIVE" : ""}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCopy(layer.id);
-                }}
-                className="p-1.5 hover:bg-accent/10 rounded transition-all"
-                title="Copy Layer"
-              >
-                <Copy size={14} />
-              </button>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(layer.id);
-                }}
-                className="p-1.5 hover:text-red-500 hover:bg-red-50 rounded transition-all"
-                disabled={layers.length <= 1}
-                title="Delete Layer"
-              >
-                <Trash2 size={14} />
-              </button>
+            {/* Opacity Slider */}
+            <div className="px-2 pb-1 space-y-1 animate-in fade-in duration-300">
+              <div className="flex justify-between items-center">
+                <span className="text-[8px] font-bold uppercase opacity-40">Opacity</span>
+                <span className="text-[8px] font-mono opacity-40">{layer.opacity ?? 100}%</span>
+              </div>
+              <Slider 
+                value={[layer.opacity ?? 100]} 
+                min={0} 
+                max={100} 
+                step={1} 
+                onValueChange={([val]) => onOpacityChange(layer.id, val)}
+                className="h-2"
+              />
             </div>
             
             {activeLayerId === layer.id && (

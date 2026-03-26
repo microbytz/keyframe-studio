@@ -89,7 +89,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const alpha = data[(y * width + x) * 4 + 3];
-        if (alpha > 5) { // Small threshold to ignore tiny noise
+        if (alpha > 5) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;
@@ -105,6 +105,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
   useImperativeHandle(ref, () => ({
     executeLassoAction: (action) => {
+      if (activeLayer.locked) return null;
       const points = lassoPointsRef.current;
       if (points.length < 3 || !mainCanvasRef.current) return null;
       const canvas = mainCanvasRef.current;
@@ -131,7 +132,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         img.onload = () => {
           setMovingSelection(img);
           setSelectionBounds(bounds);
-          // Redraw immediate preview
           const tCtx = tempCanvasRef.current?.getContext('2d');
           if (tCtx) {
             tCtx.clearRect(0, 0, width, height);
@@ -242,7 +242,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
           await new Promise((resolve) => {
             const img = new Image();
             img.src = layer.imageData;
-            img.onload = () => { oCtx.drawImage(img, 0, 0); resolve(null); };
+            img.onload = () => { 
+              oCtx.save();
+              oCtx.globalAlpha = (layer.opacity ?? 100) / 100;
+              oCtx.drawImage(img, 0, 0); 
+              oCtx.restore();
+              resolve(null); 
+            };
             img.onerror = () => resolve(null);
           });
         }
@@ -265,7 +271,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         await new Promise((resolve) => {
           const img = new Image();
           img.src = layer.imageData;
-          img.onload = () => { oCtx.drawImage(img, 0, 0); resolve(null); };
+          img.onload = () => { 
+            oCtx.save();
+            oCtx.globalAlpha = (layer.opacity ?? 100) / 100;
+            oCtx.drawImage(img, 0, 0); 
+            oCtx.restore();
+            resolve(null); 
+          };
           img.onerror = () => resolve(null);
         });
       }
@@ -281,7 +293,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    if (activeLayer?.imageData === lastRenderedImageDataRef.current && activeLayerId === lastRenderedActiveLayerIdRef.current) return;
+    if (activeLayer?.imageData === lastRenderedImageDataRef.current && activeLayerId === lastRenderedActiveLayerIdRef.current) {
+      canvas.style.opacity = ((activeLayer.opacity ?? 100) / 100).toString();
+      return;
+    }
 
     ctx.clearRect(0, 0, width, height);
     if (activeLayer?.imageData && activeLayer.visible) {
@@ -298,7 +313,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       lastRenderedImageDataRef.current = '';
       lastRenderedActiveLayerIdRef.current = activeLayerId;
     }
-  }, [activeLayerId, activeLayer?.imageData, activeLayer?.visible, width, height, tool]);
+    canvas.style.opacity = ((activeLayer.opacity ?? 100) / 100).toString();
+  }, [activeLayerId, activeLayer?.imageData, activeLayer?.visible, activeLayer?.opacity, width, height, tool]);
 
   const getPos = (e: React.PointerEvent) => {
     const canvas = mainCanvasRef.current;
@@ -355,7 +371,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   };
 
   const startDrawing = (e: React.PointerEvent) => {
-    if (isPlaying || !activeLayer.visible) return;
+    if (isPlaying || !activeLayer.visible || activeLayer.locked) return;
     const pos = getPos(e);
     
     if (tool === 'bucket') {
@@ -390,7 +406,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   };
 
   const draw = (e: React.PointerEvent) => {
-    if (!isDrawingRef.current || isPlaying || !activeLayer.visible) return;
+    if (!isDrawingRef.current || isPlaying || !activeLayer.visible || activeLayer.locked) return;
     const canvas = mainCanvasRef.current;
     const tCtx = tempCanvasRef.current?.getContext('2d');
     if (!canvas || !tCtx) return;
@@ -508,7 +524,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   };
 
   const stopDrawing = (e: React.PointerEvent) => {
-    if (!isDrawingRef.current) return;
+    if (!isDrawingRef.current || activeLayer.locked) return;
     isDrawingRef.current = false;
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
@@ -571,7 +587,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       <div className="absolute inset-0 bg-white" />
       <canvas ref={onionSkinCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none w-full h-full" />
       <canvas ref={compositeCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-0 w-full h-full" />
-      <canvas ref={mainCanvasRef} width={width} height={height} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerLeave={stopDrawing} className="absolute inset-0 touch-none block z-10 w-full h-full" style={{ cursor: isPlaying ? 'default' : (tool === 'move' ? 'move' : 'crosshair'), opacity: activeLayer.visible ? 1 : 0.3 }} />
+      <canvas ref={mainCanvasRef} width={width} height={height} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerLeave={stopDrawing} className="absolute inset-0 touch-none block z-10 w-full h-full" style={{ cursor: isPlaying || activeLayer.locked ? 'default' : (tool === 'move' ? 'move' : 'crosshair'), opacity: activeLayer.visible ? 1 : 0.3 }} />
       <canvas ref={tempCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-20 w-full h-full" />
     </div>
   );

@@ -75,6 +75,8 @@ export default function Home() {
     deleteLayer,
     reorderLayers,
     toggleLayerVisibility,
+    toggleLayerLock,
+    updateLayerOpacity,
     togglePlayback,
     toggleOnionSkin,
     saveProject,
@@ -394,7 +396,7 @@ export default function Home() {
         </div>
       </div>
 
-      {isLayersOpen && <LayersPanel layers={currentFrame.layers} activeLayerId={activeLayerId} onSetActive={setActiveLayerId} onAdd={addLayer} onCopy={copyLayer} onPaste={pasteLayer} hasCopiedLayer={hasCopiedLayer} onDelete={deleteLayer} onReorder={reorderLayers} onToggleVisibility={toggleLayerVisibility} onClose={() => setIsLayersOpen(false)} />}
+      {isLayersOpen && <LayersPanel layers={currentFrame.layers} activeLayerId={activeLayerId} onSetActive={setActiveLayerId} onAdd={addLayer} onCopy={copyLayer} onPaste={pasteLayer} hasCopiedLayer={hasCopiedLayer} onDelete={deleteLayer} onReorder={reorderLayers} onToggleVisibility={toggleLayerVisibility} onToggleLock={toggleLayerLock} onOpacityChange={updateLayerOpacity} onClose={() => setIsLayersOpen(false)} />}
 
       <Dialog open={isMultiDrawDialogOpen} onOpenChange={setIsMultiDrawDialogOpen}>
         <DialogContent className="sketch-card sm:max-w-xs">

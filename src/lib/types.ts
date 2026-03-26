@@ -32,6 +32,7 @@ export interface Layer {
   imageData: string;
   visible: boolean;
   locked?: boolean;
+  opacity: number;
 }
 
 export interface Frame {

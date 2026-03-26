@@ -14,6 +14,8 @@ const createNewLayer = (name: string): Layer => ({
   name,
   imageData: '',
   visible: true,
+  locked: false,
+  opacity: 100,
 });
 
 const createNewFrame = (): Frame => ({
@@ -226,7 +228,7 @@ export function useAnimationState() {
     const frame = { ...newFrames[currentFrameIndex] };
     
     const layerIdx = frame.layers.findIndex(l => l.id === activeLayerId);
-    if (layerIdx === -1) return;
+    if (layerIdx === -1 || frame.layers[layerIdx].locked) return;
 
     frame.layers = frame.layers.map((l, idx) => 
       idx === layerIdx ? { ...l, imageData: dataUrl } : l
@@ -238,7 +240,7 @@ export function useAnimationState() {
         const targetIdx = currentFrameIndex + i;
         if (targetIdx < newFrames.length) {
           const targetFrame = { ...newFrames[targetIdx] };
-          if (targetFrame.layers[layerIdx]) {
+          if (targetFrame.layers[layerIdx] && !targetFrame.layers[layerIdx].locked) {
             const targetLayers = [...targetFrame.layers];
             targetLayers[layerIdx] = { ...targetLayers[layerIdx], imageData: dataUrl };
             targetFrame.layers = targetLayers;
@@ -321,6 +323,28 @@ export function useAnimationState() {
     pushToHistory(newFrames);
   }, [project.frames, currentFrameIndex, pushToHistory]);
 
+  const toggleLayerLock = useCallback((layerId: string) => {
+    const newFrames = [...project.frames];
+    const frame = { ...newFrames[currentFrameIndex] };
+    frame.layers = frame.layers.map(l => 
+      l.id === layerId ? { ...l, locked: !l.locked } : l
+    );
+    newFrames[currentFrameIndex] = frame;
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
+  }, [project.frames, currentFrameIndex, pushToHistory]);
+
+  const updateLayerOpacity = useCallback((layerId: string, opacity: number) => {
+    const newFrames = [...project.frames];
+    const frame = { ...newFrames[currentFrameIndex] };
+    frame.layers = frame.layers.map(l => 
+      l.id === layerId ? { ...l, opacity: opacity } : l
+    );
+    newFrames[currentFrameIndex] = frame;
+    setProject(prev => ({ ...prev, frames: newFrames }));
+    pushToHistory(newFrames);
+  }, [project.frames, currentFrameIndex, pushToHistory]);
+
   const toggleOnionSkin = useCallback(() => {
     setProject(prev => ({ ...prev, onionSkinEnabled: !prev.onionSkinEnabled }));
   }, []);
@@ -328,7 +352,7 @@ export function useAnimationState() {
   const flipCurrentLayer = useCallback((axis: 'horizontal' | 'vertical') => {
     const frame = project.frames[currentFrameIndex];
     const layer = frame.layers.find(l => l.id === activeLayerId);
-    if (!layer || !layer.imageData) return;
+    if (!layer || !layer.imageData || layer.locked) return;
     const img = new Image();
     img.src = layer.imageData;
     img.onload = () => {
@@ -446,7 +470,10 @@ export function useAnimationState() {
             const img = new Image();
             img.src = layer.imageData;
             img.onload = () => {
+              ctx.save();
+              ctx.globalAlpha = (layer.opacity ?? 100) / 100;
               ctx.drawImage(img, 0, 0);
+              ctx.restore();
               resolve(null);
             };
             img.onerror = () => resolve(null);
@@ -520,6 +547,8 @@ export function useAnimationState() {
     deleteLayer,
     reorderLayers,
     toggleLayerVisibility,
+    toggleLayerLock,
+    updateLayerOpacity,
     togglePlayback,
     toggleOnionSkin,
     saveProject,
