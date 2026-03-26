@@ -1,7 +1,6 @@
-
 "use client"
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import { ToolType, Frame, Layer } from '@/lib/types';
 
 interface SketchCanvasProps {
@@ -20,6 +19,7 @@ interface SketchCanvasProps {
   opacity: number;
   hardness: number;
   onLayerUpdate: (dataUrl: string) => void;
+  onLassoSelect?: (hasSelection: boolean) => void;
   isPlaying: boolean;
   pressureEnabled?: boolean;
   stabilizationEnabled?: boolean;
@@ -28,7 +28,11 @@ interface SketchCanvasProps {
   customBrushData?: string | null;
 }
 
-export const SketchCanvas: React.FC<SketchCanvasProps> = ({
+export interface SketchCanvasHandle {
+  executeLassoAction: (action: 'cut' | 'copy' | 'select' | 'move') => string | null;
+}
+
+export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   width,
   height,
   frames,
@@ -44,13 +48,14 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   opacity,
   hardness,
   onLayerUpdate,
+  onLassoSelect,
   isPlaying,
   pressureEnabled = true,
   stabilizationEnabled = true,
   dynamicStampingEnabled = true,
   customBrushColorLink = true,
   customBrushData = null,
-}) => {
+}, ref) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const compositeCanvasRef = useRef<HTMLCanvasElement>(null);
   const onionSkinCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -69,6 +74,53 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
   const currentFrame = frames[currentFrameIndex];
   const activeLayer = currentFrame.layers.find(l => l.id === activeLayerId) || currentFrame.layers[0];
 
+  useImperativeHandle(ref, () => ({
+    executeLassoAction: (action) => {
+      if (lassoPoints.length < 3 || !mainCanvasRef.current) return null;
+      const canvas = mainCanvasRef.current;
+      const ctx = canvas.getContext('2d')!;
+      let resultData: string | null = null;
+
+      if (action === 'copy' || action === 'move') {
+        const offscreen = document.createElement('canvas');
+        offscreen.width = width;
+        offscreen.height = height;
+        const oCtx = offscreen.getContext('2d')!;
+        
+        oCtx.beginPath();
+        oCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+        lassoPoints.forEach(p => oCtx.lineTo(p.x, p.y));
+        oCtx.closePath();
+        oCtx.clip();
+        oCtx.drawImage(canvas, 0, 0);
+        resultData = offscreen.toDataURL();
+      }
+
+      if (action === 'cut' || action === 'move') {
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+        lassoPoints.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        
+        const dataUrl = canvas.toDataURL();
+        lastRenderedImageDataRef.current = dataUrl;
+        lastRenderedActiveLayerIdRef.current = activeLayerId;
+        onLayerUpdate(dataUrl);
+      }
+
+      if (action !== 'select') {
+        setLassoPoints([]);
+        onLassoSelect?.(false);
+      }
+
+      return resultData;
+    }
+  }));
+
   useEffect(() => {
     if (customBrushData) {
       const img = new Image();
@@ -79,7 +131,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     }
   }, [customBrushData]);
 
-  // Onion skinning logic
   useEffect(() => {
     const ctx = onionSkinCanvasRef.current?.getContext('2d');
     if (!ctx) return;
@@ -146,7 +197,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     return () => { isCancelled = true; };
   }, [onionSkinEnabled, advancedOnionSkinEnabled, onionSkinBefore, onionSkinAfter, currentFrameIndex, frames, isPlaying, width, height]);
 
-  // Composite Rendering
   useEffect(() => {
     const compositeCtx = compositeCanvasRef.current?.getContext('2d');
     if (!compositeCtx) return;
@@ -184,7 +234,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     return () => { isCancelled = true; };
   }, [currentFrame, activeLayerId, width, height]);
 
-  // Main canvas initialization
   useEffect(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
@@ -385,6 +434,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       tCtx.beginPath();
       tCtx.strokeStyle = '#82C9C9';
       tCtx.setLineDash([5, 5]);
+      tCtx.lineWidth = 1;
       tCtx.moveTo(lassoPoints[0]?.x, lassoPoints[0]?.y);
       lassoPoints.forEach(p => tCtx.lineTo(p.x, p.y));
       tCtx.lineTo(pos.x, pos.y);
@@ -407,7 +457,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       return;
     }
 
-    // Apply stabilization if enabled
     if (stabilizationEnabled) {
       const factor = 0.25; 
       pos.x = lastPos.x + (pos.x - lastPos.x) * factor;
@@ -454,7 +503,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.restore();
       };
 
-      // Toggleable spacing: High spacing for "Stamp Look", low for smooth stroke
       const spacing = dynamicStampingEnabled 
         ? effectiveBrushSize * 1.1 
         : Math.max(1, effectiveBrushSize / 10);
@@ -573,24 +621,30 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       drawShape(ctx, startPos.x, startPos.y, pos.x, pos.y, tool);
       ctx.restore();
       handleUpdate();
-    } else if (tool === 'lasso' && lassoPoints.length > 2) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath();
-      ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
-      lassoPoints.forEach(p => ctx.lineTo(p.x, p.y));
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-      handleUpdate();
-      setLassoPoints([]);
+    } else if (tool === 'lasso') {
+      if (lassoPoints.length > 2) {
+        onLassoSelect?.(true);
+        const tCtx = tempCanvasRef.current?.getContext('2d')!;
+        tCtx.clearRect(0, 0, width, height);
+        tCtx.beginPath();
+        tCtx.strokeStyle = '#82C9C9';
+        tCtx.setLineDash([5, 5]);
+        tCtx.lineWidth = 2;
+        tCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+        lassoPoints.forEach(p => tCtx.lineTo(p.x, p.y));
+        tCtx.closePath();
+        tCtx.stroke();
+        tCtx.setLineDash([]);
+      } else {
+        onLassoSelect?.(false);
+      }
     } else if (tool !== 'bucket') {
       handleUpdate();
     }
     
     if (tool === 'move') setDragStartImage(null);
     const tCtx = tempCanvasRef.current?.getContext('2d');
-    if (tCtx) tCtx.clearRect(0, 0, width, height);
+    if (tCtx && tool !== 'lasso') tCtx.clearRect(0, 0, width, height);
   };
 
   return (
@@ -612,4 +666,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
       <canvas ref={tempCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-20 w-full h-full" />
     </div>
   );
-};
+});
+
+SketchCanvas.displayName = 'SketchCanvas';

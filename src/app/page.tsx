@@ -1,15 +1,14 @@
-
 "use client"
 
 import React, { useState, useRef } from 'react';
 import { useAnimationState } from '@/hooks/use-animation-state';
-import { SketchCanvas } from '@/components/editor/SketchCanvas';
+import { SketchCanvas, SketchCanvasHandle } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { Timeline } from '@/components/editor/Timeline';
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { LayersPanel } from '@/components/editor/LayersPanel';
-import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2, Sparkles, Plus, Trash2, Zap, Ghost } from 'lucide-react';
+import { Save, FolderOpen, Layers, Settings2, Settings, Download, Upload, Video, Loader2, Sparkles, Plus, Trash2, Zap, Ghost, Scissors, Copy, Move, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -87,13 +86,16 @@ export default function Home() {
     redo,
     flipCurrentLayer,
     canUndo,
-    canRedo
+    canRedo,
+    setCopiedLayerData
   } = useAnimationState();
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
   const [isMultiDrawDialogOpen, setIsMultiDrawDialogOpen] = useState(false);
   const [tempRange, setTempRange] = useState(multiDrawRange.toString());
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [hasLassoSelection, setHasLassoSelection] = useState(false);
+  const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Group Management State
@@ -151,6 +153,19 @@ export default function Home() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadProject(file);
+  };
+
+  const handleLassoAction = (action: 'cut' | 'copy' | 'select' | 'move') => {
+    const result = canvasRef.current?.executeLassoAction(action);
+    if (result && (action === 'copy' || action === 'move')) {
+      setCopiedLayerData({ name: 'Selection', imageData: result });
+    }
+    if (action === 'move') {
+      setTool('move');
+    }
+    if (action !== 'select') {
+      setHasLassoSelection(false);
+    }
   };
 
   return (
@@ -344,15 +359,33 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row flex-1 w-full max-w-7xl items-center md:items-start py-4 md:py-6">
+      <div className="flex flex-col md:flex-row flex-1 w-full max-w-7xl items-center md:items-start py-4 md:py-6 relative">
         <div className="w-full md:w-auto px-4 mb-4 md:mb-0 md:flex-none md:sticky md:top-20 z-40">
           <Toolbar currentTool={tool} setTool={setTool} undo={undo} redo={redo} flip={flipCurrentLayer} canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled} />
         </div>
 
         <div className="flex-1 flex flex-col items-center px-4 gap-4 md:gap-6 pb-20 w-full overflow-hidden">
+          {tool === 'lasso' && (
+            <div className="flex items-center gap-2 bg-white p-2 sketch-border animate-in slide-in-from-top duration-300 z-30 shadow-md">
+               <span className="text-[10px] font-bold uppercase opacity-50 mr-2 px-2 border-r">Lasso Active</span>
+               <button onClick={() => handleLassoAction('cut')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-red-50 px-2 py-1 rounded border transition-colors">
+                  <Scissors size={12} /> Cut
+               </button>
+               <button onClick={() => handleLassoAction('copy')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-blue-50 px-2 py-1 rounded border transition-colors">
+                  <Copy size={12} /> Cut & Copy
+               </button>
+               <button onClick={() => handleLassoAction('select')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-accent/20 px-2 py-1 rounded border transition-colors">
+                  <Check size={12} /> Select
+               </button>
+               <button onClick={() => handleLassoAction('move')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-orange-50 px-2 py-1 rounded border transition-colors">
+                  <Move size={12} /> Select & Move
+               </button>
+            </div>
+          )}
+          
           <div className="w-full max-w-full flex justify-center">
             <div className="shadow-xl bg-white sketch-border overflow-hidden w-full max-w-[800px]">
-              <SketchCanvas width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} onionSkinBefore={project.onionSkinBefore} onionSkinAfter={project.onionSkinAfter} tool={tool} color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} dynamicStampingEnabled={dynamicStampingEnabled} customBrushColorLink={customBrushColorLink} customBrushData={customBrushData} />
+              <SketchCanvas ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} onionSkinBefore={project.onionSkinBefore} onionSkinAfter={project.onionSkinAfter} tool={tool} color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} onLassoSelect={setHasLassoSelection} isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} dynamicStampingEnabled={dynamicStampingEnabled} customBrushColorLink={customBrushColorLink} customBrushData={customBrushData} />
             </div>
           </div>
           
@@ -423,7 +456,7 @@ export default function Home() {
       </Dialog>
 
       <div className="mt-auto h-8 flex items-center justify-center w-full text-[8px] md:text-[10px] opacity-40 uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
-        Tip: Groups allow you to change speed for specific parts of your animation!
+        Tip: The Lasso tool now has a rope icon! Use the top bar for Cut, Copy, and Move actions.
       </div>
     </main>
   );

@@ -6,7 +6,7 @@ import {
   Pencil, 
   Eraser, 
   PaintBucket, 
-  Scissors, 
+  Lasso as LassoIcon, 
   Undo2, 
   Redo2,
   Paintbrush,
@@ -102,7 +102,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'move', icon: Move, label: 'Move / Transform' },
     { id: 'eraser', icon: Eraser, label: 'Eraser' },
     { id: 'bucket', icon: PaintBucket, label: 'Fill' },
-    { id: 'lasso', icon: Scissors, label: 'Lasso' },
+    { id: 'lasso', icon: LassoIcon, label: 'Lasso Selection' },
   ];
 
   const activeBrush = brushTools.find(t => t.id === currentTool) || brushTools[0];
