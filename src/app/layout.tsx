@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import './globals.css';
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: 'SketchFlow Studio - 2D Animation',
@@ -20,6 +21,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground selection:bg-accent/30">
         {children}
+        <Toaster />
       </body>
     </html>
   );

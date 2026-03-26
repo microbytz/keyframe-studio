@@ -1,9 +1,9 @@
-
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, BlendMode, SavedBrush } from '@/lib/types';
 import gifshot from 'gifshot';
+import { useToast } from "@/hooks/use-toast";
 
 const INITIAL_FPS = 12;
 const CANVAS_WIDTH = 800;
@@ -27,6 +27,7 @@ const createNewFrame = (): Frame => ({
 });
 
 export function useAnimationState() {
+  const { toast } = useToast();
   const [project, setProject] = useState<AnimationProject>({
     id: 'default',
     name: 'Untitled Sketch',
@@ -415,38 +416,65 @@ export function useAnimationState() {
   const saveProject = useCallback(() => {
     try {
       localStorage.setItem('sketchflow_project', JSON.stringify(project));
-    } catch (e) {
-      console.error("Failed to save to localStorage (likely size limit). Use Download instead.", e);
+      toast({
+        title: "Project Saved!",
+        description: "Your animation has been saved to your browser's local storage.",
+      });
+    } catch (e: any) {
+      console.error("Failed to save to localStorage", e);
+      toast({
+        variant: "destructive",
+        title: "Save Failed",
+        description: e.name === 'QuotaExceededError' 
+          ? "Browser storage is full. Please use the 'Download Project' button instead."
+          : "Could not save your project. Check the console for more details.",
+      });
     }
-  }, [project]);
+  }, [project, toast]);
 
   const loadProject = useCallback(() => {
-    const saved = localStorage.getItem('sketchflow_project');
-    if (saved) {
-      try {
-        const loadedProject = JSON.parse(saved);
-        if (!loadedProject.frames || loadedProject.frames.length === 0) return;
-        
-        // Ensure defaults for missing fields
-        if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
-        if (!loadedProject.groups) loadedProject.groups = [];
-        
-        setProject(loadedProject);
-        historyRef.current = [loadedProject.frames];
-        historyIndexRef.current = 0;
-        updateHistoryState();
-        setCurrentFrameIndex(0);
-        setSelectedFrameIndices([0]);
-        setActiveLayerId(loadedProject.frames[0].layers[0].id);
-      } catch (err) {
-        console.error("Failed to parse project from storage", err);
+    try {
+      const saved = localStorage.getItem('sketchflow_project');
+      if (!saved) {
+        toast({
+          title: "No Saved Project Found",
+          description: "Try downloading your project and uploading it later to keep it safe!",
+        });
+        return;
       }
+      
+      const loadedProject = JSON.parse(saved);
+      if (!loadedProject.frames || loadedProject.frames.length === 0) return;
+      
+      if (!loadedProject.savedBrushes) loadedProject.savedBrushes = [];
+      if (!loadedProject.groups) loadedProject.groups = [];
+      
+      setProject(loadedProject);
+      historyRef.current = [loadedProject.frames];
+      historyIndexRef.current = 0;
+      updateHistoryState();
+      setCurrentFrameIndex(0);
+      setSelectedFrameIndices([0]);
+      setActiveLayerId(loadedProject.frames[0].layers[0].id);
+      
+      toast({
+        title: "Project Loaded",
+        description: "Successfully restored your last session.",
+      });
+    } catch (err) {
+      console.error("Failed to parse project from storage", err);
+      toast({
+        variant: "destructive",
+        title: "Load Failed",
+        description: "The saved project data is corrupted or invalid.",
+      });
     }
-  }, [updateHistoryState]);
+  }, [updateHistoryState, toast]);
 
   const handleCustomBrushSave = useCallback((dataUrl: string, name: string, keepInPens: boolean) => {
     setCustomBrushData(dataUrl);
     handleSetTool('custom');
+    
     if (keepInPens) {
       setProject(prev => {
         const newBrush: SavedBrush = {
@@ -458,14 +486,25 @@ export function useAnimationState() {
           ...prev,
           savedBrushes: [...(prev.savedBrushes || []), newBrush]
         };
+        
         // Auto-persist immediately
         try {
           localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
-        } catch (e) {}
+          toast({
+            title: "Brush Tip Saved!",
+            description: `${newBrush.name} is now available in your pens collection.`,
+          });
+        } catch (e) {
+          toast({
+            variant: "destructive",
+            title: "Could not save tip",
+            description: "Browser storage might be full.",
+          });
+        }
         return nextProject;
       });
     }
-  }, [handleSetTool]);
+  }, [handleSetTool, toast]);
 
   const deleteSavedBrush = useCallback((brushId: string) => {
     setProject(prev => {
@@ -475,10 +514,14 @@ export function useAnimationState() {
       };
       try {
         localStorage.setItem('sketchflow_project', JSON.stringify(nextProject));
+        toast({
+          title: "Brush Deleted",
+          description: "Tip removed from your collection.",
+        });
       } catch (e) {}
       return nextProject;
     });
-  }, []);
+  }, [toast]);
 
   const togglePlayback = useCallback(() => {
     setIsPlaying(prev => !prev);
@@ -542,7 +585,11 @@ export function useAnimationState() {
     link.download = `${project.name.replace(/\s+/g, '_')}.sketchflow`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [project]);
+    toast({
+      title: "Project Downloaded",
+      description: "SketchFlow file has been saved to your device.",
+    });
+  }, [project, toast]);
 
   const uploadProject = useCallback((file: File) => {
     const reader = new FileReader();
@@ -560,12 +607,22 @@ export function useAnimationState() {
         setCurrentFrameIndex(0);
         setSelectedFrameIndices([0]);
         setActiveLayerId(loadedProject.frames[0].layers[0].id);
+        
+        toast({
+          title: "Project Imported",
+          description: "Successfully loaded your animation file.",
+        });
       } catch (err) {
         console.error("Failed to parse project file", err);
+        toast({
+          variant: "destructive",
+          title: "Import Failed",
+          description: "This file does not appear to be a valid SketchFlow project.",
+        });
       }
     };
     reader.readAsText(file);
-  }, [updateHistoryState]);
+  }, [updateHistoryState, toast]);
 
   const exportToGif = useCallback(async () => {
     setIsExporting(true);
@@ -596,6 +653,7 @@ export function useAnimationState() {
       }
       return canvas.toDataURL('image/png');
     }));
+    
     gifshot.createGIF({
       images,
       interval: 1 / project.fps,
@@ -608,11 +666,20 @@ export function useAnimationState() {
         link.href = obj.image;
         link.download = `${project.name.replace(/\s+/g, '_')}.gif`;
         link.click();
+        toast({
+          title: "Export Complete!",
+          description: "Your GIF has been generated and downloaded.",
+        });
       } else {
         console.error("GIF generation error:", obj.error);
+        toast({
+          variant: "destructive",
+          title: "Export Failed",
+          description: "Something went wrong while creating the GIF.",
+        });
       }
     });
-  }, [project]);
+  }, [project, toast]);
 
   return {
     project,
