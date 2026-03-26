@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -22,7 +23,6 @@ import {
   Sparkles, 
   Plus, 
   Trash2, 
-  Zap, 
   Ghost, 
   Scissors, 
   Copy, 
@@ -33,7 +33,9 @@ import {
   Mic,
   Volume2,
   History,
-  FileClock
+  FileClock,
+  Briefcase,
+  Paintbrush
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -233,34 +235,55 @@ export default function Home() {
       <AIPanel />
 
       {/* Header / Top Bar */}
-      <div className="w-full flex items-center justify-between h-auto md:h-14 p-2 md:px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-[60]">
-        <div className="flex flex-wrap items-center gap-2 md:gap-4">
-          <h1 className="text-base md:text-lg font-bold italic tracking-tighter text-primary">
+      <div className="w-full flex items-center justify-between h-14 p-2 md:px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-[60]">
+        <div className="flex items-center gap-3 min-w-0">
+          <h1 className="text-base md:text-lg font-bold italic tracking-tighter text-primary shrink-0">
             SketchFlow <span className="text-accent">Studio</span>
           </h1>
           
           <div className="flex items-center gap-1 bg-white p-1 sketch-border">
-            <button onClick={toggleOnionSkin} className={cn("p-1.5 hover:bg-accent transition-all rounded", project.onionSkinEnabled ? "bg-accent" : "transparent")} title="Onion Skinning">
+            {/* Quick Toggle Onion Skin */}
+            <button onClick={toggleOnionSkin} className={cn("p-1.5 hover:bg-accent transition-all rounded", project.onionSkinEnabled ? "bg-accent" : "transparent")} title="Toggle Onion Skinning">
               <Layers size={14} className="md:w-4 md:h-4" />
             </button>
-            <button onClick={() => saveProject()} className="p-1.5 hover:bg-accent transition-all rounded" title="Quick Save (Browser)">
-              <Save size={14} className="md:w-4 md:h-4" />
-            </button>
-            <button onClick={loadProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Quick Load (Browser)">
-              <FolderOpen size={14} className="md:w-4 md:h-4" />
-            </button>
+
             <div className="w-px h-4 bg-foreground/10 mx-1" />
-            
+
+            {/* Project Hub */}
             <Popover>
               <PopoverTrigger asChild>
-                <button className="p-1.5 hover:bg-accent transition-all rounded" title="Project Versions">
-                  <History size={14} className="md:w-4 md:h-4" />
+                <button className="p-1.5 hover:bg-accent transition-all rounded flex items-center gap-1.5" title="Project Actions">
+                  <Briefcase size={14} className="md:w-4 md:h-4" />
+                  <span className="text-[10px] font-bold uppercase hidden md:inline">Project</span>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="start">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">Project Snapshots</h4>
-                
-                <div className="space-y-2">
+              <PopoverContent className="w-72 sketch-card p-4 space-y-4" side="bottom" align="start">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Project Actions</h4>
+                    {isAutoSaving && <span className="text-[8px] text-accent animate-pulse font-bold">Auto-saving...</span>}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => saveProject()} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors">
+                      <Save size={12} /> Save Local
+                    </button>
+                    <button onClick={loadProject} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors">
+                      <FolderOpen size={12} /> Load Local
+                    </button>
+                    <button onClick={downloadProject} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors">
+                      <Download size={12} /> Download .sketch
+                    </button>
+                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-[10px] font-bold uppercase p-2 hover:bg-accent/10 rounded border transition-colors">
+                      <Upload size={12} /> Upload .sketch
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2 border-t">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                    <History size={12} /> History Snapshots
+                  </h4>
                   <div className="flex gap-2">
                     <Input 
                       placeholder="Snapshot Name" 
@@ -268,39 +291,35 @@ export default function Home() {
                       onChange={(e) => setVersionName(e.target.value)} 
                       className="sketch-border h-8 text-[10px]"
                     />
-                    <Button 
-                      size="sm" 
-                      onClick={() => { saveVersion(versionName); setVersionName(''); }}
-                      className="bg-accent h-8 px-2"
-                    >
+                    <Button size="sm" onClick={() => { saveVersion(versionName); setVersionName(''); }} className="bg-accent h-8 px-2">
                       <Plus size={14} />
                     </Button>
                   </div>
+                  <ScrollArea className="h-40">
+                    <div className="space-y-2 pr-2">
+                      {project.versions?.length ? [...project.versions].reverse().map((v) => (
+                        <div key={v.id} className="p-2 border sketch-border bg-slate-50 flex items-center justify-between group">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-bold truncate">{v.name}</p>
+                            <p className="text-[8px] opacity-40">{new Date(v.timestamp).toLocaleString()}</p>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => loadVersion(v.id)} className="p-1 hover:text-accent" title="Restore"><FileClock size={12} /></button>
+                            <button onClick={() => deleteVersion(v.id)} className="p-1 hover:text-red-500" title="Delete"><Trash2 size={12} /></button>
+                          </div>
+                        </div>
+                      )) : (
+                        <p className="text-[10px] italic opacity-40 text-center py-4">No snapshots saved yet.</p>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </div>
-
-                <ScrollArea className="h-48">
-                  <div className="space-y-2 pr-2">
-                    {project.versions?.length ? [...project.versions].reverse().map((v) => (
-                      <div key={v.id} className="p-2 border sketch-border bg-slate-50 flex items-center justify-between group">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-bold truncate">{v.name}</p>
-                          <p className="text-[8px] opacity-40">{new Date(v.timestamp).toLocaleString()}</p>
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => loadVersion(v.id)} className="p-1 hover:text-accent" title="Restore"><FileClock size={12} /></button>
-                          <button onClick={() => deleteVersion(v.id)} className="p-1 hover:text-red-500" title="Delete"><Trash2 size={12} /></button>
-                        </div>
-                      </div>
-                    )) : (
-                      <p className="text-[10px] italic opacity-40 text-center py-4">No snapshots saved yet.</p>
-                    )}
-                  </div>
-                </ScrollArea>
               </PopoverContent>
             </Popover>
 
             <div className="w-px h-4 bg-foreground/10 mx-1" />
             
+            {/* Audio Hub */}
             <Popover>
               <PopoverTrigger asChild>
                 <button className="p-1.5 hover:bg-accent transition-all rounded relative" title="Audio Hub">
@@ -309,222 +328,114 @@ export default function Home() {
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-48 sketch-card p-2 space-y-1" side="bottom" align="start">
-                 <button 
-                  onClick={() => audioInputRef.current?.click()}
-                  className="w-full text-left px-3 py-2 hover:bg-accent/10 rounded text-[10px] font-bold uppercase flex items-center gap-2"
-                 >
+                 <button onClick={() => audioInputRef.current?.click()} className="w-full text-left px-3 py-2 hover:bg-accent/10 rounded text-[10px] font-bold uppercase flex items-center gap-2">
                    <Upload size={12} /> Import Audio
                  </button>
-                 <button 
-                  onClick={scrollToAudio}
-                  className="w-full text-left px-3 py-2 hover:bg-accent/10 rounded text-[10px] font-bold uppercase flex items-center gap-2"
-                 >
+                 <button onClick={scrollToAudio} className="w-full text-left px-3 py-2 hover:bg-accent/10 rounded text-[10px] font-bold uppercase flex items-center gap-2">
                    <Mic size={12} /> Record Live
                  </button>
                  {project.audioData && (
-                   <button 
-                    onClick={removeAudio}
-                    className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-500 rounded text-[10px] font-bold uppercase flex items-center gap-2"
-                   >
+                   <button onClick={removeAudio} className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-500 rounded text-[10px] font-bold uppercase flex items-center gap-2">
                      <Trash2 size={12} /> Clear Track
                    </button>
                  )}
               </PopoverContent>
             </Popover>
-            <input type="file" ref={audioInputRef} onChange={handleAudioUpload} accept="audio/*" className="hidden" />
 
             <div className="w-px h-4 bg-foreground/10 mx-1" />
-            <button onClick={downloadProject} className="p-1.5 hover:bg-accent transition-all rounded" title="Download Project File">
-              <Download size={14} className="md:w-4 md:h-4" />
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-accent transition-all rounded" title="Upload Project File">
-              <Upload size={14} className="md:w-4 md:h-4" />
-            </button>
-            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".sketchflow,.json" className="hidden" />
-            <div className="w-px h-4 bg-foreground/10 mx-1" />
-            
+
+            {/* Export GIF Hub */}
             <Popover>
               <PopoverTrigger asChild>
-                <button disabled={isExporting} className="p-1.5 hover:bg-accent transition-all rounded flex items-center gap-1 group" title="Export Settings">
+                <button disabled={isExporting} className="p-1.5 hover:bg-accent transition-all rounded flex items-center gap-1.5 group" title="Export Settings">
                   {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} className="md:w-4 md:h-4" />}
-                  <span className="text-[10px] font-bold hidden md:inline uppercase group-hover:text-primary transition-colors">Export GIF</span>
+                  <span className="text-[10px] font-bold hidden md:inline uppercase">Export</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="start">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">GIF Export Settings</h4>
-                
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase opacity-60">Output Resolution</Label>
-                  <Select value={exportScale} onValueChange={setExportScale}>
-                    <SelectTrigger className="sketch-border h-8 text-xs font-bold">
-                      <SelectValue placeholder="Resolution" />
-                    </SelectTrigger>
-                    <SelectContent className="sketch-card">
-                      <SelectItem value="0.5" className="text-xs">0.5x (Small - 400px)</SelectItem>
-                      <SelectItem value="1" className="text-xs">1.0x (Standard - 800px)</SelectItem>
-                      <SelectItem value="1.5" className="text-xs">1.5x (Large - 1200px)</SelectItem>
-                      <SelectItem value="2" className="text-xs">2.0x (Full HD - 1600px)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase opacity-60">Frame Range</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <span className="text-[8px] uppercase font-bold opacity-40">From</span>
-                      <Input 
-                        type="number" 
-                        min="1" 
-                        max={project.frames.length} 
-                        value={exportStartFrame} 
-                        onChange={(e) => setExportStartFrame(e.target.value)}
-                        className="sketch-border h-7 text-[10px]"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[8px] uppercase font-bold opacity-40">To</span>
-                      <Input 
-                        type="number" 
-                        min="1" 
-                        max={project.frames.length} 
-                        value={exportEndFrame} 
-                        onChange={(e) => setExportEndFrame(e.target.value)}
-                        className="sketch-border h-7 text-[10px]"
-                      />
+                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2">GIF Export Settings</h4>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase opacity-60">Resolution</Label>
+                    <Select value={exportScale} onValueChange={setExportScale}>
+                      <SelectTrigger className="sketch-border h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
+                      <SelectContent className="sketch-card">
+                        <SelectItem value="0.5" className="text-xs">0.5x (Small)</SelectItem>
+                        <SelectItem value="1" className="text-xs">1.0x (Standard)</SelectItem>
+                        <SelectItem value="2" className="text-xs">2.0x (Full HD)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase opacity-60">Frame Range</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input type="number" min="1" max={project.frames.length} value={exportStartFrame} onChange={(e) => setExportStartFrame(e.target.value)} className="sketch-border h-8 text-[10px]" />
+                      <Input type="number" min="1" max={project.frames.length} value={exportEndFrame} onChange={(e) => setExportEndFrame(e.target.value)} className="sketch-border h-8 text-[10px]" />
                     </div>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between space-x-2 pt-2">
-                  <div className="flex flex-col">
-                    <Label htmlFor="transparent-export" className="text-xs font-bold">Transparent Background</Label>
-                    <span className="text-[8px] opacity-50 uppercase">Best for stickers/overlays</span>
+                  <div className="flex items-center justify-between pt-1">
+                    <Label className="text-xs font-bold">Transparency</Label>
+                    <Switch checked={exportTransparent} onCheckedChange={setExportTransparent} />
                   </div>
-                  <Switch id="transparent-export" checked={exportTransparent} onCheckedChange={setExportTransparent} />
+                  <Button 
+                    onClick={() => exportToGif({ scale: parseFloat(exportScale), transparent: exportTransparent, startFrame: parseInt(exportStartFrame) - 1, endFrame: parseInt(exportEndFrame) - 1 })} 
+                    disabled={isExporting}
+                    className="w-full bg-accent hover:bg-accent/90 text-primary font-bold uppercase text-[10px] sketch-border h-9"
+                  >
+                    {isExporting ? <Loader2 className="animate-spin mr-2" size={14} /> : <Download size={14} className="mr-2" />}
+                    Generate GIF
+                  </Button>
                 </div>
-
-                <Button 
-                  onClick={() => exportToGif({ 
-                    scale: parseFloat(exportScale), 
-                    transparent: exportTransparent,
-                    startFrame: parseInt(exportStartFrame) - 1,
-                    endFrame: parseInt(exportEndFrame) - 1
-                  })} 
-                  disabled={isExporting}
-                  className="w-full mt-2 bg-accent hover:bg-accent/90 text-primary font-bold uppercase text-[10px] sketch-border h-9"
-                >
-                  {isExporting ? <Loader2 className="animate-spin mr-2" size={14} /> : <Download size={14} className="mr-2" />}
-                  Generate GIF
-                </Button>
               </PopoverContent>
             </Popover>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3 bg-white px-2 py-1 sketch-border">
-            <div className="flex items-center">
-              <div className="w-5 h-5 sketch-border cursor-pointer overflow-hidden relative" style={{ backgroundColor: color }}>
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
-              </div>
-            </div>
-            
+          {/* Brush & Drawing Settings Hub */}
+          <div className="flex items-center gap-1 bg-white p-1 sketch-border">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="flex items-center gap-2 hover:bg-accent/10 px-1 py-0.5 rounded transition-colors">
-                  <span className="text-[10px] font-bold w-6">{brushSize}px</span>
-                  <Settings2 size={12} className="opacity-50" />
+                <button className="p-1.5 hover:bg-accent transition-all rounded flex items-center gap-2" title="Brush Settings">
+                  <Paintbrush size={14} className="md:w-4 md:h-4" />
+                  <span className="text-[10px] font-bold w-6 hidden md:inline">{brushSize}px</span>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="end">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-tighter">Size</label>
-                    <span className="text-[10px] font-mono">{brushSize}px</span>
+              <PopoverContent className="w-64 sketch-card p-4 space-y-4" side="bottom" align="start">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Brush Settings</h4>
+                    <div className="w-6 h-6 sketch-border relative" style={{ backgroundColor: color }}>
+                      <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    </div>
                   </div>
-                  <input type="range" min="1" max="100" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-tighter">Opacity</label>
-                    <span className="text-[10px] font-mono">{opacity}%</span>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between"><Label className="text-[10px] font-bold uppercase">Size</Label><span className="text-[10px] font-mono">{brushSize}px</span></div>
+                      <input type="range" min="1" max="100" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between"><Label className="text-[10px] font-bold uppercase">Opacity</Label><span className="text-[10px] font-mono">{opacity}%</span></div>
+                      <input type="range" min="1" max="100" value={opacity} onChange={(e) => setOpacity(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
+                    </div>
                   </div>
-                  <input type="range" min="1" max="100" value={opacity} onChange={(e) => setOpacity(parseInt(e.target.value))} className="w-full h-1 accent-accent cursor-pointer" />
                 </div>
               </PopoverContent>
             </Popover>
 
             <Popover>
               <PopoverTrigger asChild>
-                <button className="p-1 hover:bg-accent/10 rounded transition-colors">
-                  <Settings size={14} className="opacity-70" />
+                <button className="p-1.5 hover:bg-accent transition-all rounded" title="Editor Configuration">
+                  <Settings size={14} className="md:w-4 md:h-4 opacity-70" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 sketch-card p-4 space-y-4 max-h-[80vh] overflow-y-auto" side="bottom" align="end">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2 mb-2">Editor Settings</h4>
-                
-                <div className="pt-2 border-t mt-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Backup & Safety</h4>
-                  <div className="flex items-center justify-between space-x-2">
-                    <div className="flex flex-col">
-                      <Label htmlFor="auto-save" className="text-xs">Auto-save to browser</Label>
-                      <span className="text-[8px] opacity-40 uppercase">Saves every 5s</span>
-                    </div>
-                    <Switch id="auto-save" checked={project.autoSaveEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, autoSaveEnabled: checked }))} />
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t mt-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Drawing Aids</h4>
-                  <div className="flex items-center justify-between space-x-2">
-                    <Label htmlFor="pressure-mode" className="text-xs">Pressure Sensitivity</Label>
-                    <Switch id="pressure-mode" checked={pressureEnabled} onCheckedChange={setPressureEnabled} />
-                  </div>
-                  <div className="flex items-center justify-between space-x-2">
-                    <Label htmlFor="stabilization-mode" className="text-xs">Line Stabilization</Label>
-                    <Switch id="stabilization-mode" checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} />
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t mt-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Ghost size={12} className="text-accent" />
-                    Onion Skinning
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between space-x-2">
-                      <Label htmlFor="main-onion-toggle" className="text-xs font-bold">Enable Onion Skin</Label>
-                      <Switch id="main-onion-toggle" checked={project.onionSkinEnabled} onCheckedChange={toggleOnionSkin} />
-                    </div>
-                    <div className="flex items-center justify-between space-x-2">
-                      <Label htmlFor="advanced-skin" className="text-xs">Multi-Skin Mode</Label>
-                      <Switch id="advanced-skin" checked={project.advancedOnionSkinEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, advancedOnionSkinEnabled: checked }))} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t mt-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Volume2 size={12} className="text-accent" />
-                    Audio Sync
-                  </h4>
-                  <div className="flex items-center justify-between space-x-2">
-                    <Label htmlFor="scrub-sound" className="text-xs">Scrub with Sound</Label>
-                    <Switch id="scrub-sound" checked={project.scrubWithSound} onCheckedChange={(checked) => setProject(p => ({ ...p, scrubWithSound: checked }))} />
-                  </div>
-                </div>
-                
-                <div className="pt-2 border-t mt-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3">Sync Tools</h4>
-                  <div className="flex items-center justify-between space-x-2">
-                    <div className="flex flex-col">
-                      <Label htmlFor="multi-draw" className="text-xs">Multi Draw across frames</Label>
-                      {isMultiDrawEnabled && (
-                        <button onClick={() => setIsMultiDrawDialogOpen(true)} className="text-[8px] text-accent uppercase font-bold text-left hover:underline">
-                          Extent: {multiDrawRange} Frames
-                        </button>
-                      )}
-                    </div>
-                    <Switch id="multi-draw" checked={isMultiDrawEnabled} onCheckedChange={(checked) => { setIsMultiDrawEnabled(checked); if (checked) setIsMultiDrawDialogOpen(true); }} />
+              <PopoverContent className="w-64 sketch-card p-4 space-y-4 max-h-[80vh] overflow-y-auto" side="bottom" align="start">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2">Editor Preferences</h4>
+                <div className="space-y-4 pt-1">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between"><Label className="text-xs">Auto-save</Label><Switch checked={project.autoSaveEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, autoSaveEnabled: checked }))} /></div>
+                    <div className="flex items-center justify-between"><Label className="text-xs">Pressure Sensitivity</Label><Switch checked={pressureEnabled} onCheckedChange={setPressureEnabled} /></div>
+                    <div className="flex items-center justify-between"><Label className="text-xs">Line Stabilization</Label><Switch checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} /></div>
+                    <div className="flex items-center justify-between"><Label className="text-xs">Scrub with Sound</Label><Switch checked={project.scrubWithSound} onCheckedChange={(checked) => setProject(p => ({ ...p, scrubWithSound: checked }))} /></div>
+                    <div className="flex items-center justify-between"><Label className="text-xs">Multi-Draw Mode</Label><Switch checked={isMultiDrawEnabled} onCheckedChange={setIsMultiDrawEnabled} /></div>
                   </div>
                 </div>
               </PopoverContent>
@@ -532,7 +443,7 @@ export default function Home() {
           </div>
         </div>
         
-        <div className="flex items-center">
+        <div className="flex items-center shrink-0">
           <PlaybackControls 
             isPlaying={isPlaying}
             togglePlayback={togglePlayback}
@@ -547,6 +458,9 @@ export default function Home() {
           />
         </div>
       </div>
+
+      <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".sketchflow,.json" className="hidden" />
+      <input type="file" ref={audioInputRef} onChange={handleAudioUpload} accept="audio/*" className="hidden" />
 
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col md:flex-row w-full max-w-7xl mx-auto py-4 md:py-6 relative min-h-0">
