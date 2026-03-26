@@ -27,6 +27,9 @@ interface SketchCanvasProps {
   dynamicStampingEnabled?: boolean;
   customBrushColorLink?: boolean;
   customBrushData?: string | null;
+  snapToGrid?: boolean;
+  gridSize?: number;
+  snapToAngle?: boolean;
 }
 
 export interface SketchCanvasHandle {
@@ -57,6 +60,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   dynamicStampingEnabled = true,
   customBrushColorLink = true,
   customBrushData = null,
+  snapToGrid = false,
+  gridSize = 20,
+  snapToAngle = false,
 }, ref) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const compositeBelowCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -64,6 +70,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   const onionSkinCanvasRef = useRef<HTMLCanvasElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   const tintedBrushCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const gridCanvasRef = useRef<HTMLCanvasElement>(null);
   
   const isDrawingRef = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
@@ -189,6 +196,26 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     ctx.fillRect(bounds.x + bounds.w + 4 - s/2, bounds.y + bounds.h + 4 - s/2, s, s);
     ctx.restore();
   };
+
+  // Draw Grid Overlay
+  useEffect(() => {
+    const canvas = gridCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, width, height);
+    if (!snapToGrid) return;
+
+    ctx.fillStyle = 'rgba(69, 77, 82, 0.15)';
+    for (let x = 0; x <= width; x += gridSize) {
+      for (let y = 0; y <= height; y += gridSize) {
+        ctx.beginPath();
+        ctx.arc(x, y, 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }, [width, height, snapToGrid, gridSize]);
 
   useEffect(() => {
     if (tool !== 'move' && tool !== 'lasso') {
@@ -381,14 +408,21 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     canvas.style.mixBlendMode = (activeLayer.blendMode === 'source-over' ? 'normal' : activeLayer.blendMode) || 'normal';
   }, [activeLayerId, activeLayer?.imageData, activeLayer?.visible, activeLayer?.opacity, activeLayer?.blendMode, width, height, tool]);
 
+  const snapValue = (val: number, size: number) => Math.round(val / size) * size;
+
   const getPos = (e: React.PointerEvent) => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left) * (width / rect.width),
-      y: (e.clientY - rect.top) * (height / rect.height)
-    };
+    let x = (e.clientX - rect.left) * (width / rect.width);
+    let y = (e.clientY - rect.top) * (height / rect.height);
+    
+    if (snapToGrid) {
+      x = snapValue(x, gridSize);
+      y = snapValue(y, gridSize);
+    }
+    
+    return { x, y };
   };
 
   const getTransformBounds = (bounds: { x: number, y: number, w: number, h: number }, startX: number, startY: number, curX: number, curY: number, mode: MoveMode) => {
@@ -474,6 +508,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     if (!canvas || !tCtx) return;
     const ctx = canvas.getContext('2d')!;
     let pos = getPos(e);
+    
     if (tool === 'move') {
       tCtx.clearRect(0, 0, width, height);
       const source = movingSelection || dragStartImage;
@@ -506,7 +541,29 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       tCtx.globalAlpha = opacity / 100;
       tCtx.lineCap = 'round';
       tCtx.lineJoin = 'round';
-      drawShape(tCtx, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, tool);
+      
+      let finalX = pos.x;
+      let finalY = pos.y;
+      
+      if (snapToAngle) {
+        if (tool === 'line') {
+          const dx = pos.x - startPosRef.current.x;
+          const dy = pos.y - startPosRef.current.y;
+          const angle = Math.atan2(dy, dx);
+          const snappedAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          finalX = startPosRef.current.x + Math.cos(snappedAngle) * dist;
+          finalY = startPosRef.current.y + Math.sin(snappedAngle) * dist;
+        } else if (tool === 'rectangle' || tool === 'circle') {
+          const dx = Math.abs(pos.x - startPosRef.current.x);
+          const dy = Math.abs(pos.y - startPosRef.current.y);
+          const side = Math.max(dx, dy);
+          finalX = startPosRef.current.x + (pos.x > startPosRef.current.x ? side : -side);
+          finalY = startPosRef.current.y + (pos.y > startPosRef.current.y ? side : -side);
+        }
+      }
+      
+      drawShape(tCtx, startPosRef.current.x, startPosRef.current.y, finalX, finalY, tool);
       tCtx.restore();
       return;
     }
@@ -626,6 +683,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     const pos = getPos(e);
+    
     if (tool === 'move') {
       const source = movingSelection || dragStartImage;
       const bounds = selectionBounds;
@@ -639,7 +697,29 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     } else if (['line', 'rectangle', 'circle', 'triangle'].includes(tool)) {
       ctx.save();
       ctx.strokeStyle = color; ctx.lineWidth = brushSize; ctx.globalAlpha = opacity / 100;
-      drawShape(ctx, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, tool);
+      
+      let finalX = pos.x;
+      let finalY = pos.y;
+      
+      if (snapToAngle) {
+        if (tool === 'line') {
+          const dx = pos.x - startPosRef.current.x;
+          const dy = pos.y - startPosRef.current.y;
+          const angle = Math.atan2(dy, dx);
+          const snappedAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          finalX = startPosRef.current.x + Math.cos(snappedAngle) * dist;
+          finalY = startPosRef.current.y + Math.sin(snappedAngle) * dist;
+        } else if (tool === 'rectangle' || tool === 'circle') {
+          const dx = Math.abs(pos.x - startPosRef.current.x);
+          const dy = Math.abs(pos.y - startPosRef.current.y);
+          const side = Math.max(dx, dy);
+          finalX = startPosRef.current.x + (pos.x > startPosRef.current.x ? side : -side);
+          finalY = startPosRef.current.y + (pos.y > startPosRef.current.y ? side : -side);
+        }
+      }
+      
+      drawShape(ctx, startPosRef.current.x, startPosRef.current.y, finalX, finalY, tool);
       ctx.restore();
       onLayerUpdate(canvas.toDataURL());
     } else if (tool !== 'lasso' && tool !== 'bucket') {
@@ -681,6 +761,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   return (
     <div className="relative sketch-border shadow-lg bg-white overflow-hidden w-full aspect-video">
       <div className="absolute inset-0 bg-white" />
+      <canvas ref={gridCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none w-full h-full opacity-50" />
       <canvas ref={onionSkinCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none w-full h-full" />
       <canvas ref={compositeBelowCanvasRef} width={width} height={height} className="absolute inset-0 pointer-events-none z-0 w-full h-full" />
       <canvas ref={mainCanvasRef} width={width} height={height} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerLeave={stopDrawing} className="absolute inset-0 touch-none block z-10 w-full h-full" style={{ cursor: isPlaying || activeLayer.locked ? 'default' : (tool === 'move' ? 'move' : 'crosshair'), opacity: activeLayer.visible ? 1 : 0.3 }} />

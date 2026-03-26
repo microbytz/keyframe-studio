@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -14,7 +13,6 @@ import {
   Save, 
   FolderOpen, 
   Layers, 
-  Settings2, 
   Settings, 
   Download, 
   Upload, 
@@ -23,7 +21,6 @@ import {
   Sparkles, 
   Plus, 
   Trash2, 
-  Ghost, 
   Scissors, 
   Copy, 
   Move, 
@@ -31,11 +28,12 @@ import {
   Clock, 
   Music,
   Mic,
-  Volume2,
   History,
   FileClock,
   Briefcase,
-  Paintbrush
+  Paintbrush,
+  Magnet,
+  Grid
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -62,6 +60,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Slider } from '@/components/ui/slider';
 
 export default function Home() {
   const {
@@ -230,12 +229,9 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col bg-background overflow-x-hidden">
-      {/* AI Panel Integrated */}
-      <AIPanel />
-
+    <main className="h-screen flex flex-col bg-background overflow-hidden selection:bg-accent/30">
       {/* Header / Top Bar */}
-      <div className="w-full flex items-center justify-between h-14 p-2 md:px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-[60]">
+      <div className="w-full flex items-center justify-between h-14 p-2 md:px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 z-[60] shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <h1 className="text-base md:text-lg font-bold italic tracking-tighter text-primary shrink-0">
             SketchFlow <span className="text-accent">Studio</span>
@@ -427,7 +423,7 @@ export default function Home() {
                   <Settings size={14} className="md:w-4 md:h-4 opacity-70" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 sketch-card p-4 space-y-4 max-h-[80vh] overflow-y-auto" side="bottom" align="start">
+              <PopoverContent className="w-72 sketch-card p-4 space-y-4 max-h-[80vh] overflow-y-auto" side="bottom" align="start">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2">Editor Preferences</h4>
                 <div className="space-y-4 pt-1">
                   <div className="space-y-2">
@@ -435,7 +431,24 @@ export default function Home() {
                     <div className="flex items-center justify-between"><Label className="text-xs">Pressure Sensitivity</Label><Switch checked={pressureEnabled} onCheckedChange={setPressureEnabled} /></div>
                     <div className="flex items-center justify-between"><Label className="text-xs">Line Stabilization</Label><Switch checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} /></div>
                     <div className="flex items-center justify-between"><Label className="text-xs">Scrub with Sound</Label><Switch checked={project.scrubWithSound} onCheckedChange={(checked) => setProject(p => ({ ...p, scrubWithSound: checked }))} /></div>
-                    <div className="flex items-center justify-between"><Label className="text-xs">Multi-Draw Mode</Label><Switch checked={isMultiDrawEnabled} onCheckedChange={setIsMultiDrawEnabled} /></div>
+                  </div>
+                  
+                  <div className="pt-2 border-t space-y-3">
+                    <h5 className="text-[10px] font-bold uppercase tracking-widest opacity-40">Snapping Controls</h5>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><Grid size={12}/><Label className="text-xs">Grid Snapping</Label></div>
+                      <Switch checked={project.snapToGrid} onCheckedChange={(checked) => setProject(p => ({ ...p, snapToGrid: checked }))} />
+                    </div>
+                    {project.snapToGrid && (
+                      <div className="space-y-1 px-1">
+                        <div className="flex justify-between"><Label className="text-[9px] uppercase font-bold">Size</Label><span className="text-[9px] font-mono">{project.gridSize}px</span></div>
+                        <Slider value={[project.gridSize || 20]} min={5} max={100} step={5} onValueChange={([val]) => setProject(p => ({ ...p, gridSize: val }))} />
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><Magnet size={12}/><Label className="text-xs">Axis & Ratio Snap</Label></div>
+                      <Switch checked={project.snapToAngle} onCheckedChange={(checked) => setProject(p => ({ ...p, snapToAngle: checked }))} />
+                    </div>
                   </div>
                 </div>
               </PopoverContent>
@@ -462,10 +475,12 @@ export default function Home() {
       <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".sketchflow,.json" className="hidden" />
       <input type="file" ref={audioInputRef} onChange={handleAudioUpload} accept="audio/*" className="hidden" />
 
-      {/* Main Workspace */}
-      <div className="flex-1 flex flex-col md:flex-row w-full max-w-7xl mx-auto py-4 md:py-6 relative min-h-0">
-        {/* Left Toolbar Column */}
-        <div className="w-full md:w-16 px-4 mb-4 md:mb-0 md:flex-none">
+      {/* Main Workspace - Flexible App Shell */}
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        <AIPanel />
+        
+        {/* Left Toolbar */}
+        <div className="w-16 flex-none bg-background border-r border-foreground/5 flex flex-col items-center py-4 z-20">
           <Toolbar 
             currentTool={tool} 
             lastBrushTool={lastBrushTool} 
@@ -489,107 +504,93 @@ export default function Home() {
           />
         </div>
 
-        {/* Central Editor Area */}
-        <div className="flex-1 flex flex-col items-center px-4 gap-6 min-h-0">
-          {tool === 'lasso' && (
-            <div className="flex items-center gap-2 bg-white p-2 sketch-border animate-in slide-in-from-top duration-300 z-30 shadow-md">
-               <span className="text-[10px] font-bold uppercase opacity-50 mr-2 px-2 border-r">Lasso Active</span>
-               <button onClick={() => handleLassoAction('cut')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-red-50 px-2 py-1 rounded border transition-colors">
-                  <Scissors size={12} /> Cut
-               </button>
-               <button onClick={() => handleLassoAction('copy')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-blue-50 px-2 py-1 rounded border transition-colors">
-                  <Copy size={12} /> Cut & Copy
-               </button>
-               <button onClick={() => handleLassoAction('select')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-accent/20 px-2 py-1 rounded border transition-colors">
-                  <Check size={12} /> Select
-               </button>
-               <button onClick={() => handleLassoAction('move')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-orange-50 px-2 py-1 rounded border transition-colors">
-                  <Move size={12} /> Select & Move
-               </button>
-            </div>
-          )}
-          
-          <div className="w-full flex justify-center">
-            <div className="shadow-xl bg-white sketch-border overflow-hidden w-full max-w-[800px]">
-              <SketchCanvas 
-                ref={canvasRef} 
-                width={project.width} 
-                height={project.height} 
-                frames={project.frames} 
-                currentFrameIndex={currentFrameIndex} 
-                activeLayerId={activeLayerId} 
-                onionSkinEnabled={project.onionSkinEnabled} 
-                advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} 
-                onionSkinBefore={project.onionSkinBefore} 
-                onionSkinAfter={project.onionSkinAfter} 
-                tool={tool} 
-                moveMode={moveMode} 
-                color={color} 
-                brushSize={brushSize} 
-                opacity={opacity} 
-                hardness={hardness} 
-                onLayerUpdate={updateLayerData} 
-                isPlaying={isPlaying} 
-                pressureEnabled={pressureEnabled} 
-                stabilizationEnabled={stabilizationEnabled} 
-                dynamicStampingEnabled={dynamicStampingEnabled} 
-                customBrushColorLink={customBrushColorLink} 
-                customBrushData={customBrushData} 
-              />
-            </div>
+        {/* Central Editor Viewport */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Drawing Space */}
+          <div className="flex-1 flex items-center justify-center p-4 min-h-0 bg-slate-100/30">
+             <div className="w-full max-w-[800px] flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-500">
+               {tool === 'lasso' && (
+                 <div className="flex items-center gap-2 bg-white p-2 sketch-border z-30 shadow-md self-center">
+                    <span className="text-[10px] font-bold uppercase opacity-50 mr-2 px-2 border-r">Lasso Active</span>
+                    <button onClick={() => handleLassoAction('cut')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-red-50 px-2 py-1 rounded border transition-colors"><Scissors size={12} /> Cut</button>
+                    <button onClick={() => handleLassoAction('copy')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-blue-50 px-2 py-1 rounded border transition-colors"><Copy size={12} /> Copy</button>
+                    <button onClick={() => handleLassoAction('select')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-accent/20 px-2 py-1 rounded border transition-colors"><Check size={12} /> Select</button>
+                    <button onClick={() => handleLassoAction('move')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-orange-50 px-2 py-1 rounded border transition-colors"><Move size={12} /> Move</button>
+                 </div>
+               )}
+               
+               <div className="w-full aspect-video shadow-2xl bg-white sketch-border overflow-hidden ring-4 ring-white/50">
+                  <SketchCanvas 
+                    ref={canvasRef} 
+                    width={project.width} 
+                    height={project.height} 
+                    frames={project.frames} 
+                    currentFrameIndex={currentFrameIndex} 
+                    activeLayerId={activeLayerId} 
+                    onionSkinEnabled={project.onionSkinEnabled} 
+                    advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} 
+                    onionSkinBefore={project.onionSkinBefore} 
+                    onionSkinAfter={project.onionSkinAfter} 
+                    tool={tool} 
+                    moveMode={moveMode} 
+                    color={color} 
+                    brushSize={brushSize} 
+                    opacity={opacity} 
+                    hardness={hardness} 
+                    onLayerUpdate={updateLayerData} 
+                    isPlaying={isPlaying} 
+                    pressureEnabled={pressureEnabled} 
+                    stabilizationEnabled={stabilizationEnabled} 
+                    dynamicStampingEnabled={dynamicStampingEnabled} 
+                    customBrushColorLink={customBrushColorLink} 
+                    customBrushData={customBrushData} 
+                    snapToGrid={project.snapToGrid}
+                    gridSize={project.gridSize}
+                    snapToAngle={project.snapToAngle}
+                  />
+               </div>
+             </div>
           </div>
-          
-          {/* Bottom Timeline Column */}
-          <div className="w-full max-w-[800px] space-y-4 pb-12">
-            <div className="flex items-center justify-between bg-white px-3 py-1.5 sketch-border">
-              <div className="flex items-center gap-2">
-                <Clock size={14} className="text-accent" />
-                <span className="text-[10px] font-bold uppercase opacity-50">Hold Frame (Exposure)</span>
+
+          {/* Control Dock */}
+          <div className="flex-none bg-white border-t border-foreground/5 p-4 flex flex-col gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10">
+            <div className="w-full max-w-[800px] mx-auto space-y-4">
+              <div className="flex items-center justify-between bg-slate-50 px-3 py-1.5 sketch-border">
+                <div className="flex items-center gap-2">
+                  <Clock size={14} className="text-accent" />
+                  <span className="text-[10px] font-bold uppercase opacity-50">Frame Exposure (Hold)</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input type="range" min="1" max="24" value={currentFrame.duration || 1} onChange={(e) => updateFrameDuration(currentFrameIndex, parseInt(e.target.value))} className="w-32 h-1 accent-accent cursor-pointer" />
+                  <span className="text-[10px] font-mono font-bold w-12 text-center bg-accent/10 px-2 py-0.5 rounded">{currentFrame.duration || 1} Beats</span>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="24" 
-                  value={currentFrame.duration || 1} 
-                  onChange={(e) => updateFrameDuration(currentFrameIndex, parseInt(e.target.value))}
-                  className="w-32 h-1 accent-accent cursor-pointer" 
+              
+              <Timeline frames={project.frames} groups={project.groups} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
+              
+              <div ref={audioTimelineRef}>
+                <AudioTimeline 
+                  audioData={project.audioData}
+                  metadata={project.audioMetadata}
+                  isPlaying={isPlaying}
+                  currentFrameIndex={currentFrameIndex}
+                  totalFrames={project.frames.length}
+                  frames={project.frames}
+                  fps={project.fps}
+                  onRecord={(blob) => setAudio(blob, 'Recording')}
+                  onRemove={removeAudio}
                 />
-                <span className="text-[10px] font-mono font-bold w-12 text-center bg-accent/10 px-2 py-0.5 rounded">
-                  {currentFrame.duration || 1} Beats
-                </span>
               </div>
-            </div>
-            
-            <Timeline frames={project.frames} groups={project.groups} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
-            
-            <div ref={audioTimelineRef}>
-              <AudioTimeline 
-                audioData={project.audioData}
-                metadata={project.audioMetadata}
-                isPlaying={isPlaying}
-                currentFrameIndex={currentFrameIndex}
-                totalFrames={project.frames.length}
-                frames={project.frames}
-                fps={project.fps}
-                onRecord={(blob) => setAudio(blob, 'Recording')}
-                onRemove={removeAudio}
-              />
             </div>
           </div>
         </div>
       </div>
 
       {/* Footer Status Bar */}
-      <div className="h-8 flex items-center justify-between w-full px-4 text-[8px] md:text-[10px] uppercase font-bold bg-white/50 border-t border-foreground/5 shrink-0">
+      <div className="h-8 flex items-center justify-between w-full px-4 text-[10px] uppercase font-bold bg-white border-t border-foreground/5 z-20 shrink-0">
         <div className="flex items-center gap-4">
-          <span className="opacity-40">Tip: Sync your animation to audio peaks for perfect timing!</span>
-          {isAutoSaving && (
-            <div className="flex items-center gap-1.5 text-accent animate-pulse">
-              <Save size={10} />
-              <span>Auto-saving Draft...</span>
-            </div>
-          )}
+          <span className="opacity-40">Pro Tip: Enable Grid Snapping (Settings) for technical drawings.</span>
+          {isAutoSaving && <div className="flex items-center gap-1.5 text-accent animate-pulse"><Save size={10} /><span>Saving Draft...</span></div>}
         </div>
         <div className="flex items-center gap-4 opacity-40">
            <span>{project.frames.length} Frames</span>
@@ -599,27 +600,6 @@ export default function Home() {
 
       {/* Overlays */}
       {isLayersOpen && <LayersPanel layers={currentFrame.layers} activeLayerId={activeLayerId} onSetActive={setActiveLayerId} onAdd={addLayer} onCopy={copyLayer} onPaste={pasteLayer} hasCopiedLayer={hasCopiedLayer} onDelete={deleteLayer} onReorder={reorderLayers} onToggleVisibility={toggleLayerVisibility} onToggleLock={toggleLayerLock} onOpacityChange={updateLayerOpacity} onBlendModeChange={updateLayerBlendMode} onClose={() => setIsLayersOpen(false)} />}
-
-      {/* Dialogs */}
-      <Dialog open={isMultiDrawDialogOpen} onOpenChange={setIsMultiDrawDialogOpen}>
-        <DialogContent className="sketch-card sm:max-w-xs">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-              <Sparkles size={16} className="text-accent" />
-              Multi-Draw Sync
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-bold uppercase opacity-60">Number of frames</Label>
-              <Input type="number" value={tempRange} onChange={(e) => setTempRange(e.target.value)} min="1" max="100" className="sketch-border" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => { const range = parseInt(tempRange); if (!isNaN(range)) setMultiDrawRange(range); setIsMultiDrawDialogOpen(false); }} className="w-full bg-accent hover:bg-accent/90 font-bold uppercase text-xs sketch-border">Apply</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }

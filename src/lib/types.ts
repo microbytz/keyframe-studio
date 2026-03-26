@@ -86,6 +86,9 @@ export interface AnimationProject {
   onionSkinAfter?: number;
   scrubWithSound?: boolean;
   autoSaveEnabled?: boolean;
+  snapToGrid?: boolean;
+  gridSize?: number;
+  snapToAngle?: boolean;
   groups: FrameGroup[];
   savedBrushes: SavedBrush[];
   versions?: ProjectVersionMetadata[];
