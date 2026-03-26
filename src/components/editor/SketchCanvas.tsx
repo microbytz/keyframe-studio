@@ -101,7 +101,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       if (action === 'move') {
         const img = new Image();
         img.src = resultData;
-        img.onload = () => setMovingSelection(img);
+        img.onload = () => {
+          setMovingSelection(img);
+        };
       }
 
       if (action === 'cut' || action === 'move' || action === 'copy') {
@@ -120,6 +122,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         onLayerUpdate(dataUrl);
       }
 
+      // Clear the lasso path from temp canvas
+      const tCtx = tempCanvasRef.current?.getContext('2d');
+      if (tCtx) {
+        tCtx.clearRect(0, 0, width, height);
+      }
+
       if (action !== 'select') {
         setLassoPoints([]);
         onLassoSelect?.(false);
@@ -129,13 +137,14 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
   }));
 
-  // Clear selection image if tool changes
+  // Clear selection image if tool changes to something non-move
   useEffect(() => {
-    if (tool !== 'move') {
+    if (tool !== 'move' && tool !== 'lasso') {
       setMovingSelection(null);
     }
   }, [tool]);
 
+  // Load custom brush image
   useEffect(() => {
     if (customBrushData) {
       const img = new Image();
@@ -146,6 +155,18 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
   }, [customBrushData]);
 
+  // Render the current move selection to the temp canvas immediately
+  useEffect(() => {
+    const tCtx = tempCanvasRef.current?.getContext('2d');
+    if (!tCtx) return;
+
+    if (tool === 'move' && movingSelection && !isDrawing) {
+      tCtx.clearRect(0, 0, width, height);
+      tCtx.drawImage(movingSelection, 0, 0);
+    }
+  }, [tool, movingSelection, isDrawing, width, height]);
+
+  // Onion skin rendering
   useEffect(() => {
     const ctx = onionSkinCanvasRef.current?.getContext('2d');
     if (!ctx) return;
@@ -212,6 +233,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     return () => { isCancelled = true; };
   }, [onionSkinEnabled, advancedOnionSkinEnabled, onionSkinBefore, onionSkinAfter, currentFrameIndex, frames, isPlaying, width, height]);
 
+  // Composite background layers rendering
   useEffect(() => {
     const compositeCtx = compositeCanvasRef.current?.getContext('2d');
     if (!compositeCtx) return;
@@ -249,6 +271,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     return () => { isCancelled = true; };
   }, [currentFrame, activeLayerId, width, height]);
 
+  // Main active layer rendering
   useEffect(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
@@ -275,8 +298,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
 
     const tCtx = tempCanvasRef.current?.getContext('2d');
-    if (tCtx) tCtx.clearRect(0, 0, width, height);
-  }, [activeLayerId, activeLayer?.imageData, activeLayer?.visible, width, height]);
+    if (tCtx && tool !== 'lasso' && tool !== 'move') tCtx.clearRect(0, 0, width, height);
+  }, [activeLayerId, activeLayer?.imageData, activeLayer?.visible, width, height, tool]);
 
   const getPos = (e: React.PointerEvent) => {
     const canvas = mainCanvasRef.current;
@@ -581,7 +604,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     
     if (tool === 'move') setDragStartImage(null);
     const tCtx = tempCanvasRef.current?.getContext('2d');
-    if (tCtx && tool !== 'lasso') tCtx.clearRect(0, 0, width, height);
+    if (tCtx && tool !== 'lasso' && tool !== 'move') tCtx.clearRect(0, 0, width, height);
   };
 
   const hexToRgb = (hex: string) => {
