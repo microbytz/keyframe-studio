@@ -113,8 +113,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   ];
 
   const activeBrush = brushTools.find(t => t.id === currentTool) || brushTools[0];
+  const BrushIcon = activeBrush.icon;
   const isBrushActive = brushTools.some(t => t.id === currentTool);
   const isShapeActive = shapeTools.some(t => t.id === currentTool);
+  
+  const selectedShapeTool = shapeTools.find(t => t.id === currentTool);
+  const ShapeIcon = selectedShapeTool ? selectedShapeTool.icon : Square;
 
   return (
     <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-start md:justify-center bg-white overflow-x-auto scrollbar-none touch-pan-x">
@@ -128,7 +132,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               )}
               title="Brushes"
             >
-              <activeBrush.icon size={16} />
+              <BrushIcon size={16} />
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
                 <ChevronDown size={10} strokeWidth={4} />
               </div>
@@ -142,18 +146,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               </div>
             </div>
             <div className="grid grid-cols-5 gap-2">
-              {brushTools.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTool(t.id as ToolType)}
-                  className={cn(
-                    "p-2 sketch-border transition-all hover:bg-accent flex items-center justify-center",
-                    currentTool === t.id ? "bg-accent" : "bg-white"
-                  )}
-                >
-                  <t.icon size={16} />
-                </button>
-              ))}
+              {brushTools.map((t) => {
+                const ToolIcon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTool(t.id as ToolType)}
+                    className={cn(
+                      "p-2 sketch-border transition-all hover:bg-accent flex items-center justify-center",
+                      currentTool === t.id ? "bg-accent" : "bg-white"
+                    )}
+                  >
+                    <ToolIcon size={16} />
+                  </button>
+                );
+              })}
             </div>
           </PopoverContent>
         </Popover>
@@ -167,7 +174,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               )}
               title="Shapes"
             >
-              {isShapeActive ? shapeTools.find(t => t.id === currentTool)?.icon({ size: 16 }) : <Square size={16} />}
+              <ShapeIcon size={16} />
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
                 <ChevronDown size={10} strokeWidth={4} />
               </div>
@@ -175,19 +182,22 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </PopoverTrigger>
           <PopoverContent side={isMobile ? "bottom" : "right"} align="start" className="w-48 p-3 sketch-card z-[100]">
             <div className="grid grid-cols-2 gap-2">
-              {shapeTools.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTool(t.id as ToolType)}
-                  className={cn(
-                    "p-3 sketch-border transition-all hover:bg-accent flex flex-col items-center gap-1",
-                    currentTool === t.id ? "bg-accent" : "bg-white"
-                  )}
-                >
-                  <t.icon size={18} />
-                  <span className="text-[8px] font-bold uppercase">{t.label}</span>
-                </button>
-              ))}
+              {shapeTools.map((t) => {
+                const ToolIcon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTool(t.id as ToolType)}
+                    className={cn(
+                      "p-3 sketch-border transition-all hover:bg-accent flex flex-col items-center gap-1",
+                      currentTool === t.id ? "bg-accent" : "bg-white"
+                    )}
+                  >
+                    <ToolIcon size={18} />
+                    <span className="text-[8px] font-bold uppercase">{t.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </PopoverContent>
         </Popover>
@@ -212,19 +222,22 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </PopoverTrigger>
           <PopoverContent side={isMobile ? "bottom" : "right"} align="start" className="w-48 p-3 sketch-card z-[100]">
             <div className="grid grid-cols-2 gap-2">
-              {transformModes.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => { setTool('move'); setMoveMode(m.id as MoveMode); }}
-                  className={cn(
-                    "p-3 sketch-border transition-all hover:bg-accent flex flex-col items-center gap-1",
-                    (currentTool === 'move' && moveMode === m.id) ? "bg-accent" : "bg-white"
-                  )}
-                >
-                  <m.icon size={18} />
-                  <span className="text-[8px] font-bold uppercase">{m.label}</span>
-                </button>
-              ))}
+              {transformModes.map((m) => {
+                const ModeIcon = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => { setTool('move'); setMoveMode(m.id as MoveMode); }}
+                    className={cn(
+                      "p-3 sketch-border transition-all hover:bg-accent flex flex-col items-center gap-1",
+                      (currentTool === 'move' && moveMode === m.id) ? "bg-accent" : "bg-white"
+                    )}
+                  >
+                    <ModeIcon size={18} />
+                    <span className="text-[8px] font-bold uppercase">{m.label}</span>
+                  </button>
+                );
+              })}
             </div>
             <p className="text-[8px] mt-2 opacity-40 uppercase font-bold text-center">Transform Selection</p>
           </PopoverContent>
