@@ -35,10 +35,12 @@ export interface ProjectListItem {
 
 export function useAnimationState() {
   const { toast } = useToast();
+  
+  // Initialize with a completely static state to avoid hydration mismatches
   const [project, setProject] = useState<AnimationProject>({
-    id: Math.random().toString(36).substr(2, 9),
+    id: '', 
     name: 'Untitled Sketch',
-    frames: [createNewFrame()],
+    frames: [], // Empty initially
     fps: INITIAL_FPS,
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
@@ -59,7 +61,7 @@ export function useAnimationState() {
   const [projectList, setProjectList] = useState<ProjectListItem[]>([]);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [selectedFrameIndices, setSelectedFrameIndices] = useState<number[]>([0]);
-  const [activeLayerId, setActiveLayerId] = useState<string>(project.frames[0].layers[0].id);
+  const [activeLayerId, setActiveLayerId] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [loopSelection, setLoopSelection] = useState(false);
   const [tool, setTool] = useState<ToolType>('pen');
@@ -81,7 +83,7 @@ export function useAnimationState() {
   const [multiDrawRange, setMultiDrawRange] = useState(5);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   
-  const historyRef = useRef<Frame[][]>([[createNewFrame()]]);
+  const historyRef = useRef<Frame[][]>([]);
   const historyIndexRef = useRef<number>(0);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -110,6 +112,47 @@ export function useAnimationState() {
     updateHistoryState();
   }, [updateHistoryState]);
 
+  // Fix Hydration Mismatch: Initialize dynamic content on client mount only
+  useEffect(() => {
+    const initializeProject = () => {
+      // Check for last worked on draft in local storage first
+      const registryStr = localStorage.getItem('sketchflow_registry');
+      if (registryStr) {
+        try {
+          const registry: ProjectListItem[] = JSON.parse(registryStr);
+          if (registry.length > 0) {
+            const lastId = registry[0].id;
+            const saved = localStorage.getItem(`sketchflow_draft_${lastId}`) || localStorage.getItem(`sketchflow_project_${lastId}`);
+            if (saved) {
+              const loaded = JSON.parse(saved);
+              setProject(loaded);
+              historyRef.current = [loaded.frames];
+              if (loaded.frames[0]) setActiveLayerId(loaded.frames[0].layers[0].id);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Registry load error", e);
+        }
+      }
+
+      // Default new project if nothing to restore
+      const initialFrame = createNewFrame();
+      const initialProject = {
+        ...project,
+        id: Math.random().toString(36).substr(2, 9),
+        frames: [initialFrame]
+      };
+      setProject(initialProject);
+      setActiveLayerId(initialFrame.layers[0].id);
+      historyRef.current = [[initialFrame]];
+      updateHistoryState();
+    };
+
+    initializeProject();
+    refreshProjectList();
+  }, []);
+
   const undo = useCallback(() => {
     if (historyIndexRef.current > 0) {
       historyIndexRef.current -= 1;
@@ -117,9 +160,11 @@ export function useAnimationState() {
       
       setProject(prev => {
         const nextIdx = Math.min(currentFrameIndex, prevFrames.length - 1);
-        const currentActiveLayer = prevFrames[nextIdx].layers.find(l => l.id === activeLayerId);
-        if (!currentActiveLayer) setActiveLayerId(prevFrames[nextIdx].layers[0].id);
-        
+        const frame = prevFrames[nextIdx];
+        if (frame) {
+           const currentActiveLayer = frame.layers.find(l => l.id === activeLayerId);
+           if (!currentActiveLayer) setActiveLayerId(frame.layers[0].id);
+        }
         return { ...prev, frames: prevFrames };
       });
       setCurrentFrameIndex(prev => Math.min(prev, prevFrames.length - 1));
@@ -134,9 +179,11 @@ export function useAnimationState() {
 
       setProject(prev => {
         const nextIdx = Math.min(currentFrameIndex, nextFrames.length - 1);
-        const currentActiveLayer = nextFrames[nextIdx].layers.find(l => l.id === activeLayerId);
-        if (!currentActiveLayer) setActiveLayerId(nextFrames[nextIdx].layers[0].id);
-        
+        const frame = nextFrames[nextIdx];
+        if (frame) {
+          const currentActiveLayer = frame.layers.find(l => l.id === activeLayerId);
+          if (!currentActiveLayer) setActiveLayerId(frame.layers[0].id);
+        }
         return { ...prev, frames: nextFrames };
       });
       setCurrentFrameIndex(prev => Math.min(prev, nextFrames.length - 1));
@@ -145,6 +192,7 @@ export function useAnimationState() {
   }, [currentFrameIndex, activeLayerId, updateHistoryState]);
 
   const refreshProjectList = useCallback(() => {
+    if (typeof window === 'undefined') return;
     const registry = localStorage.getItem('sketchflow_registry');
     if (registry) {
       try {
@@ -155,11 +203,8 @@ export function useAnimationState() {
     }
   }, []);
 
-  useEffect(() => {
-    refreshProjectList();
-  }, [refreshProjectList]);
-
   const saveProject = useCallback((isAuto = false) => {
+    if (!project.id) return;
     try {
       if (isAuto) setIsAutoSaving(true);
       
@@ -209,7 +254,7 @@ export function useAnimationState() {
       updateHistoryState();
       setCurrentFrameIndex(0);
       setSelectedFrameIndices([0]);
-      setActiveLayerId(loadedProject.frames[0].layers[0].id);
+      if (loadedProject.frames[0]) setActiveLayerId(loadedProject.frames[0].layers[0].id);
       
       if (loadedProject.audioData) {
         audioRef.current = new Audio(loadedProject.audioData);
@@ -240,10 +285,11 @@ export function useAnimationState() {
   }, [toast]);
 
   const createNewProject = useCallback(() => {
+    const newFrame = createNewFrame();
     const newProject: AnimationProject = {
       id: Math.random().toString(36).substr(2, 9),
       name: 'New Animation',
-      frames: [createNewFrame()],
+      frames: [newFrame],
       fps: INITIAL_FPS,
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
@@ -267,13 +313,13 @@ export function useAnimationState() {
     updateHistoryState();
     setCurrentFrameIndex(0);
     setSelectedFrameIndices([0]);
-    setActiveLayerId(newProject.frames[0].layers[0].id);
+    setActiveLayerId(newFrame.layers[0].id);
     
     toast({ title: "New Project Created" });
   }, [updateHistoryState, toast]);
 
   useEffect(() => {
-    if (!project.autoSaveEnabled) return;
+    if (!project.autoSaveEnabled || !project.id) return;
     if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
     autoSaveTimeoutRef.current = setTimeout(() => saveProject(true), 5000);
     return () => { if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current); };
@@ -310,7 +356,7 @@ export function useAnimationState() {
     pushToHistory(newFrames);
     setCurrentFrameIndex(nextIndex);
     setSelectedFrameIndices([nextIndex]);
-    setActiveLayerId(newFrames[nextIndex].layers[0].id);
+    if (newFrames[nextIndex]) setActiveLayerId(newFrames[nextIndex].layers[0].id);
   }, [project.frames, selectedFrameIndices, currentFrameIndex, pushToHistory]);
 
   const duplicateSelectedFrames = useCallback(() => {
@@ -334,7 +380,7 @@ export function useAnimationState() {
     const lastIdx = newSelectedIndices[newSelectedIndices.length - 1];
     setCurrentFrameIndex(lastIdx);
     setSelectedFrameIndices(newSelectedIndices);
-    setActiveLayerId(newFrames[lastIdx].layers[0].id);
+    if (newFrames[lastIdx]) setActiveLayerId(newFrames[lastIdx].layers[0].id);
   }, [project.frames, selectedFrameIndices, pushToHistory]);
 
   const reorderFrames = useCallback((startIndex: number, endIndex: number) => {
@@ -377,7 +423,9 @@ export function useAnimationState() {
       setSelectedFrameIndices([index]);
     }
     setCurrentFrameIndex(index);
-    setActiveLayerId(project.frames[index].layers[0].id);
+    if (project.frames[index]) {
+      setActiveLayerId(project.frames[index].layers[0].id);
+    }
     if (audioRef.current && !isPlaying) {
       const totalTimeBefore = project.frames.slice(0, index).reduce((acc, f) => acc + (f.duration || 1) / project.fps, 0);
       audioRef.current.currentTime = totalTimeBefore;
@@ -391,6 +439,7 @@ export function useAnimationState() {
   const updateLayerData = useCallback((dataUrl: string) => {
     const newFrames = [...project.frames];
     const frame = { ...newFrames[currentFrameIndex] };
+    if (!frame) return;
     const layerIdx = frame.layers.findIndex(l => l.id === activeLayerId);
     if (layerIdx === -1 || frame.layers[layerIdx].locked) return;
     frame.layers = frame.layers.map((l, idx) => idx === layerIdx ? { ...l, imageData: dataUrl } : l);
@@ -402,8 +451,10 @@ export function useAnimationState() {
   const updateFrameDuration = useCallback((index: number, duration: number) => {
     setProject(prev => {
       const newFrames = [...prev.frames];
-      newFrames[index] = { ...newFrames[index], duration };
-      pushToHistory(newFrames);
+      if (newFrames[index]) {
+        newFrames[index] = { ...newFrames[index], duration };
+        pushToHistory(newFrames);
+      }
       return { ...prev, frames: newFrames };
     });
   }, [pushToHistory]);
@@ -411,6 +462,7 @@ export function useAnimationState() {
   const addLayer = useCallback(() => {
     const newFrames = [...project.frames];
     const frame = { ...newFrames[currentFrameIndex] };
+    if (!frame) return;
     const newLayer = createNewLayer(`Layer ${frame.layers.length + 1}`);
     frame.layers = [newLayer, ...frame.layers]; 
     newFrames[currentFrameIndex] = frame;
@@ -420,7 +472,9 @@ export function useAnimationState() {
   }, [project.frames, currentFrameIndex, pushToHistory]);
 
   const copyLayer = useCallback((layerId: string) => {
-    const layer = project.frames[currentFrameIndex].layers.find(l => l.id === layerId);
+    const frame = project.frames[currentFrameIndex];
+    if (!frame) return;
+    const layer = frame.layers.find(l => l.id === layerId);
     if (layer) setCopiedLayerData({ name: layer.name, imageData: layer.imageData });
   }, [project.frames, currentFrameIndex]);
 
@@ -428,6 +482,7 @@ export function useAnimationState() {
     if (!copiedLayerData) return;
     const newFrames = [...project.frames];
     const frame = { ...newFrames[currentFrameIndex] };
+    if (!frame) return;
     const newLayer = createNewLayer(`${copiedLayerData.name} (Copy)`);
     newLayer.imageData = copiedLayerData.imageData;
     frame.layers = [newLayer, ...frame.layers];
@@ -469,6 +524,7 @@ export function useAnimationState() {
   }, [isPlaying, currentFrameIndex, project.fps, project.frames]);
 
   const saveVersion = useCallback((name: string) => {
+    if (!project.id) return;
     const versionId = Math.random().toString(36).substr(2, 9);
     const newVersionMeta: ProjectVersionMetadata = { id: versionId, name: name || `Snapshot ${Date.now()}`, timestamp: Date.now() };
     try {
@@ -532,29 +588,54 @@ export function useAnimationState() {
     reader.readAsDataURL(file);
   }, [toast]);
 
-  const exportToGif = useCallback(async (settings: any) => {
+  const exportToGif = useCallback(async (options: { scale: number, transparent: boolean, startFrame: number, endFrame: number }) => {
     setIsExporting(true);
-    const framesToExport = project.frames.slice(settings.startFrame, settings.endFrame + 1);
-    const images = await Promise.all(framesToExport.map(async (frame) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = project.width * settings.scale; canvas.height = project.height * settings.scale;
-      const ctx = canvas.getContext('2d')!;
-      if (!settings.transparent) { ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
-      ctx.scale(settings.scale, settings.scale);
-      for (const layer of [...frame.layers].reverse()) {
-        if (layer.visible && layer.imageData) {
-          const img = new Image(); img.src = layer.imageData;
-          await new Promise(r => { img.onload = () => { ctx.globalAlpha = (layer.opacity ?? 100) / 100; ctx.drawImage(img, 0, 0); r(null); }; });
-        }
-      }
-      return canvas.toDataURL('image/png');
-    }));
-    gifshot.createGIF({ images, interval: 1 / project.fps, gifWidth: project.width * settings.scale, gifHeight: project.height * settings.scale }, (obj: any) => {
-      setIsExporting(false);
+    const framesToExport = project.frames.slice(options.startFrame, options.endFrame + 1);
+    const frameImages: string[] = [];
+
+    for (const frame of framesToExport) {
+       const canvas = document.createElement('canvas');
+       canvas.width = project.width * options.scale;
+       canvas.height = project.height * options.scale;
+       const ctx = canvas.getContext('2d')!;
+       
+       if (!options.transparent) {
+         ctx.fillStyle = 'white';
+         ctx.fillRect(0, 0, canvas.width, canvas.height);
+       }
+
+       for (const layer of [...frame.layers].reverse()) {
+         if (!layer.visible || !layer.imageData) continue;
+         await new Promise((resolve) => {
+           const img = new Image();
+           img.src = layer.imageData;
+           img.onload = () => {
+             ctx.save();
+             ctx.globalAlpha = (layer.opacity ?? 100) / 100;
+             ctx.globalCompositeOperation = (layer.blendMode || 'source-over') as GlobalCompositeOperation;
+             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+             ctx.restore();
+             resolve(null);
+           };
+         });
+       }
+       frameImages.push(canvas.toDataURL());
+    }
+
+    gifshot.createGIF({
+      images: frameImages,
+      interval: 1 / project.fps,
+      gifWidth: project.width * options.scale,
+      gifHeight: project.height * options.scale,
+    }, (obj: any) => {
       if (!obj.error) {
-        const link = document.createElement('a'); link.href = obj.image; link.download = `${project.name}.gif`; link.click();
-        toast({ title: "Export Complete" });
+        const link = document.createElement('a');
+        link.download = `${project.name}.gif`;
+        link.href = obj.image;
+        link.click();
+        toast({ title: "GIF Exported!" });
       }
+      setIsExporting(false);
     });
   }, [project, toast]);
 
@@ -569,8 +650,8 @@ export function useAnimationState() {
     addFrame, deleteFrame: deleteSelectedFrames, duplicateFrame: duplicateSelectedFrames, reorderFrames,
     updateLayerData, updateFrameDuration, addLayer, copyLayer, pasteLayer, hasCopiedLayer: !!copiedLayerData, setCopiedLayerData,
     togglePlayback, toggleOnionSkin: () => setProject(p => ({ ...p, onionSkinEnabled: !p.onionSkinEnabled })),
-    saveProject, downloadProject, uploadProject, exportToGif, isExporting, undo, redo, flipCurrentLayer: (axis: 'horizontal' | 'vertical') => {},
-    canUndo, canRedo, handleCustomBrushSave: (d: string, n: string, k: boolean) => {}, deleteSavedBrush: (id: string) => {},
+    saveProject, downloadProject, uploadProject, exportToGif, isExporting, undo, redo,
+    canUndo, canRedo,
     setAudio, removeAudio: () => setProject(p => { const { audioData, audioMetadata, ...r } = p; return r as any; }),
     saveVersion, loadVersion, deleteVersion, isAutoSaving
   };

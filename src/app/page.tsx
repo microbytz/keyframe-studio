@@ -23,7 +23,6 @@ import {
   Scissors, 
   Copy, 
   Move, 
-  Check, 
   Clock, 
   Music,
   History,
@@ -120,24 +119,33 @@ export default function Home() {
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
   const [versionName, setVersionName] = useState('');
+  const [mounted, setMounted] = useState(false);
   const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+
+  // Fix Hydration Error: Avoid rendering dynamic/localized values until mounted
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Export Settings
   const [exportScale, setExportScale] = useState('1');
   const [exportTransparent, setExportTransparent] = useState(false);
   const [exportStartFrame, setExportStartFrame] = useState('1');
-  const [exportEndFrame, setExportEndFrame] = useState(project.frames.length.toString());
+  const [exportEndFrame, setExportEndFrame] = useState('1');
 
   useEffect(() => {
-    setExportEndFrame(project.frames.length.toString());
+    if (project.frames.length > 0) {
+      setExportEndFrame(project.frames.length.toString());
+    }
   }, [project.frames.length]);
 
   const currentFrame = project.frames[currentFrameIndex];
   const activeGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
   const currentFps = activeGroup ? activeGroup.fps : project.fps;
 
+  // Handle Lasso Action
   const handleLassoAction = (action: 'cut' | 'copy' | 'select' | 'move') => {
     const result = canvasRef.current?.executeLassoAction(action);
     if (result && (action === 'copy' || action === 'move')) {
@@ -146,12 +154,19 @@ export default function Home() {
     if (action === 'move') setTool('move');
   };
 
+  // Gracefully handle server-side render or initialization delay
+  if (!currentFrame && mounted) return (
+    <div className="h-screen w-screen flex items-center justify-center bg-background">
+      <Loader2 className="animate-spin text-accent" size={32} />
+    </div>
+  );
+
   return (
-    <main className="min-h-screen flex flex-col bg-background selection:bg-accent/30 overflow-x-hidden">
-      {/* Header */}
-      <header className="h-14 flex items-center justify-between px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-[60] shrink-0">
+    <main className="min-h-screen flex flex-col bg-background selection:bg-accent/30">
+      {/* Header - Sticky */}
+      <header className="sticky top-0 h-14 flex items-center justify-between px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 z-[60] shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold italic tracking-tighter text-primary">
+          <h1 className="text-lg font-bold italic tracking-tighter text-primary shrink-0">
             SketchFlow <span className="text-accent">Studio</span>
           </h1>
           
@@ -196,7 +211,7 @@ export default function Home() {
                         )}>
                           <div className="min-w-0 flex-1 cursor-pointer" onClick={() => loadProjectById(p.id)}>
                             <p className="text-[10px] font-bold truncate">{p.name}</p>
-                            <p className="text-[8px] opacity-40">{new Date(p.lastModified).toLocaleString()}</p>
+                            <p className="text-[8px] opacity-40">{mounted ? new Date(p.lastModified).toLocaleString() : '...'}</p>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => deleteProject(p.id)} className="p-1 hover:text-red-500"><Trash2 size={12} /></button>
@@ -209,7 +224,7 @@ export default function Home() {
 
                 <div className="space-y-3 pt-2 border-t">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
-                    <History size={12} /> Version Snapshots
+                    <History size={12} /> Version History
                   </h4>
                   <div className="flex gap-2">
                     <Input placeholder="Label..." value={versionName} onChange={(e) => setVersionName(e.target.value)} className="sketch-border h-8 text-[10px]" />
@@ -221,7 +236,7 @@ export default function Home() {
                         <div key={v.id} className="p-2 border sketch-border bg-slate-50 flex items-center justify-between group">
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-bold truncate">{v.name}</p>
-                            <p className="text-[8px] opacity-40">{new Date(v.timestamp).toLocaleTimeString()}</p>
+                            <p className="text-[8px] opacity-40">{mounted ? new Date(v.timestamp).toLocaleTimeString() : '...'}</p>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => loadVersion(v.id)} className="p-1 hover:text-accent"><FileClock size={12} /></button>
@@ -372,9 +387,9 @@ export default function Home() {
         />
       </header>
 
-      {/* Main Workspace Area */}
-      <div className="flex flex-1 relative min-h-0">
-        <aside className="w-16 flex-none bg-background border-r border-foreground/5 flex flex-col items-center py-4 z-20 sticky top-14 h-[calc(100vh-3.5rem)]">
+      {/* Main Workspace Area - Sticky Toolbar + Scrollable Content */}
+      <div className="flex flex-1 relative">
+        <aside className="sticky top-14 h-[calc(100vh-3.5rem)] w-16 flex-none bg-background border-r border-foreground/5 flex flex-col items-center py-4 z-20 overflow-y-auto scrollbar-none">
           <Toolbar 
             currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} 
             moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={() => {}} 
@@ -382,8 +397,9 @@ export default function Home() {
           />
         </aside>
 
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-          <div className="flex items-center justify-center p-8 bg-slate-100/30">
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Canvas Area */}
+          <div className="flex items-center justify-center p-8 bg-slate-100/30 flex-1 min-h-[500px]">
              <div className="w-full max-w-[800px] flex flex-col gap-4">
                {tool === 'lasso' && (
                  <div className="flex items-center gap-2 bg-white p-2 sketch-border z-30 shadow-md self-center">
@@ -393,19 +409,22 @@ export default function Home() {
                  </div>
                )}
                
-               <div className="w-full aspect-video shadow-2xl bg-white sketch-border overflow-hidden ring-4 ring-white/50 relative shrink-0">
-                  <SketchCanvas 
-                    ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} 
-                    activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} tool={tool} moveMode={moveMode} 
-                    color={color} brushSize={brushSize} opacity={opacity} hardness={80} onLayerUpdate={updateLayerData} 
-                    isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} 
-                    snapToGrid={project.snapToGrid} gridSize={project.gridSize} snapToAngle={project.snapToAngle}
-                  />
-               </div>
+               {currentFrame && (
+                 <div className="w-full aspect-video shadow-2xl bg-white sketch-border overflow-hidden ring-4 ring-white/50 relative shrink-0">
+                    <SketchCanvas 
+                      ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} 
+                      activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} tool={tool} moveMode={moveMode} 
+                      color={color} brushSize={brushSize} opacity={opacity} hardness={80} onLayerUpdate={updateLayerData} 
+                      isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} 
+                      snapToGrid={project.snapToGrid} gridSize={project.gridSize} snapToAngle={project.snapToAngle}
+                    />
+                 </div>
+               )}
              </div>
           </div>
 
-          <div className="bg-white border-t border-foreground/5 p-6 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10 mt-auto">
+          {/* Controls Area (Timeline/Audio) */}
+          <div className="bg-white border-t border-foreground/5 p-6 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10">
             <div className="w-full max-w-[800px] mx-auto space-y-6">
               <div className="flex items-center justify-between bg-slate-50 px-4 py-2 sketch-border">
                 <div className="flex items-center gap-2">
@@ -413,8 +432,8 @@ export default function Home() {
                   <span className="text-[10px] font-bold uppercase opacity-50 tracking-widest">Exposure</span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <input type="range" min="1" max="24" value={currentFrame.duration || 1} onChange={(e) => updateFrameDuration(currentFrameIndex, parseInt(e.target.value))} className="w-48 h-1 accent-accent cursor-pointer" />
-                  <span className="text-[10px] font-mono font-bold w-16 text-center bg-accent/10 px-2 py-1 rounded">{currentFrame.duration || 1} Beats</span>
+                  <input type="range" min="1" max="24" value={currentFrame?.duration || 1} onChange={(e) => updateFrameDuration(currentFrameIndex, parseInt(e.target.value))} className="w-48 h-1 accent-accent cursor-pointer" />
+                  <span className="text-[10px] font-mono font-bold w-16 text-center bg-accent/10 px-2 py-1 rounded">{currentFrame?.duration || 1} Beats</span>
                 </div>
               </div>
               
@@ -431,9 +450,10 @@ export default function Home() {
         <AIPanel />
       </div>
 
+      {/* Footer - Static */}
       <footer className="h-8 flex items-center justify-between w-full px-4 text-[10px] uppercase font-bold bg-white border-t border-foreground/5 z-20 shrink-0">
         <div className="flex items-center gap-4">
-          <span className="opacity-40">Project ID: {project.id}</span>
+          <span className="opacity-40">Project ID: {mounted ? project.id : '...'}</span>
           {isAutoSaving && <div className="flex items-center gap-1.5 text-accent animate-pulse"><Save size={10} /><span>Draft Backup Active</span></div>}
         </div>
         <div className="flex items-center gap-4 opacity-40">
@@ -444,7 +464,7 @@ export default function Home() {
 
       <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadProject(f); }} accept=".sketchflow,.json" className="hidden" />
       <input type="file" ref={audioInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) setAudio(f, f.name); }} accept="audio/*" className="hidden" />
-      {isLayersOpen && <LayersPanel layers={currentFrame.layers} activeLayerId={activeLayerId} onSetActive={setActiveLayerId} onAdd={addLayer} onCopy={copyLayer} onPaste={pasteLayer} hasCopiedLayer={hasCopiedLayer} onDelete={deleteLayer} onReorder={reorderLayers} onToggleVisibility={() => {}} onToggleLock={() => {}} onOpacityChange={() => {}} onBlendModeChange={() => {}} onClose={() => setIsLayersOpen(false)} />}
+      {isLayersOpen && currentFrame && <LayersPanel layers={currentFrame.layers || []} activeLayerId={activeLayerId} onSetActive={setActiveLayerId} onAdd={addLayer} onCopy={copyLayer} onPaste={pasteLayer} hasCopiedLayer={hasCopiedLayer} onDelete={deleteLayer} onReorder={reorderLayers} onToggleVisibility={() => {}} onToggleLock={() => {}} onOpacityChange={() => {}} onBlendModeChange={() => {}} onClose={() => setIsLayersOpen(false)} />}
     </main>
   );
 }
