@@ -27,7 +27,6 @@ import {
   Check, 
   Clock, 
   Music,
-  Mic,
   History,
   FileClock,
   Briefcase,
@@ -202,9 +201,9 @@ export default function Home() {
   };
 
   return (
-    <main className="h-screen flex flex-col bg-background overflow-hidden selection:bg-accent/30">
-      {/* Header - Fixed Height */}
-      <header className="h-14 flex items-center justify-between px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 z-[60] shrink-0">
+    <main className="min-h-screen flex flex-col bg-background selection:bg-accent/30">
+      {/* Header - Fixed Height & Sticky */}
+      <header className="h-14 flex items-center justify-between px-4 bg-white/80 backdrop-blur-sm border-b border-foreground/10 sticky top-0 z-[60] shrink-0">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-bold italic tracking-tighter text-primary">
             SketchFlow <span className="text-accent">Studio</span>
@@ -294,15 +293,23 @@ export default function Home() {
                 <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2">Export</h4>
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">Resolution</Label>
+                    <Label className="text-[10px] font-bold uppercase opacity-60">Quality</Label>
                     <Select value={exportScale} onValueChange={setExportScale}>
                       <SelectTrigger className="sketch-border h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
                       <SelectContent className="sketch-card">
-                        <SelectItem value="0.5">0.5x</SelectItem>
-                        <SelectItem value="1">1.0x</SelectItem>
-                        <SelectItem value="2">2.0x</SelectItem>
+                        <SelectItem value="0.5">Draft (400px)</SelectItem>
+                        <SelectItem value="1">Standard (800px)</SelectItem>
+                        <SelectItem value="2">Full HD (1600px)</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase opacity-60">Range</Label>
+                    <div className="flex items-center gap-2">
+                      <Input type="number" value={exportStartFrame} onChange={(e) => setExportStartFrame(e.target.value)} className="sketch-border h-8 text-[10px] w-16" min="1" max={project.frames.length} />
+                      <span className="text-[10px] opacity-40">to</span>
+                      <Input type="number" value={exportEndFrame} onChange={(e) => setExportEndFrame(e.target.value)} className="sketch-border h-8 text-[10px] w-16" min="1" max={project.frames.length} />
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-bold">Transparency</Label>
@@ -354,10 +361,16 @@ export default function Home() {
               <PopoverContent className="w-72 sketch-card p-4 space-y-4" side="bottom" align="start">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2">Editor Preferences</h4>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between"><Label className="text-xs">Auto-save</Label><Switch checked={project.autoSaveEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, autoSaveEnabled: checked }))} /></div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Auto-save</Label>
+                    <Switch checked={project.autoSaveEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, autoSaveEnabled: checked }))} />
+                  </div>
                   <div className="flex items-center justify-between"><Label className="text-xs">Pressure</Label><Switch checked={pressureEnabled} onCheckedChange={setPressureEnabled} /></div>
                   <div className="flex items-center justify-between"><Label className="text-xs">Stabilization</Label><Switch checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} /></div>
-                  <div className="flex items-center justify-between"><Label className="text-xs">Scrub Sound</Label><Switch checked={project.scrubWithSound} onCheckedChange={(checked) => setProject(p => ({ ...p, scrubWithSound: checked }))} /></div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Scrub Sound</Label>
+                    <Switch checked={project.scrubWithSound} onCheckedChange={(checked) => setProject(p => ({ ...p, scrubWithSound: checked }))} />
+                  </div>
                   
                   <div className="pt-2 border-t space-y-3">
                     <h5 className="text-[10px] font-bold uppercase opacity-40">Snapping</h5>
@@ -390,8 +403,9 @@ export default function Home() {
       </header>
 
       {/* Main Workspace Area - Flexible Center */}
-      <div className="flex-1 flex min-h-0 overflow-hidden relative">
-        <aside className="w-16 flex-none bg-background border-r border-foreground/5 flex flex-col items-center py-4 z-20">
+      <div className="flex flex-1 relative">
+        {/* Sticky Toolbar */}
+        <aside className="w-16 flex-none bg-background border-r border-foreground/5 flex flex-col items-center py-4 z-20 sticky top-14 h-[calc(100vh-3.5rem)]">
           <Toolbar 
             currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} 
             moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={flipCurrentLayer} 
@@ -401,11 +415,11 @@ export default function Home() {
           />
         </aside>
 
-        {/* Drawing Space + Bottom Dock */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Centered Canvas Container */}
-          <div className="flex-1 flex items-center justify-center p-4 bg-slate-100/30 min-h-0 overflow-hidden">
-             <div className="w-full max-w-[800px] flex flex-col gap-2">
+        {/* Drawing Space + Bottom Dock Flow */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Canvas Section */}
+          <div className="flex items-center justify-center p-8 bg-slate-100/30">
+             <div className="w-full max-w-[800px] flex flex-col gap-4">
                {tool === 'lasso' && (
                  <div className="flex items-center gap-2 bg-white p-2 sketch-border z-30 shadow-md self-center">
                     <span className="text-[10px] font-bold uppercase opacity-50 px-2 border-r">Lasso</span>
@@ -416,7 +430,7 @@ export default function Home() {
                  </div>
                )}
                
-               <div className="w-full aspect-video shadow-2xl bg-white sketch-border overflow-hidden ring-4 ring-white/50">
+               <div className="w-full aspect-video shadow-2xl bg-white sketch-border overflow-hidden ring-4 ring-white/50 relative">
                   <SketchCanvas 
                     ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} 
                     activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} tool={tool} moveMode={moveMode} 
@@ -428,17 +442,17 @@ export default function Home() {
              </div>
           </div>
 
-          {/* Control Dock - Fixed at bottom of workspace */}
-          <div className="flex-none bg-white border-t border-foreground/5 p-4 flex flex-col gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10">
-            <div className="w-full max-w-[800px] mx-auto space-y-4">
-              <div className="flex items-center justify-between bg-slate-50 px-3 py-1.5 sketch-border">
+          {/* Control Dock - Follows the Flow */}
+          <div className="bg-white border-t border-foreground/5 p-6 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10 mt-auto">
+            <div className="w-full max-w-[800px] mx-auto space-y-6">
+              <div className="flex items-center justify-between bg-slate-50 px-4 py-2 sketch-border">
                 <div className="flex items-center gap-2">
                   <Clock size={14} className="text-accent" />
-                  <span className="text-[10px] font-bold uppercase opacity-50">Exposure (Hold)</span>
+                  <span className="text-[10px] font-bold uppercase opacity-50 tracking-widest">Frame Exposure</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <input type="range" min="1" max="24" value={currentFrame.duration || 1} onChange={(e) => updateFrameDuration(currentFrameIndex, parseInt(e.target.value))} className="w-32 h-1 accent-accent cursor-pointer" />
-                  <span className="text-[10px] font-mono font-bold w-12 text-center bg-accent/10 px-2 py-0.5 rounded">{currentFrame.duration || 1} Beats</span>
+                <div className="flex items-center gap-4">
+                  <input type="range" min="1" max="24" value={currentFrame.duration || 1} onChange={(e) => updateFrameDuration(currentFrameIndex, parseInt(e.target.value))} className="w-48 h-1 accent-accent cursor-pointer" />
+                  <span className="text-[10px] font-mono font-bold w-16 text-center bg-accent/10 px-2 py-1 rounded">{currentFrame.duration || 1} Beats</span>
                 </div>
               </div>
               
