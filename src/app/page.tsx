@@ -31,7 +31,10 @@ import {
   Paintbrush,
   Magnet,
   Grid,
-  Clock3
+  Clock3,
+  Eye,
+  Settings2,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -114,7 +117,11 @@ export default function Home() {
     deleteVersion,
     isAutoSaving,
     removeAudio,
-    setAudio
+    setAudio,
+    isMultiDrawEnabled,
+    setIsMultiDrawEnabled,
+    multiDrawRange,
+    setMultiDrawRange
   } = useAnimationState();
 
   const [isLayersOpen, setIsLayersOpen] = useState(false);
@@ -124,7 +131,6 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
-  // Fix Hydration Error: Avoid rendering dynamic/localized values until mounted
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -145,7 +151,6 @@ export default function Home() {
   const activeGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
   const currentFps = activeGroup ? activeGroup.fps : project.fps;
 
-  // Handle Lasso Action
   const handleLassoAction = (action: 'cut' | 'copy' | 'select' | 'move') => {
     const result = canvasRef.current?.executeLassoAction(action);
     if (result && (action === 'copy' || action === 'move')) {
@@ -154,7 +159,6 @@ export default function Home() {
     if (action === 'move') setTool('move');
   };
 
-  // Gracefully handle server-side render or initialization delay
   if (!currentFrame && mounted) return (
     <div className="h-screen w-screen flex items-center justify-center bg-background">
       <Loader2 className="animate-spin text-accent" size={32} />
@@ -171,7 +175,11 @@ export default function Home() {
           </h1>
           
           <div className="flex items-center gap-1 bg-white p-1 sketch-border">
-            <button onClick={toggleOnionSkin} className={cn("p-1.5 hover:bg-accent transition-all rounded", project.onionSkinEnabled ? "bg-accent" : "transparent")} title="Toggle Onion Skin">
+            <button 
+              onClick={toggleOnionSkin} 
+              className={cn("p-1.5 hover:bg-accent transition-all rounded", project.onionSkinEnabled ? "bg-accent" : "transparent")} 
+              title="Toggle Onion Skin"
+            >
               <Layers size={14} />
             </button>
 
@@ -345,16 +353,18 @@ export default function Home() {
               </PopoverTrigger>
               <PopoverContent className="w-72 sketch-card p-4 space-y-4" side="bottom" align="start">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2">Editor Preferences</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Auto-save</Label>
-                    <Switch checked={project.autoSaveEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, autoSaveEnabled: checked }))} />
-                  </div>
-                  <div className="flex items-center justify-between"><Label className="text-xs">Pressure Sensitivity</Label><Switch checked={pressureEnabled} onCheckedChange={setPressureEnabled} /></div>
-                  <div className="flex items-center justify-between"><Label className="text-xs">Stroke Stabilizer</Label><Switch checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} /></div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Scrub with Sound</Label>
-                    <Switch checked={project.scrubWithSound} onCheckedChange={(checked) => setProject(p => ({ ...p, scrubWithSound: checked }))} />
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Auto-save</Label>
+                      <Switch checked={project.autoSaveEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, autoSaveEnabled: checked }))} />
+                    </div>
+                    <div className="flex items-center justify-between"><Label className="text-xs">Pressure Sensitivity</Label><Switch checked={pressureEnabled} onCheckedChange={setPressureEnabled} /></div>
+                    <div className="flex items-center justify-between"><Label className="text-xs">Stroke Stabilizer</Label><Switch checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} /></div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Scrub with Sound</Label>
+                      <Switch checked={project.scrubWithSound} onCheckedChange={(checked) => setProject(p => ({ ...p, scrubWithSound: checked }))} />
+                    </div>
                   </div>
                   
                   <div className="pt-2 border-t space-y-3">
@@ -374,6 +384,26 @@ export default function Home() {
                       <Switch checked={project.snapToAngle} onCheckedChange={(checked) => setProject(p => ({ ...p, snapToAngle: checked }))} />
                     </div>
                   </div>
+
+                  <div className="pt-2 border-t space-y-3">
+                    <h5 className="text-[10px] font-bold uppercase opacity-40">Onion Skin Settings</h5>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><Eye size={12}/><Label className="text-xs">Advanced View</Label></div>
+                      <Switch checked={project.advancedOnionSkinEnabled} onCheckedChange={(checked) => setProject(p => ({ ...p, advancedOnionSkinEnabled: checked }))} />
+                    </div>
+                    {project.advancedOnionSkinEnabled && (
+                      <div className="space-y-3 px-1">
+                        <div className="space-y-1">
+                          <div className="flex justify-between"><Label className="text-[9px] uppercase font-bold">Frames Before</Label><span className="text-[9px] font-mono">{project.onionSkinBefore}</span></div>
+                          <Slider value={[project.onionSkinBefore || 1]} min={1} max={5} step={1} onValueChange={([val]) => setProject(p => ({ ...p, onionSkinBefore: val }))} />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between"><Label className="text-[9px] uppercase font-bold">Frames After</Label><span className="text-[9px] font-mono">{project.onionSkinAfter}</span></div>
+                          <Slider value={[project.onionSkinAfter || 1]} min={1} max={5} step={1} onValueChange={([val]) => setProject(p => ({ ...p, onionSkinAfter: val }))} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
@@ -387,13 +417,14 @@ export default function Home() {
         />
       </header>
 
-      {/* Main Workspace Area - Sticky Toolbar + Scrollable Content */}
+      {/* Main Workspace Area */}
       <div className="flex flex-1 relative">
         <aside className="sticky top-14 h-[calc(100vh-3.5rem)] w-16 flex-none bg-background border-r border-foreground/5 flex flex-col items-center py-4 z-20 overflow-y-auto scrollbar-none">
           <Toolbar 
             currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} 
             moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={() => {}} 
             canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} 
+            isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled}
           />
         </aside>
 
@@ -401,19 +432,38 @@ export default function Home() {
           {/* Canvas Area */}
           <div className="flex items-center justify-center p-8 bg-slate-100/30 flex-1 min-h-[500px]">
              <div className="w-full max-w-[800px] flex flex-col gap-4">
-               {tool === 'lasso' && (
-                 <div className="flex items-center gap-2 bg-white p-2 sketch-border z-30 shadow-md self-center">
-                    <button onClick={() => handleLassoAction('cut')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-red-50 px-2 py-1 rounded border transition-colors"><Scissors size={12} /> Cut</button>
-                    <button onClick={() => handleLassoAction('copy')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-blue-50 px-2 py-1 rounded border transition-colors"><Copy size={12} /> Copy</button>
-                    <button onClick={() => handleLassoAction('move')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-orange-50 px-2 py-1 rounded border transition-colors"><Move size={12} /> Move</button>
-                 </div>
-               )}
+               <div className="flex items-center justify-between">
+                 {tool === 'lasso' ? (
+                   <div className="flex items-center gap-2 bg-white p-2 sketch-border z-30 shadow-md">
+                      <button onClick={() => handleLassoAction('cut')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-red-50 px-2 py-1 rounded border transition-colors"><Scissors size={12} /> Cut</button>
+                      <button onClick={() => handleLassoAction('copy')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-blue-50 px-2 py-1 rounded border transition-colors"><Copy size={12} /> Copy</button>
+                      <button onClick={() => handleLassoAction('move')} className="flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-50 hover:bg-orange-50 px-2 py-1 rounded border transition-colors"><Move size={12} /> Move</button>
+                   </div>
+                 ) : <div />}
+
+                 {isMultiDrawEnabled && (
+                   <div className="flex items-center gap-3 bg-white px-3 py-2 sketch-border shadow-sm animate-in slide-in-from-right duration-200">
+                     <div className="flex items-center gap-1.5">
+                       <Zap size={14} className="text-accent animate-pulse" />
+                       <span className="text-[10px] font-bold uppercase tracking-wider">Multi-Draw Sync</span>
+                     </div>
+                     <div className="w-px h-4 bg-foreground/10" />
+                     <div className="flex items-center gap-3">
+                       <span className="text-[9px] font-bold uppercase opacity-50">Range: {multiDrawRange}</span>
+                       <Slider value={[multiDrawRange]} min={1} max={24} step={1} onValueChange={([val]) => setMultiDrawRange(val)} className="w-24" />
+                     </div>
+                   </div>
+                 )}
+               </div>
                
                {currentFrame && (
                  <div className="w-full aspect-video shadow-2xl bg-white sketch-border overflow-hidden ring-4 ring-white/50 relative shrink-0">
                     <SketchCanvas 
                       ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} 
-                      activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} tool={tool} moveMode={moveMode} 
+                      activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} 
+                      advancedOnionSkinEnabled={project.advancedOnionSkinEnabled}
+                      onionSkinBefore={project.onionSkinBefore} onionSkinAfter={project.onionSkinAfter}
+                      tool={tool} moveMode={moveMode} 
                       color={color} brushSize={brushSize} opacity={opacity} hardness={80} onLayerUpdate={updateLayerData} 
                       isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} 
                       snapToGrid={project.snapToGrid} gridSize={project.gridSize} snapToAngle={project.snapToAngle}
@@ -450,7 +500,7 @@ export default function Home() {
         <AIPanel />
       </div>
 
-      {/* Footer - Static */}
+      {/* Footer */}
       <footer className="h-8 flex items-center justify-between w-full px-4 text-[10px] uppercase font-bold bg-white border-t border-foreground/5 z-20 shrink-0">
         <div className="flex items-center gap-4">
           <span className="opacity-40">Project ID: {mounted ? project.id : '...'}</span>
