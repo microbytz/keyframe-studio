@@ -96,7 +96,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         resultData = offscreen.toDataURL();
       }
 
-      if (action === 'cut' || action === 'move') {
+      if (action === 'cut' || action === 'move' || action === 'copy') {
         ctx.save();
         ctx.globalCompositeOperation = 'destination-out';
         ctx.beginPath();

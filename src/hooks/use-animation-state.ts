@@ -513,6 +513,7 @@ export function useAnimationState() {
     copyLayer,
     pasteLayer,
     hasCopiedLayer: !!copiedLayerData,
+    setCopiedLayerData,
     deleteLayer,
     reorderLayers,
     toggleLayerVisibility,
