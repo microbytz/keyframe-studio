@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimationProject, ToolType, Frame, Layer, FrameGroup } from '@/lib/types';
+import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode } from '@/lib/types';
 import gifshot from 'gifshot';
 
 const INITIAL_FPS = 12;
@@ -41,6 +41,7 @@ export function useAnimationState() {
   const [activeLayerId, setActiveLayerId] = useState<string>(project.frames[0].layers[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
   const [tool, setTool] = useState<ToolType>('pen');
+  const [moveMode, setMoveMode] = useState<MoveMode>('translate');
   const [color, setColor] = useState('#454D52');
   const [brushSize, setBrushSize] = useState(4);
   const [opacity, setOpacity] = useState(100);
@@ -482,6 +483,8 @@ export function useAnimationState() {
     isPlaying,
     tool,
     setTool,
+    moveMode,
+    setMoveMode,
     color,
     setColor,
     brushSize,

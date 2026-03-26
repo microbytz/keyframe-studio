@@ -39,6 +39,8 @@ export default function Home() {
     isPlaying,
     tool,
     setTool,
+    moveMode,
+    setMoveMode,
     color,
     setColor,
     brushSize,
@@ -358,7 +360,7 @@ export default function Home() {
 
       <div className="flex flex-col md:flex-row flex-1 w-full max-w-7xl items-center md:items-start py-4 md:py-6 relative">
         <div className="w-full md:w-auto px-4 mb-4 md:mb-0 md:flex-none md:sticky md:top-20 z-40">
-          <Toolbar currentTool={tool} setTool={setTool} undo={undo} redo={redo} flip={flipCurrentLayer} canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled} />
+          <Toolbar currentTool={tool} setTool={setTool} moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={flipCurrentLayer} canUndo={canUndo} canRedo={canRedo} color={color} onOpenLayers={() => setIsLayersOpen(true)} isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled} />
         </div>
 
         <div className="flex-1 flex flex-col items-center px-4 gap-4 md:gap-6 pb-20 w-full overflow-hidden">
@@ -382,7 +384,7 @@ export default function Home() {
           
           <div className="w-full max-w-full flex justify-center">
             <div className="shadow-xl bg-white sketch-border overflow-hidden w-full max-w-[800px]">
-              <SketchCanvas ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} onionSkinBefore={project.onionSkinBefore} onionSkinAfter={project.onionSkinAfter} tool={tool} color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} onLassoSelect={setHasLassoSelection} isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} dynamicStampingEnabled={dynamicStampingEnabled} customBrushColorLink={customBrushColorLink} customBrushData={customBrushData} />
+              <SketchCanvas ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} advancedOnionSkinEnabled={project.advancedOnionSkinEnabled} onionSkinBefore={project.onionSkinBefore} onionSkinAfter={project.onionSkinAfter} tool={tool} moveMode={moveMode} color={color} brushSize={brushSize} opacity={opacity} hardness={hardness} onLayerUpdate={updateLayerData} onLassoSelect={setHasLassoSelection} isPlaying={isPlaying} pressureEnabled={pressureEnabled} stabilizationEnabled={stabilizationEnabled} dynamicStampingEnabled={dynamicStampingEnabled} customBrushColorLink={customBrushColorLink} customBrushData={customBrushData} />
             </div>
           </div>
           

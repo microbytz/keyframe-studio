@@ -24,6 +24,8 @@ export type ToolType =
   | 'triangle'
   | 'custom';
 
+export type MoveMode = 'translate' | 'scale' | 'rotate' | 'skew';
+
 export interface Layer {
   id: string;
   name: string;

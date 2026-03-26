@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react';
-import { ToolType } from '@/lib/types';
+import { ToolType, MoveMode } from '@/lib/types';
 import { 
   Pencil, 
   Eraser, 
@@ -33,7 +33,10 @@ import {
   Triangle,
   Settings2,
   Layers as LayersIcon,
-  Wand2
+  Wand2,
+  Maximize,
+  RotateCcw,
+  StretchHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -46,6 +49,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface ToolbarProps {
   currentTool: ToolType;
   setTool: (tool: ToolType) => void;
+  moveMode: MoveMode;
+  setMoveMode: (mode: MoveMode) => void;
   undo: () => void;
   redo: () => void;
   flip: (axis: 'horizontal' | 'vertical') => void;
@@ -60,6 +65,8 @@ interface ToolbarProps {
 export const Toolbar: React.FC<ToolbarProps> = ({
   currentTool,
   setTool,
+  moveMode,
+  setMoveMode,
   undo,
   redo,
   flip,
@@ -98,28 +105,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'triangle', icon: Triangle, label: 'Triangle' },
   ];
 
-  const utilityTools = [
-    { id: 'move', icon: Move, label: 'Move / Transform' },
-    { id: 'eraser', icon: Eraser, label: 'Eraser' },
-    { id: 'bucket', icon: PaintBucket, label: 'Fill' },
-    { id: 'lasso', icon: LassoIcon, label: 'Lasso Selection' },
+  const transformModes = [
+    { id: 'translate', icon: Move, label: 'Move' },
+    { id: 'scale', icon: Maximize, label: 'Scale' },
+    { id: 'rotate', icon: RotateCcw, label: 'Rotate' },
+    { id: 'skew', icon: StretchHorizontal, label: 'Skew' },
   ];
 
   const activeBrush = brushTools.find(t => t.id === currentTool) || brushTools[0];
   const isBrushActive = brushTools.some(t => t.id === currentTool);
-  
-  const activeShape = shapeTools.find(t => t.id === currentTool);
-  const isShapeActive = !!activeShape;
-
-  const getBrushPreviewStyle = (toolId: string) => {
-    const base: React.CSSProperties = {
-      backgroundColor: color,
-      height: '6px',
-      width: '100%',
-      borderRadius: '99px',
-    };
-    return base;
-  };
+  const isShapeActive = shapeTools.some(t => t.id === currentTool);
+  const activeMoveIcon = transformModes.find(m => m.id === moveMode)?.icon || Move;
 
   return (
     <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-start md:justify-center bg-white overflow-x-auto scrollbar-none touch-pan-x">
@@ -143,7 +139,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <div className="mb-4 p-3 sketch-border bg-background/50 flex flex-col items-center justify-center min-h-[64px]">
               <span className="text-[10px] font-bold uppercase opacity-60 mb-2">{activeBrush.label}</span>
               <div className="w-full px-4">
-                <div style={getBrushPreviewStyle(activeBrush.id)} />
+                <div style={{ backgroundColor: color, height: '6px', width: '100%', borderRadius: '99px' }} />
               </div>
             </div>
             <div className="grid grid-cols-5 gap-2">
@@ -172,7 +168,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               )}
               title="Shapes"
             >
-              {isShapeActive ? <activeShape.icon size={16} /> : <Square size={16} />}
+              {isShapeActive ? shapeTools.find(t => t.id === currentTool)?.icon({ size: 16 }) : <Square size={16} />}
               <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
                 <ChevronDown size={10} strokeWidth={4} />
               </div>
@@ -199,18 +195,72 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
         
-        {utilityTools.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTool(t.id as ToolType)}
-            className={cn(
-              "p-2 sketch-border transition-all hover:bg-accent shrink-0",
-              currentTool === t.id ? "bg-accent" : "bg-white"
-            )}
-          >
-            <t.icon size={16} />
-          </button>
-        ))}
+        {/* Advanced Move Tool with Popover for Transforms */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              onClick={() => setTool('move')}
+              className={cn(
+                "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
+                currentTool === 'move' ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
+              )}
+              title="Move & Transform"
+            >
+              <activeMoveIcon size={16} />
+              <div className="absolute -bottom-0.5 -right-0.5 bg-foreground text-white rounded-full p-0.5 scale-50">
+                <ChevronDown size={10} strokeWidth={4} />
+              </div>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent side={isMobile ? "bottom" : "right"} align="start" className="w-48 p-3 sketch-card z-[100]">
+            <div className="grid grid-cols-2 gap-2">
+              {transformModes.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => { setTool('move'); setMoveMode(m.id as MoveMode); }}
+                  className={cn(
+                    "p-3 sketch-border transition-all hover:bg-accent flex flex-col items-center gap-1",
+                    (currentTool === 'move' && moveMode === m.id) ? "bg-accent" : "bg-white"
+                  )}
+                >
+                  <m.icon size={18} />
+                  <span className="text-[8px] font-bold uppercase">{m.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[8px] mt-2 opacity-40 uppercase font-bold text-center">Transform Selection</p>
+          </PopoverContent>
+        </Popover>
+
+        <button
+          onClick={() => setTool('eraser')}
+          className={cn(
+            "p-2 sketch-border transition-all hover:bg-accent shrink-0",
+            currentTool === 'eraser' ? "bg-accent" : "bg-white"
+          )}
+        >
+          <Eraser size={16} />
+        </button>
+
+        <button
+          onClick={() => setTool('bucket')}
+          className={cn(
+            "p-2 sketch-border transition-all hover:bg-accent shrink-0",
+            currentTool === 'bucket' ? "bg-accent" : "bg-white"
+          )}
+        >
+          <PaintBucket size={16} />
+        </button>
+
+        <button
+          onClick={() => setTool('lasso')}
+          className={cn(
+            "p-2 sketch-border transition-all hover:bg-accent shrink-0",
+            currentTool === 'lasso' ? "bg-accent" : "bg-white"
+          )}
+        >
+          <LassoIcon size={16} />
+        </button>
 
         <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
 

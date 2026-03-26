@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
-import { ToolType, Frame, Layer } from '@/lib/types';
+import { ToolType, Frame, Layer, MoveMode } from '@/lib/types';
 
 interface SketchCanvasProps {
   width: number;
@@ -14,6 +14,7 @@ interface SketchCanvasProps {
   onionSkinBefore?: number;
   onionSkinAfter?: number;
   tool: ToolType;
+  moveMode?: MoveMode;
   color: string;
   brushSize: number;
   opacity: number;
@@ -43,6 +44,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   onionSkinBefore = 1,
   onionSkinAfter = 1,
   tool,
+  moveMode = 'translate',
   color,
   brushSize,
   opacity,
@@ -304,6 +306,37 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     };
   };
 
+  const applyTransform = (ctx: CanvasRenderingContext2D, img: HTMLImageElement, startX: number, startY: number, curX: number, curY: number, mode: MoveMode) => {
+    const cx = width / 2;
+    const cy = height / 2;
+    
+    ctx.save();
+    
+    if (mode === 'translate') {
+      const dx = curX - startX;
+      const dy = curY - startY;
+      ctx.translate(dx, dy);
+    } else if (mode === 'scale') {
+      const scaleX = 1 + (curX - startX) / (width / 2);
+      const scaleY = 1 + (curY - startY) / (height / 2);
+      ctx.translate(cx, cy);
+      ctx.scale(scaleX, scaleY);
+      ctx.translate(-cx, -cy);
+    } else if (mode === 'rotate') {
+      const angle = Math.atan2(curY - cy, curX - cx) - Math.atan2(startY - cy, startX - cx);
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      ctx.translate(-cx, -cy);
+    } else if (mode === 'skew') {
+      const skewX = (curX - startX) / (width / 2);
+      const skewY = (curY - startY) / (height / 2);
+      ctx.transform(1, skewY, skewX, 1, 0, 0);
+    }
+
+    ctx.drawImage(img, 0, 0);
+    ctx.restore();
+  };
+
   const startDrawing = (e: React.PointerEvent) => {
     if (isPlaying || !activeLayer.visible) return;
     const pos = getPos(e);
@@ -353,16 +386,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     let pos = getPos(e);
 
     if (tool === 'move') {
+      tCtx.clearRect(0, 0, width, height);
       if (movingSelection) {
-        tCtx.clearRect(0, 0, width, height);
-        const dx = pos.x - startPosRef.current.x;
-        const dy = pos.y - startPosRef.current.y;
-        tCtx.drawImage(movingSelection, dx, dy);
+        applyTransform(tCtx, movingSelection, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode);
       } else if (dragStartImage) {
-        const dx = pos.x - lastPosRef.current.x;
-        const dy = pos.y - lastPosRef.current.y;
         ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(dragStartImage, dx, dy);
+        applyTransform(ctx, dragStartImage, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode);
       }
       return;
     }
@@ -425,48 +454,35 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(r);
-        
         const offscreen = document.createElement('canvas');
         offscreen.width = effectiveBrushSize * 2;
         offscreen.height = effectiveBrushSize * 2;
         const oCtx = offscreen.getContext('2d')!;
-        
         oCtx.drawImage(customBrushImage, 0, 0, offscreen.width, offscreen.height);
-        
         if (customBrushColorLink) {
           oCtx.globalCompositeOperation = 'source-in';
           oCtx.fillStyle = color;
           oCtx.fillRect(0, 0, offscreen.width, offscreen.height);
         }
-        
         ctx.drawImage(offscreen, -effectiveBrushSize, -effectiveBrushSize);
         ctx.restore();
       };
-
-      const spacing = dynamicStampingEnabled 
-        ? effectiveBrushSize * 1.1 
-        : Math.max(1, effectiveBrushSize / 10);
-      
+      const spacing = dynamicStampingEnabled ? effectiveBrushSize * 1.1 : Math.max(1, effectiveBrushSize / 10);
       const steps = Math.max(1, Math.ceil(dist / spacing));
       for (let i = 0; i < steps; i++) {
         const t = i / steps;
-        const x = lastPos.x + (pos.x - lastPos.x) * t;
-        const y = lastPos.y + (pos.y - lastPos.y) * t;
-        drawStamp(x, y, angle);
+        drawStamp(lastPos.x + (pos.x - lastPos.x) * t, lastPos.y + (pos.y - lastPos.y) * t, angle);
       }
     }
     else if (['pen', 'eraser', 'brush', 'marker', 'highlighter', 'technical', 'ink'].includes(tool)) {
       ctx.lineWidth = effectiveBrushSize;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      
       if (tool === 'highlighter') ctx.globalAlpha *= 0.5;
       if (tool === 'brush') {
-        const blurAmount = (1 - (hardness / 100)) * effectiveBrushSize * 1.5;
-        ctx.shadowBlur = blurAmount;
+        ctx.shadowBlur = (1 - (hardness / 100)) * effectiveBrushSize * 1.5;
         ctx.shadowColor = color;
       }
-      
       ctx.beginPath();
       ctx.moveTo(lastPos.x, lastPos.y);
       ctx.lineTo(pos.x, pos.y);
@@ -475,7 +491,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     else if (tool === 'pencil') {
       ctx.globalAlpha *= (0.3 + (hardness / 100) * 0.4);
       ctx.lineWidth = Math.max(1, effectiveBrushSize / 2);
-      ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(lastPos.x, lastPos.y);
       ctx.lineTo(pos.x, pos.y);
@@ -483,18 +498,14 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     }
     else if (tool === 'pixel') {
       const size = Math.max(1, Math.floor(effectiveBrushSize / 2));
-      const px = Math.floor(pos.x / size) * size;
-      const py = Math.floor(pos.y / size) * size;
-      ctx.fillRect(px, py, size, size);
+      ctx.fillRect(Math.floor(pos.x / size) * size, Math.floor(pos.y / size) * size, size, size);
     } 
     else if (tool === 'calligraphy') {
       const steps = Math.max(1, Math.ceil(dist / 2));
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
-        const x = lastPos.x + (pos.x - lastPos.x) * t;
-        const y = lastPos.y + (pos.y - lastPos.y) * t;
         ctx.save();
-        ctx.translate(x, y);
+        ctx.translate(lastPos.x + (pos.x - lastPos.x) * t, lastPos.y + (pos.y - lastPos.y) * t);
         ctx.rotate(Math.PI / 4);
         ctx.fillRect(-effectiveBrushSize, -1, effectiveBrushSize * 2, 2);
         ctx.restore();
@@ -503,26 +514,23 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     else if (['airbrush', 'spray', 'charcoal', 'crayon', 'watercolor', 'chalk'].includes(tool)) {
       const density = 20 * (hardness / 100 + 0.5);
       const spread = effectiveBrushSize * 1.5;
-      
       const steps = Math.max(1, Math.ceil(dist / 2));
       for (let s = 0; s < steps; s++) {
         const t = s / steps;
         const interpX = lastPos.x + (pos.x - lastPos.x) * t;
         const interpY = lastPos.y + (pos.y - lastPos.y) * t;
-        
         for (let i = 0; i < density / 5; i++) {
           const r = Math.random() * spread;
           const rndAngle = Math.random() * Math.PI * 2;
           const x = interpX + r * Math.cos(rndAngle);
           const y = interpY + r * Math.sin(rndAngle);
-          
           if (tool === 'watercolor') {
-              ctx.globalAlpha = (opacity / 200) * Math.random();
-              ctx.beginPath();
-              ctx.arc(x, y, Math.random() * 3, 0, Math.PI * 2);
-              ctx.fill();
+            ctx.globalAlpha = (opacity / 200) * Math.random();
+            ctx.beginPath();
+            ctx.arc(x, y, Math.random() * 3, 0, Math.PI * 2);
+            ctx.fill();
           } else {
-              ctx.fillRect(x, y, 1.5, 1.5);
+            ctx.fillRect(x, y, 1.5, 1.5);
           }
         }
       }
@@ -549,15 +557,16 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       onLayerUpdate(dataUrl);
     };
 
-    if (tool === 'move' && movingSelection) {
-      const currentPos = getPos(e);
-      const dx = currentPos.x - startPosRef.current.x;
-      const dy = currentPos.y - startPosRef.current.y;
-      
-      ctx.drawImage(movingSelection, dx, dy);
-      setMovingSelection(null);
-      handleUpdate();
-      
+    if (tool === 'move') {
+      const pos = getPos(e);
+      if (movingSelection) {
+        applyTransform(ctx, movingSelection, startPosRef.current.x, startPosRef.current.y, pos.x, pos.y, moveMode);
+        setMovingSelection(null);
+        handleUpdate();
+      } else if (dragStartImage) {
+        setDragStartImage(null);
+        handleUpdate();
+      }
       const tCtx = tempCanvasRef.current?.getContext('2d');
       if (tCtx) tCtx.clearRect(0, 0, width, height);
       return;
@@ -597,7 +606,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       handleUpdate();
     }
     
-    if (tool === 'move') setDragStartImage(null);
     const tCtx = tempCanvasRef.current?.getContext('2d');
     if (tCtx && tool !== 'lasso' && tool !== 'move') tCtx.clearRect(0, 0, width, height);
   };
@@ -632,23 +640,19 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     while (stack.length > 0) {
       let [curX, curY] = stack.pop()!;
       let pos = (curY * width + curX) * 4;
-
       while (curY >= 0 && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
         curY--;
         pos -= width * 4;
       }
       pos += width * 4;
       curY++;
-
       let reachLeft = false;
       let reachRight = false;
-
       while (curY < height && data[pos] === sR && data[pos + 1] === sG && data[pos + 2] === sB && data[pos + 3] === sA) {
         data[pos] = fR;
         data[pos + 1] = fG;
         data[pos + 2] = fB;
         data[pos + 3] = fA;
-
         if (curX > 0) {
           const leftPos = pos - 4;
           if (data[leftPos] === sR && data[leftPos + 1] === sG && data[leftPos + 2] === sB && data[leftPos + 3] === sA) {
@@ -660,7 +664,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
             reachLeft = false;
           }
         }
-
         if (curX < width - 1) {
           const rightPos = pos + 4;
           if (data[rightPos] === sR && data[rightPos + 1] === sG && data[rightPos + 2] === sB && data[rightPos + 3] === sA) {
@@ -672,7 +675,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
             reachRight = false;
           }
         }
-
         curY++;
         pos += width * 4;
       }
@@ -688,8 +690,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     } else if (shapeTool === 'rectangle') {
       ctx.rect(sX, sY, eX - sX, eY - sY);
     } else if (shapeTool === 'circle') {
-      const radius = Math.sqrt(Math.pow(eX - sX, 2) + Math.pow(eY - sY, 2));
-      ctx.arc(sX, sY, radius, 0, 2 * Math.PI);
+      ctx.arc(sX, sY, Math.sqrt(Math.pow(eX - sX, 2) + Math.pow(eY - sY, 2)), 0, 2 * Math.PI);
     } else if (shapeTool === 'triangle') {
       ctx.moveTo(sX + (eX - sX) / 2, sY);
       ctx.lineTo(eX, eY);
