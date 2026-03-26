@@ -37,7 +37,8 @@ import {
   Settings2,
   Zap,
   Stamp,
-  Palette
+  Palette,
+  Edit3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -373,6 +374,10 @@ export default function Home() {
               <PopoverContent className="w-72 sketch-card p-4 space-y-4" side="bottom" align="start">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest border-b pb-2">Editor Preferences</h4>
                 <div className="space-y-4">
+                  <div className="pb-2 border-b">
+                    <CustomBrushDialog onSave={saveSavedBrush} currentBrush={customBrushData} layers={currentFrame?.layers || []} width={project.width} height={project.height} />
+                  </div>
+
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Auto-save</Label>
@@ -446,9 +451,6 @@ export default function Home() {
             isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled}
             savedBrushes={project.savedBrushes} customBrushData={customBrushData} setCustomBrushData={setCustomBrushData} deleteSavedBrush={deleteSavedBrush}
           />
-          <div className="mt-auto pb-4">
-             <CustomBrushDialog onSave={saveSavedBrush} currentBrush={customBrushData} layers={currentFrame?.layers || []} width={project.width} height={project.height} />
-          </div>
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0">
@@ -542,3 +544,4 @@ export default function Home() {
     </main>
   );
 }
+
