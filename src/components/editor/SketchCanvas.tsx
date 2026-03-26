@@ -228,29 +228,28 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
       const framesToRender: { index: number; opacity: number; color: string }[] = [];
 
-      // Increased opacities slightly as requested (but tinted now)
       const PREV_OPACITY = 0.25;
       const NEXT_OPACITY = 0.15;
       const PREV_COLOR = '#FF6B6B'; // Light Red
       const NEXT_COLOR = '#6B9FFF'; // Light Blue
 
       if (advancedOnionSkinEnabled) {
-        for (let i = 1; i <= onionSkinBefore; i++) {
+        for (let i = 1; i <= (onionSkinBefore || 1); i++) {
           const idx = currentFrameIndex - i;
           if (idx >= 0) {
             framesToRender.push({ 
               index: idx, 
-              opacity: PREV_OPACITY * (1 - (i - 1) / onionSkinBefore),
+              opacity: PREV_OPACITY * (1 - (i - 1) / (onionSkinBefore || 1)),
               color: PREV_COLOR
             });
           }
         }
-        for (let i = 1; i <= onionSkinAfter; i++) {
+        for (let i = 1; i <= (onionSkinAfter || 1); i++) {
           const idx = currentFrameIndex + i;
           if (idx < frames.length) {
             framesToRender.push({ 
               index: idx, 
-              opacity: NEXT_OPACITY * (1 - (i - 1) / onionSkinAfter),
+              opacity: NEXT_OPACITY * (1 - (i - 1) / (onionSkinAfter || 1)),
               color: NEXT_COLOR
             });
           }
@@ -267,23 +266,17 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
             const img = new Image();
             img.src = layer.imageData;
             img.onload = () => { 
-              // 1. Draw layer to ghost canvas
               gCtx.clearRect(0, 0, width, height);
               gCtx.save();
               gCtx.drawImage(img, 0, 0);
-              
-              // 2. Tint it
               gCtx.globalCompositeOperation = 'source-in';
               gCtx.fillStyle = item.color;
               gCtx.fillRect(0, 0, width, height);
               gCtx.restore();
-
-              // 3. Draw tinted version to the offscreen with frame opacity
               oCtx.save();
               oCtx.globalAlpha = item.opacity * ((layer.opacity ?? 100) / 100);
               oCtx.drawImage(ghostCanvas, 0, 0);
               oCtx.restore();
-              
               resolve(null); 
             };
             img.onerror = () => resolve(null);
@@ -298,14 +291,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   useEffect(() => {
     const renderComposites = async () => {
       if (!currentFrame) return;
-
       const renderLayerSet = async (ctx: CanvasRenderingContext2D, targetLayers: Layer[]) => {
         ctx.clearRect(0, 0, width, height);
         const offscreen = document.createElement('canvas');
         offscreen.width = width;
         offscreen.height = height;
         const oCtx = offscreen.getContext('2d')!;
-        
         for (const layer of [...targetLayers].reverse()) {
           if (!layer.visible || !layer.imageData) continue;
           await new Promise((resolve) => {
@@ -324,17 +315,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
         }
         ctx.drawImage(offscreen, 0, 0);
       };
-
       const belowLayers = currentFrame.layers.slice(activeLayerIdx + 1);
       const aboveLayers = currentFrame.layers.slice(0, activeLayerIdx);
-
       const belowCtx = compositeBelowCanvasRef.current?.getContext('2d');
       const aboveCtx = compositeAboveCanvasRef.current?.getContext('2d');
-
       if (belowCtx) await renderLayerSet(belowCtx, belowLayers);
       if (aboveCtx) await renderLayerSet(aboveCtx, aboveLayers);
     };
-    
     renderComposites();
   }, [currentFrame, activeLayerId, activeLayerIdx, width, height]);
 
@@ -343,13 +330,11 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     if (activeLayer?.imageData === lastRenderedImageDataRef.current && activeLayerId === lastRenderedActiveLayerIdRef.current) {
       canvas.style.opacity = ((activeLayer.opacity ?? 100) / 100).toString();
       canvas.style.mixBlendMode = (activeLayer.blendMode === 'source-over' ? 'normal' : activeLayer.blendMode) || 'normal';
       return;
     }
-
     ctx.clearRect(0, 0, width, height);
     if (activeLayer?.imageData && activeLayer.visible) {
       const img = new Image();
@@ -426,7 +411,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
   const startDrawing = (e: React.PointerEvent) => {
     if (isPlaying || !activeLayer.visible || activeLayer.locked) return;
     const pos = getPos(e);
-    
     if (tool === 'bucket') {
       const canvas = mainCanvasRef.current;
       if (canvas) {
@@ -436,11 +420,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       }
       return;
     }
-
     isDrawingRef.current = true;
     startPosRef.current = pos;
     lastPosRef.current = pos;
-    
     if (tool === 'lasso') {
       lassoPointsRef.current = [pos];
     } else if (tool === 'move') {
@@ -464,9 +446,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     const tCtx = tempCanvasRef.current?.getContext('2d');
     if (!canvas || !tCtx) return;
     const ctx = canvas.getContext('2d')!;
-
     let pos = getPos(e);
-
     if (tool === 'move') {
       tCtx.clearRect(0, 0, width, height);
       const source = movingSelection || dragStartImage;
@@ -478,7 +458,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       }
       return;
     }
-
     if (tool === 'lasso') {
       lassoPointsRef.current.push(pos);
       tCtx.clearRect(0, 0, width, height);
@@ -491,7 +470,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       tCtx.setLineDash([]);
       return;
     }
-
     const shapeTools = ['line', 'rectangle', 'circle', 'triangle'];
     if (shapeTools.includes(tool)) {
       tCtx.clearRect(0, 0, width, height);
@@ -505,16 +483,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       tCtx.restore();
       return;
     }
-
     const lastPos = lastPosRef.current;
     if (stabilizationEnabled) {
       pos.x = lastPos.x + (pos.x - lastPos.x) * 0.25;
       pos.y = lastPos.y + (pos.y - lastPos.y) * 0.25;
     }
-
     const currentPressure = pressureEnabled ? e.pressure || 0.5 : 1;
     const effectiveBrushSize = brushSize * currentPressure;
-
     ctx.save();
     ctx.globalAlpha = opacity / 100;
     if (tool === 'eraser') ctx.globalCompositeOperation = 'destination-out';
@@ -523,10 +498,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
     }
-
     const dist = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
     const angle = Math.atan2(pos.y - lastPos.y, pos.x - lastPos.x);
-
     if (tool === 'custom' && customBrushImage) {
       const spacing = dynamicStampingEnabled ? effectiveBrushSize * 1.1 : Math.max(1, effectiveBrushSize / 10);
       const steps = Math.max(1, Math.ceil(dist / spacing));
@@ -583,7 +556,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     const pos = getPos(e);
-
     if (tool === 'move') {
       const source = movingSelection || dragStartImage;
       const bounds = selectionBounds;

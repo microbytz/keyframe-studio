@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAnimationState } from '@/hooks/use-animation-state';
 import { SketchCanvas, SketchCanvasHandle } from '@/components/editor/SketchCanvas';
 import { Toolbar } from '@/components/editor/Toolbar';
@@ -115,6 +115,33 @@ export default function Home() {
   const currentFrame = project.frames[currentFrameIndex];
   const activeGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
   const currentFps = activeGroup ? activeGroup.fps : project.fps;
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+      if (e.key === 'ArrowLeft') selectFrame(Math.max(0, currentFrameIndex - 1));
+      if (e.key === 'ArrowRight') selectFrame(Math.min(project.frames.length - 1, currentFrameIndex + 1));
+      if (e.key === '[') setBrushSize(Math.max(1, brushSize - 1));
+      if (e.key === ']') setBrushSize(Math.min(100, brushSize + 1));
+      if (e.key === 'b') setTool('pen');
+      if (e.key === 'e') setTool('eraser');
+      if (e.key === 'm') setTool('move');
+      if (e.key === ' ') { e.preventDefault(); togglePlayback(); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentFrameIndex, project.frames.length, undo, redo, selectFrame, brushSize, setBrushSize, setTool, togglePlayback]);
 
   const handleFpsChange = (newFps: number) => {
     if (activeGroup) {
@@ -471,7 +498,7 @@ export default function Home() {
             </div>
             <div className="space-y-1">
               <Label className="text-[9px] uppercase font-bold opacity-60">Group Speed (FPS)</Label>
-              <Input type="number" value={groupFps} onChange={(e) => setGroupFps(e.target.value)} min="1" max="60" className="sketch-border h-8 text-xs" />
+              <Input type="number" value={groupFps} onChange={(e) => setGroupFps(e.target.value)} min="1" max={60} className="sketch-border h-8 text-xs" />
             </div>
             <div className="space-y-1">
               <Label className="text-[9px] uppercase font-bold opacity-60">Group Color</Label>
