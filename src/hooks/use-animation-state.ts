@@ -609,7 +609,7 @@ export function useAnimationState() {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const response = await fetch(dataUrl);
       const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioCtx.decodeAudioBuffer(arrayBuffer);
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
       
       const channelData = audioBuffer.getChannelData(0);
       const step = Math.ceil(channelData.length / 200);
