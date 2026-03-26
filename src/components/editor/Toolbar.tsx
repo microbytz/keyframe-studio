@@ -292,14 +292,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   );
 
   return (
-    <div className="flex flex-row md:flex-col gap-2 md:gap-4 p-2 sketch-card w-full md:w-14 items-center justify-start md:justify-center bg-white overflow-x-auto scrollbar-none touch-pan-x">
-      <div className="flex flex-row md:flex-col gap-2 shrink-0">
+    <div className="flex flex-row md:flex-col gap-1 md:gap-2 p-1 md:p-1.5 sketch-card w-full md:w-14 items-center justify-start md:justify-start bg-white overflow-x-auto scrollbar-none touch-pan-x">
+      <div className="flex flex-row md:flex-col gap-1 md:gap-1.5 shrink-0">
+        {/* Brush Tool */}
         <Popover>
           <PopoverTrigger asChild>
             <button
               onClick={() => { if (!isBrushActive) setTool(lastBrushTool); }}
               className={cn(
-                "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
+                "p-1.5 md:p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
                 isBrushActive ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
               )}
               title="Brushes"
@@ -435,12 +436,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </PopoverContent>
         </Popover>
 
+        {/* Shapes Tool */}
         <Popover>
           <PopoverTrigger asChild>
             <button
               onClick={() => { if (!isShapeActive) setTool(lastShapeTool); }}
               className={cn(
-                "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
+                "p-1.5 md:p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
                 isShapeActive ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
               )}
               title="Shapes"
@@ -473,13 +475,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </PopoverContent>
         </Popover>
 
-        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
+        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-0.5" />
         
+        {/* Transform Tools */}
         <Popover>
           <PopoverTrigger asChild>
             <button
               className={cn(
-                "p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
+                "p-1.5 md:p-2 sketch-border transition-all hover:bg-accent group relative shrink-0",
                 currentTool === 'move' ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
               )}
               title="Move & Transform"
@@ -514,10 +517,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </PopoverContent>
         </Popover>
 
+        {/* Action Tools */}
         <button
           onClick={() => setTool('eraser')}
           className={cn(
-            "p-2 sketch-border transition-all hover:bg-accent shrink-0",
+            "p-1.5 md:p-2 sketch-border transition-all hover:bg-accent shrink-0",
             currentTool === 'eraser' ? "bg-accent" : "bg-white"
           )}
         >
@@ -527,7 +531,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <button
           onClick={() => setTool('bucket')}
           className={cn(
-            "p-2 sketch-border transition-all hover:bg-accent shrink-0",
+            "p-1.5 md:p-2 sketch-border transition-all hover:bg-accent shrink-0",
             currentTool === 'bucket' ? "bg-accent" : "bg-white"
           )}
         >
@@ -537,19 +541,19 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <button
           onClick={() => setTool('lasso')}
           className={cn(
-            "p-2 sketch-border transition-all hover:bg-accent shrink-0",
+            "p-1.5 md:p-2 sketch-border transition-all hover:bg-accent shrink-0",
             currentTool === 'lasso' ? "bg-accent" : "bg-white"
           )}
         >
           <LassoIcon size={16} />
         </button>
 
-        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
+        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-0.5" />
 
         <button 
           onClick={() => setIsMultiDrawEnabled?.(!isMultiDrawEnabled)}
           className={cn(
-            "p-2 sketch-border transition-all hover:bg-accent shrink-0",
+            "p-1.5 md:p-2 sketch-border transition-all hover:bg-accent shrink-0",
             isMultiDrawEnabled ? "bg-accent shadow-[1px_1px_0px_0px_#454D52]" : "bg-white"
           )}
           title="Magic Wand: Multi-Draw Sync"
@@ -557,20 +561,20 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <Wand2 size={16} />
         </button>
 
-        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
+        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-0.5" />
         
-        <button onClick={() => flip('horizontal')} className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0">
+        <button onClick={() => flip('horizontal')} className="p-1.5 md:p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0">
           <FlipHorizontal size={16} />
         </button>
-        <button onClick={() => flip('vertical')} className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0">
+        <button onClick={() => flip('vertical')} className="p-1.5 md:p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0">
           <FlipVertical size={16} />
         </button>
 
-        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-1" />
+        <div className="hidden md:block w-full h-px bg-foreground opacity-5 my-0.5" />
 
         <button 
           onClick={onOpenLayers}
-          className="p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0"
+          className="p-1.5 md:p-2 sketch-border bg-white hover:bg-accent transition-all shrink-0"
           title="Manage Layers"
         >
           <LayersIcon size={16} />
@@ -579,11 +583,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       <div className="hidden md:block w-full h-px bg-foreground opacity-10" />
 
-      <div className="flex flex-row md:flex-col gap-2 shrink-0">
-        <button onClick={undo} disabled={!canUndo} className="p-2 sketch-border bg-white hover:bg-accent disabled:opacity-20 transition-all shrink-0">
+      {/* History Controls */}
+      <div className="flex flex-row md:flex-col gap-1 md:gap-1.5 shrink-0">
+        <button onClick={undo} disabled={!canUndo} className="p-1.5 md:p-2 sketch-border bg-white hover:bg-accent disabled:opacity-20 transition-all shrink-0">
           <Undo2 size={16} />
         </button>
-        <button onClick={redo} disabled={!canRedo} className="p-2 sketch-border bg-white hover:bg-accent disabled:opacity-20 transition-all shrink-0">
+        <button onClick={redo} disabled={!canRedo} className="p-1.5 md:p-2 sketch-border bg-white hover:bg-accent disabled:opacity-20 transition-all shrink-0">
           <Redo2 size={16} />
         </button>
       </div>
