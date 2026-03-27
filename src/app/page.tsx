@@ -76,7 +76,7 @@ export default function Home() {
   const renderHome = () => (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-in fade-in duration-500">
       {/* Home Header - Ultra Compact */}
-      <header className="h-12 flex items-center justify-between px-4 bg-black border-b border-white/5 z-50 shrink-0">
+      <header className="h-12 flex items-center justify-between px-4 bg-background border-b border-white/5 z-50 shrink-0">
         <div className="flex items-center gap-4 flex-1">
           <div className="w-8 h-8 studio-panel border-white/20 flex items-center justify-center p-0.5 relative" style={{ backgroundColor: color }}>
             <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -99,8 +99,8 @@ export default function Home() {
       </header>
 
       {/* Main Drawing Area - Horizontal Flex */}
-      <div className="flex-1 flex overflow-hidden bg-black">
-        <aside className="w-12 bg-black border-r border-white/5 flex flex-col items-center py-2 shrink-0">
+      <div className="flex-1 flex overflow-hidden bg-background">
+        <aside className="w-12 bg-background border-r border-white/5 flex flex-col items-center py-2 shrink-0">
           <Toolbar 
             currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} 
             moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} 
@@ -128,16 +128,16 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Bottom Dock - Fixed White Contrast */}
-      <div className="h-20 bg-black border-t border-white/5 p-2 shrink-0">
+      {/* Bottom Dock - Fixed Contrast */}
+      <div className="h-20 bg-background border-t border-white/5 p-2 shrink-0">
         <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
       </div>
     </div>
   );
 
   const renderSettings = () => (
-    <div className="flex-1 studio-screen animate-in slide-in-from-right duration-500 overflow-y-auto bg-black">
-      <header className="h-14 flex items-center justify-between px-6 bg-black border-b border-white/10 sticky top-0 z-50">
+    <div className="flex-1 studio-screen animate-in slide-in-from-right duration-500 overflow-y-auto bg-background">
+      <header className="h-14 flex items-center justify-between px-6 bg-background border-b border-white/10 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <button onClick={() => setCurrentView('home')} className="studio-icon-btn"><ChevronLeft size={24} /></button>
           <h2 className="font-bold uppercase tracking-widest text-sm text-white/50">Studio Settings</h2>
@@ -186,7 +186,7 @@ export default function Home() {
                  <div className="flex items-center justify-between"><Label className="text-[10px] uppercase opacity-40">Scale</Label>
                    <Select value={exportScale} onValueChange={setExportScale}>
                      <SelectTrigger className="w-24 h-8 bg-white/5 border-white/10 text-xs"><SelectValue /></SelectTrigger>
-                     <SelectContent className="bg-black border-white/10"><SelectItem value="0.5">0.5x</SelectItem><SelectItem value="1">1.0x</SelectItem><SelectItem value="2">2.0x</SelectItem></SelectContent>
+                     <SelectContent className="bg-background border-white/10"><SelectItem value="0.5">0.5x</SelectItem><SelectItem value="1">1.0x</SelectItem><SelectItem value="2">2.0x</SelectItem></SelectContent>
                    </Select>
                  </div>
                  <div className="flex items-center justify-between"><Label className="text-[10px] uppercase opacity-40">Alpha</Label><Switch checked={exportTransparent} onCheckedChange={setExportTransparent} /></div>
@@ -237,8 +237,8 @@ export default function Home() {
   );
 
   const renderAudio = () => (
-    <div className="flex-1 studio-screen animate-in slide-in-from-top duration-500 bg-black">
-       <header className="h-14 flex items-center justify-between px-6 bg-black border-b border-white/10 sticky top-0 z-50">
+    <div className="flex-1 studio-screen animate-in slide-in-from-top duration-500 bg-background">
+       <header className="h-14 flex items-center justify-between px-6 bg-background border-b border-white/10 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <button onClick={() => setCurrentView('home')} className="studio-icon-btn"><ChevronLeft size={24} /></button>
           <h2 className="font-bold uppercase tracking-widest text-sm text-white/50">Audio Sync</h2>
@@ -293,12 +293,12 @@ export default function Home() {
       <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadProject(f); }} accept=".sketchflow,.json" className="hidden" />
       <input type="file" ref={audioInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) setAudio(f, f.name); }} accept="audio/*" className="hidden" />
       
-      <footer className="h-6 bg-black border-t border-white/5 flex items-center justify-between px-4 fixed bottom-0 left-0 right-0 z-[60]">
-        <div className="flex items-center gap-4 text-[8px] font-bold uppercase opacity-20">
+      <footer className="h-6 bg-background border-t border-white/5 flex items-center justify-between px-4 fixed bottom-0 left-0 right-0 z-[60]">
+        <div className="flex items-center gap-4 text-[8px] font-bold uppercase opacity-40">
            <span>{project.name}</span>
            <span>ID: {project.id.slice(0, 8)}</span>
         </div>
-        <div className="text-[8px] font-bold uppercase opacity-20">
+        <div className="text-[8px] font-bold uppercase opacity-40">
            {project.frames.length} F @ {project.fps} FPS
         </div>
       </footer>

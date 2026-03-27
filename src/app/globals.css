@@ -4,24 +4,24 @@
 
 @layer base {
   :root {
-    --background: 222 47% 0%; /* Pure Black */
+    --background: 222 47% 4%; /* Lighter Charcoal Black */
     --foreground: 210 40% 98%;
-    --card: 222 47% 2%; /* Very Dark Blue-Black */
+    --card: 222 47% 8%; /* Shiny Dark Blue */
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 2%;
+    --popover: 222 47% 6%;
     --popover-foreground: 210 40% 98%;
-    --primary: 222 47% 6%; /* Dark Blue */
+    --primary: 222 47% 12%; /* Vibrant Dark Blue */
     --primary-foreground: 210 40% 98%;
-    --secondary: 222 47% 4%;
+    --secondary: 222 47% 10%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 222 47% 8%;
+    --muted: 222 47% 15%;
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 210 40% 98%; /* White Tint */
     --accent-foreground: 222 47% 2%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 222 47% 12%;
-    --input: 222 47% 12%;
+    --border: 222 47% 16%;
+    --input: 222 47% 16%;
     --ring: 210 40% 98%;
     --radius: 0.5rem;
   }
@@ -29,11 +29,11 @@
 
 @layer components {
   .studio-screen {
-    @apply min-h-screen bg-black text-foreground flex flex-col overflow-x-hidden;
+    @apply min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden;
   }
   
   .studio-panel {
-    @apply bg-[#020617] border border-white/10 rounded-lg shadow-2xl overflow-hidden;
+    @apply bg-card border border-white/10 rounded-lg shadow-2xl overflow-hidden;
   }
 
   .studio-button {
@@ -41,21 +41,21 @@
   }
 
   .studio-icon-btn {
-    @apply p-2 hover:bg-white/5 rounded-full transition-all text-white/50 hover:text-white;
+    @apply p-2 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white;
   }
 
   .sketch-border {
-    @apply border border-white/10;
+    @apply border border-white/20;
   }
 
   .sketch-card {
-    @apply bg-[#020617] border border-white/10 rounded-lg p-4;
+    @apply bg-card border border-white/10 rounded-lg p-4;
   }
 }
 
 body {
   font-family: 'PT Sans', sans-serif;
-  background-color: #000000;
+  background-color: #05070a;
   color: #f8fafc;
 }
 
@@ -94,10 +94,10 @@ canvas {
 }
 
 .pattern-checkered {
-  background-image: linear-gradient(45deg, #050505 25%, transparent 25%), 
-    linear-gradient(-45deg, #050505 25%, transparent 25%), 
-    linear-gradient(45deg, transparent 75%, #050505 75%), 
-    linear-gradient(-45deg, transparent 75%, #050505 75%);
+  background-image: linear-gradient(45deg, #0a0c10 25%, transparent 25%), 
+    linear-gradient(-45deg, #0a0c10 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #0a0c10 75%), 
+    linear-gradient(-45deg, transparent 75%, #0a0c10 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
