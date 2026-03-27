@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -214,7 +215,10 @@ export default function Home() {
                 </div>
               </div>
               <div className="pt-4 border-t border-white/5 space-y-4">
-                <Label className="text-[10px] uppercase opacity-40">Onion Skinning</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] uppercase opacity-40">Onion Skinning</Label>
+                  <Switch checked={project.onionSkinEnabled} onCheckedChange={toggleOnionSkin} />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1"><span className="text-[8px] uppercase opacity-40">Before: {project.onionSkinBefore}</span><Slider value={[project.onionSkinBefore || 1]} min={1} max={5} onValueChange={([v]) => setProject(p => ({...p, onionSkinBefore: v}))} /></div>
                   <div className="space-y-1"><span className="text-[8px] uppercase opacity-40">After: {project.onionSkinAfter}</span><Slider value={[project.onionSkinAfter || 1]} min={1} max={5} onValueChange={([v]) => setProject(p => ({...p, onionSkinAfter: v}))} /></div>

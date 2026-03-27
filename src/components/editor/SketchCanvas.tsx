@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
@@ -197,7 +198,6 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
     ctx.restore();
   };
 
-  // Draw Grid Overlay
   useEffect(() => {
     const canvas = gridCanvasRef.current;
     if (!canvas) return;
@@ -282,8 +282,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(({
 
       const framesToRender: { index: number; opacity: number; color: string }[] = [];
 
-      const PREV_OPACITY = 0.1;
-      const NEXT_OPACITY = 0.05;
+      // Increased opacities for better visibility on charcoal background
+      const PREV_OPACITY = 0.3;
+      const NEXT_OPACITY = 0.2;
       const PREV_COLOR = '#FF6B6B';
       const NEXT_COLOR = '#6B9FFF';
 
