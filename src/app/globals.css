@@ -4,39 +4,62 @@
 
 @layer base {
   :root {
-    --background: 200 15% 95%;
-    --foreground: 205 9% 30%;
-    --primary: 205 9% 30%;
-    --primary-foreground: 200 15% 95%;
-    --accent: 180 39% 65%;
-    --accent-foreground: 205 9% 30%;
-    --radius: 0.3rem;
+    --background: 222 47% 4%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 10%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 12%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 180 100% 50%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 20%;
+    --input: 217.2 32.6% 20%;
+    --ring: 224.3 76.3% 48%;
+    --radius: 0.5rem;
   }
 }
 
 @layer components {
-  .sketch-border {
-    @apply border-2 border-foreground relative;
-    border-radius: 2px 2px 2px 2px / 2px 2px 2px 2px;
+  .studio-screen {
+    @apply min-h-screen bg-background text-foreground flex flex-col;
+  }
+  
+  .studio-panel {
+    @apply bg-card border border-border/50 rounded-lg shadow-xl overflow-hidden;
   }
 
-  .sketch-button {
-    @apply px-4 py-2 border-2 border-foreground bg-white hover:bg-accent transition-colors active:translate-y-0.5;
-    box-shadow: 2px 2px 0px 0px #454D52;
+  .studio-button {
+    @apply px-4 py-2 bg-secondary hover:bg-primary transition-all rounded-md font-bold uppercase text-[10px] tracking-widest flex items-center gap-2;
   }
 
-  .sketch-card {
-    @apply p-4 border-2 border-foreground bg-white;
-    box-shadow: 4px 4px 0px 0px #454D52;
+  .studio-icon-btn {
+    @apply p-2 hover:bg-white/10 rounded-full transition-all text-foreground/70 hover:text-accent;
   }
 }
 
 body {
   font-family: 'PT Sans', sans-serif;
-  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: hsl(var(--background));
 }
 
 canvas {
   image-rendering: pixelated;
   cursor: crosshair;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
