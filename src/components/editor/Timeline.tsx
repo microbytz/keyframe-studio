@@ -51,9 +51,9 @@ export const Timeline: React.FC<TimelineProps> = ({
     setDraggedIndex(null);
   };
 
-  // Increased thumbnail size for better visibility
-  const baseWidth = 90;
-  const baseHeight = 56;
+  // Increased thumbnail size significantly for professional visibility
+  const baseWidth = 120;
+  const baseHeight = 75;
 
   return (
     <div className="w-full h-full flex flex-col gap-1">

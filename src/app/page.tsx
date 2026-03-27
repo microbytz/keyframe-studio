@@ -128,8 +128,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Bottom Dock - Increased height for adjustable timeline */}
-      <div className="h-24 bg-background border-t border-white/5 p-2 shrink-0">
+      {/* Bottom Dock - Increased height for larger professional timeline */}
+      <div className="h-32 bg-background border-t border-white/5 p-2 shrink-0">
         <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
       </div>
     </div>
@@ -256,7 +256,10 @@ export default function Home() {
           />
           <div className="space-y-2 mt-4">
              <div className="flex items-center justify-between"><h4 className="text-[10px] font-bold uppercase opacity-20">Timeline Reference</h4></div>
-             <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
+             {/* Timeline Ref is also larger now */}
+             <div className="h-32">
+               <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
+             </div>
           </div>
         </div>
 
