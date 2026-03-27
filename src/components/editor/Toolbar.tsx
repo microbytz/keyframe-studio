@@ -118,17 +118,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const ShapeIcon = selectedShapeTool.icon;
 
   return (
-    <div className="flex flex-col gap-1 p-1 bg-black border-r border-white/5 h-full w-full items-center overflow-y-auto scrollbar-none">
+    <div className="flex flex-col gap-1.5 p-1.5 bg-black border-r border-white/5 h-full w-full items-center overflow-y-auto scrollbar-none">
       <Popover>
         <PopoverTrigger asChild>
           <button
             onClick={() => { if (!isBrushActive) setTool(lastBrushTool); }}
             className={cn(
-              "p-1.5 sketch-border transition-all hover:bg-white/5 relative",
-              isBrushActive ? "bg-white/10 border-white/20" : "bg-transparent"
+              "p-2.5 sketch-border transition-all hover:bg-white/5 relative rounded-md",
+              isBrushActive ? "bg-white/10 border-white/40 shadow-inner" : "bg-transparent"
             )}
           >
-            {React.createElement(activeBrush.icon, { size: 16 })}
+            {React.createElement(activeBrush.icon, { size: 18 })}
           </button>
         </PopoverTrigger>
         <PopoverContent side="right" align="start" className="w-64 p-0 studio-panel bg-black border-white/10 z-[100]">
@@ -142,7 +142,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                         key={t.id}
                         onClick={() => setTool(t.id as ToolType)}
                         className={cn(
-                          "p-2.5 sketch-border transition-all hover:bg-white/5 flex items-center justify-center",
+                          "p-2.5 sketch-border transition-all hover:bg-white/5 flex items-center justify-center rounded-sm",
                           currentTool === t.id ? "bg-white/10 border-white/20" : "bg-transparent"
                         )}
                       >
@@ -161,8 +161,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                           key={b.id}
                           onClick={() => { setCustomBrushData?.(b.data); setTool('custom'); }}
                           className={cn(
-                            "w-full p-1 sketch-border transition-all hover:bg-white/5 aspect-square bg-black overflow-hidden",
-                            (currentTool === 'custom' && customBrushData === b.data) ? "border-white/40" : ""
+                            "w-full p-1 sketch-border transition-all hover:bg-white/5 aspect-square bg-white rounded-sm overflow-hidden",
+                            (currentTool === 'custom' && customBrushData === b.data) ? "border-white/60 ring-1 ring-white/20" : ""
                           )}
                         >
                           <img src={b.data} alt={b.name} className="max-w-full max-h-full object-contain" />
@@ -181,11 +181,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <button
             onClick={() => { if (!isShapeActive) setTool(lastShapeTool); }}
             className={cn(
-              "p-1.5 sketch-border transition-all hover:bg-white/5 relative",
-              isShapeActive ? "bg-white/10 border-white/20" : "bg-transparent"
+              "p-2.5 sketch-border transition-all hover:bg-white/5 relative rounded-md",
+              isShapeActive ? "bg-white/10 border-white/40 shadow-inner" : "bg-transparent"
             )}
           >
-            {React.createElement(ShapeIcon, { size: 16 })}
+            {React.createElement(ShapeIcon, { size: 18 })}
           </button>
         </PopoverTrigger>
         <PopoverContent side="right" align="start" className="w-32 p-3 studio-panel bg-black border-white/10 z-[100]">
@@ -195,37 +195,37 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 key={t.id}
                 onClick={() => setTool(t.id as ToolType)}
                 className={cn(
-                  "p-3 sketch-border transition-all hover:bg-white/5 flex flex-col items-center gap-1",
+                  "p-3 sketch-border transition-all hover:bg-white/5 flex flex-col items-center gap-1 rounded-sm",
                   currentTool === t.id ? "bg-white/10 border-white/20" : "bg-transparent"
                 )}
               >
-                {React.createElement(t.icon, { size: 16 })}
+                {React.createElement(t.icon, { size: 18 })}
               </button>
             ))}
           </div>
         </PopoverContent>
       </Popover>
 
-      <div className="w-full h-px bg-white/5 my-0.5" />
+      <div className="w-full h-px bg-white/5 my-1" />
 
-      <button onClick={() => setTool('eraser')} className={cn("p-1.5 studio-icon-btn", currentTool === 'eraser' && "text-white bg-white/10")} title="Eraser"><Eraser size={16} /></button>
-      <button onClick={() => setTool('bucket')} className={cn("p-1.5 studio-icon-btn", currentTool === 'bucket' && "text-white bg-white/10")} title="Bucket"><PaintBucket size={16} /></button>
-      <button onClick={() => setTool('lasso')} className={cn("p-1.5 studio-icon-btn", currentTool === 'lasso' && "text-white bg-white/10")} title="Lasso"><LassoIcon size={16} /></button>
-      <button onClick={() => setTool('move')} className={cn("p-1.5 studio-icon-btn", currentTool === 'move' && "text-white bg-white/10")} title="Move"><Move size={16} /></button>
+      <button onClick={() => setTool('eraser')} className={cn("p-2 studio-icon-btn", currentTool === 'eraser' && "text-white bg-white/10")} title="Eraser"><Eraser size={18} /></button>
+      <button onClick={() => setTool('bucket')} className={cn("p-2 studio-icon-btn", currentTool === 'bucket' && "text-white bg-white/10")} title="Bucket"><PaintBucket size={18} /></button>
+      <button onClick={() => setTool('lasso')} className={cn("p-2 studio-icon-btn", currentTool === 'lasso' && "text-white bg-white/10")} title="Lasso"><LassoIcon size={18} /></button>
+      <button onClick={() => setTool('move')} className={cn("p-2 studio-icon-btn", currentTool === 'move' && "text-white bg-white/10")} title="Move"><Move size={18} /></button>
 
-      <div className="w-full h-px bg-white/5 my-0.5" />
+      <div className="w-full h-px bg-white/5 my-1" />
 
-      <button onClick={undo} disabled={!canUndo} className="p-1.5 studio-icon-btn disabled:opacity-10" title="Undo"><Undo2 size={16} /></button>
-      <button onClick={redo} disabled={!canRedo} className="p-1.5 studio-icon-btn disabled:opacity-10" title="Redo"><Redo2 size={16} /></button>
+      <button onClick={undo} disabled={!canUndo} className="p-2 studio-icon-btn disabled:opacity-10" title="Undo"><Undo2 size={18} /></button>
+      <button onClick={redo} disabled={!canRedo} className="p-2 studio-icon-btn disabled:opacity-10" title="Redo"><Redo2 size={18} /></button>
       
       <div className="flex-1" />
       
       <button 
         onClick={() => setIsMultiDrawEnabled?.(!isMultiDrawEnabled)} 
-        className={cn("p-1.5 studio-icon-btn", isMultiDrawEnabled && "text-white bg-white/20")}
+        className={cn("p-2 studio-icon-btn", isMultiDrawEnabled && "text-white bg-white/20")}
         title="Multi-Draw Sync"
       >
-        <Wand2 size={16} />
+        <Wand2 size={18} />
       </button>
     </div>
   );

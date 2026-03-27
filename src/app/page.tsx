@@ -112,7 +112,7 @@ export default function Home() {
         </aside>
 
         <div className="flex-1 flex items-center justify-center p-4">
-          <div className="w-full max-w-[80vh] aspect-video studio-panel bg-white/5 relative">
+          <div className="w-full max-w-[90vh] aspect-video studio-panel bg-white/5 relative">
              <SketchCanvas 
                 ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} 
                 activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} 
@@ -128,8 +128,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Bottom Dock - Fixed Contrast */}
-      <div className="h-20 bg-background border-t border-white/5 p-2 shrink-0">
+      {/* Bottom Dock - Increased height for adjustable timeline */}
+      <div className="h-24 bg-background border-t border-white/5 p-2 shrink-0">
         <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
       </div>
     </div>

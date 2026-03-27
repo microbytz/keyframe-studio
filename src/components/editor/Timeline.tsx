@@ -51,8 +51,9 @@ export const Timeline: React.FC<TimelineProps> = ({
     setDraggedIndex(null);
   };
 
-  const baseWidth = 60;
-  const baseHeight = 40;
+  // Increased thumbnail size for better visibility
+  const baseWidth = 90;
+  const baseHeight = 56;
 
   return (
     <div className="w-full h-full flex flex-col gap-1">
@@ -65,7 +66,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 flex gap-1.5 overflow-x-auto pb-2 px-2 scrollbar-none items-center">
+      <div className="flex-1 flex gap-2 overflow-x-auto pb-2 px-2 scrollbar-none items-center">
         {frames.map((frame, index) => {
           // Find first layer with an image, checking from top to bottom
           const previewLayer = [...frame.layers].find(l => l.imageData && l.visible);
@@ -86,20 +87,21 @@ export const Timeline: React.FC<TimelineProps> = ({
                 height: `${baseHeight * zoom}px`
               }}
               className={cn(
-                "sketch-border bg-white/10 cursor-pointer relative transition-all overflow-hidden flex items-center justify-center shrink-0 rounded-sm",
-                isActive ? "border-white/80 ring-2 ring-white/20 scale-110 z-10" : "opacity-60 hover:opacity-100",
-                isSelected && !isActive ? "border-white/40 bg-white/20" : "",
+                "sketch-border bg-white cursor-pointer relative transition-all overflow-hidden flex items-center justify-center shrink-0 rounded-sm",
+                isActive ? "border-white/90 ring-2 ring-white/30 scale-105 z-10" : "opacity-60 hover:opacity-100",
+                isSelected && !isActive ? "border-white/50 bg-white" : "",
                 draggedIndex === index && "opacity-20 border-dashed"
               )}
             >
+              <div className="absolute inset-0 pattern-checkered opacity-5" />
               {previewLayer ? (
-                <img src={previewLayer.imageData} alt={`F${index + 1}`} className="max-w-full max-h-full object-contain pointer-events-none" />
+                <img src={previewLayer.imageData} alt={`F${index + 1}`} className="max-w-full max-h-full object-contain pointer-events-none relative z-10" />
               ) : (
-                <span className="text-[8px] opacity-20 italic">Empty</span>
+                <span className="text-[8px] text-black/20 font-bold uppercase relative z-10">Empty</span>
               )}
-              <div className="absolute bottom-0 right-0 text-[7px] px-1 font-mono bg-black/60 text-white/70 rounded-tl-sm">{index + 1}</div>
+              <div className="absolute bottom-0 right-0 text-[7px] px-1 font-bold bg-black/80 text-white rounded-tl-sm z-20">{index + 1}</div>
               {isActive && (
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/40" />
+                <div className="absolute top-0 left-0 right-0 h-1 bg-white/60 z-30" />
               )}
             </div>
           );
