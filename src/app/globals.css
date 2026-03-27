@@ -4,51 +4,59 @@
 
 @layer base {
   :root {
-    --background: 222 47% 4%;
+    --background: 0 0% 0%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 8%;
+    --card: 222 47% 4%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 10%;
+    --popover: 222 47% 4%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    --primary: 217.2 32.6% 17.5%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 222 47% 8%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 12%;
+    --muted: 222 47% 12%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 180 100% 50%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 98%;
+    --accent-foreground: 222 47% 4%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 20%;
     --input: 217.2 32.6% 20%;
-    --ring: 224.3 76.3% 48%;
+    --ring: 210 40% 98%;
     --radius: 0.5rem;
   }
 }
 
 @layer components {
   .studio-screen {
-    @apply min-h-screen bg-background text-foreground flex flex-col;
+    @apply min-h-screen bg-black text-foreground flex flex-col overflow-x-hidden;
   }
   
   .studio-panel {
-    @apply bg-card border border-border/50 rounded-lg shadow-xl overflow-hidden;
+    @apply bg-card border border-white/10 rounded-lg shadow-2xl overflow-hidden;
   }
 
   .studio-button {
-    @apply px-4 py-2 bg-secondary hover:bg-primary transition-all rounded-md font-bold uppercase text-[10px] tracking-widest flex items-center gap-2;
+    @apply px-4 py-2 bg-secondary hover:bg-white/10 border border-white/10 transition-all rounded-md font-bold uppercase text-[10px] tracking-widest flex items-center gap-2;
   }
 
   .studio-icon-btn {
-    @apply p-2 hover:bg-white/10 rounded-full transition-all text-foreground/70 hover:text-accent;
+    @apply p-2 hover:bg-white/5 rounded-full transition-all text-white/70 hover:text-white;
+  }
+
+  .sketch-border {
+    @apply border border-white/10;
+  }
+
+  .sketch-card {
+    @apply bg-card border border-white/10 rounded-lg p-4;
   }
 }
 
 body {
   font-family: 'PT Sans', sans-serif;
-  overflow-x: hidden;
-  background-color: hsl(var(--background));
+  background-color: #000000;
+  color: #f8fafc;
 }
 
 canvas {
@@ -62,4 +70,15 @@ canvas {
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Force horizontal optimization on mobile */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+  .portrait-warning {
+    @apply fixed inset-0 z-[1000] bg-black flex flex-col items-center justify-center p-8 text-center;
+  }
+}
+
+.portrait-warning {
+  display: none;
 }

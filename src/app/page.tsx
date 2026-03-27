@@ -10,7 +10,6 @@ import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
 import { 
   Settings, 
   Music, 
-  Home as HomeIcon, 
   ChevronLeft, 
   Save, 
   Plus, 
@@ -18,29 +17,22 @@ import {
   Upload, 
   Video, 
   Trash2, 
-  FileClock, 
-  Briefcase,
   History,
   Paintbrush,
-  Magnet,
-  Grid,
-  Clock3,
-  Eye,
+  Briefcase,
   Loader2,
   Zap,
-  Stamp,
   Palette,
-  Edit3
+  RotateCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlaybackControls } from '@/components/editor/PlaybackControls';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type AppView = 'home' | 'settings' | 'audio';
 
@@ -80,44 +72,41 @@ export default function Home() {
     if (project.frames.length > 0) setExportEndFrame(project.frames.length.toString());
   }, [project.frames.length]);
 
-  if (!mounted) return <div className="h-screen w-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-primary" size={48} /></div>;
+  if (!mounted) return <div className="h-screen w-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-white" size={48} /></div>;
 
   const currentFrame = project.frames[currentFrameIndex];
   const activeGroup = project.groups?.find(g => currentFrameIndex >= g.startIndex && currentFrameIndex <= g.endIndex);
   const currentFps = activeGroup ? activeGroup.fps : project.fps;
 
   const renderHome = () => (
-    <div className="flex-1 flex flex-col animate-in fade-in duration-500">
-      {/* Home Header */}
-      <header className="h-14 flex items-center justify-between px-4 bg-card/80 backdrop-blur-md border-b border-white/5 sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 studio-panel flex items-center justify-center p-0.5 relative" style={{ backgroundColor: color }}>
+    <div className="flex-1 flex flex-col h-full overflow-hidden animate-in fade-in duration-500">
+      {/* Home Header - Compact for Landscape */}
+      <header className="h-12 flex items-center justify-between px-4 bg-black border-b border-white/10 z-50 shrink-0">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="w-8 h-8 studio-panel flex items-center justify-center p-0.5 relative" style={{ backgroundColor: color }}>
             <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
             <div className="w-full h-full border border-white/20 rounded" />
           </div>
-          <div className="flex flex-col w-32 md:w-48">
-             <div className="flex items-center justify-between mb-1">
-               <span className="text-[9px] font-bold uppercase opacity-50">Brush Size</span>
-               <span className="text-[9px] font-mono text-accent">{brushSize}px</span>
-             </div>
-             <Slider value={[brushSize]} min={1} max={100} step={1} onValueChange={([val]) => setBrushSize(val)} />
+          <div className="flex items-center gap-3 w-48">
+             <span className="text-[9px] font-mono text-white/50">{brushSize}px</span>
+             <Slider value={[brushSize]} min={1} max={100} step={1} onValueChange={([val]) => setBrushSize(val)} className="flex-1" />
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <button onClick={() => setCurrentView('audio')} className="studio-icon-btn relative">
-            <Music size={20} />
-            {project.audioData && <div className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full animate-pulse" />}
+            <Music size={18} />
+            {project.audioData && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-white rounded-full animate-pulse" />}
           </button>
           <button onClick={() => setCurrentView('settings')} className="studio-icon-btn">
-            <Settings size={20} />
+            <Settings size={18} />
           </button>
         </div>
       </header>
 
-      {/* Drawing Space */}
-      <div className="flex-1 flex relative overflow-hidden">
-        <aside className="w-14 bg-card/30 border-r border-white/5 flex flex-col items-center py-4 shrink-0 overflow-y-auto scrollbar-none">
+      {/* Drawing Space - Horizontal Optimization */}
+      <div className="flex-1 flex relative overflow-hidden bg-black">
+        <aside className="w-12 bg-black border-r border-white/10 flex flex-col items-center py-2 shrink-0 overflow-y-auto scrollbar-none">
           <Toolbar 
             currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} 
             moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={() => {}} 
@@ -129,8 +118,8 @@ export default function Home() {
           />
         </aside>
 
-        <div className="flex-1 bg-[#020617] flex items-center justify-center p-4">
-          <div className="w-full max-w-[800px] aspect-video studio-panel bg-white/5 relative">
+        <div className="flex-1 flex items-center justify-center p-2">
+          <div className="w-full max-w-[85vh] aspect-video studio-panel bg-white/5 relative">
              <SketchCanvas 
                 ref={canvasRef} width={project.width} height={project.height} frames={project.frames} currentFrameIndex={currentFrameIndex} 
                 activeLayerId={activeLayerId} onionSkinEnabled={project.onionSkinEnabled} 
@@ -146,57 +135,43 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Bottom Controls */}
-      <div className="bg-card border-t border-white/5 p-4 space-y-4">
-        <div className="flex items-center justify-between">
-           <PlaybackControls 
-            isPlaying={isPlaying} togglePlayback={togglePlayback} loopSelection={loopSelection} setLoopSelection={setLoopSelection}
-            fps={currentFps} setFps={(f) => setProject(p => ({ ...p, fps: f }))} onPrev={() => selectFrame(Math.max(0, currentFrameIndex - 1))} 
-            onNext={() => selectFrame(Math.min(project.frames.length - 1, currentFrameIndex + 1))}
-            activeGroup={activeGroup} hasSelection={selectedFrameIndices.length > 1}
-          />
-          <div className="flex items-center gap-4 bg-secondary/50 px-3 py-1.5 rounded-full border border-white/5">
-            <span className="text-[9px] font-bold uppercase opacity-40">Exposure</span>
-            <input type="range" min="1" max="24" value={currentFrame?.duration || 1} onChange={(e) => updateFrameDuration(currentFrameIndex, parseInt(e.target.value))} className="w-24 h-1 accent-accent" />
-            <span className="text-[9px] font-mono text-accent">{currentFrame?.duration || 1}b</span>
-          </div>
-        </div>
+      {/* Bottom Timeline */}
+      <div className="bg-black border-t border-white/10 p-2 shrink-0">
         <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
       </div>
     </div>
   );
 
   const renderSettings = () => (
-    <div className="flex-1 studio-screen animate-in slide-in-from-right duration-500 overflow-y-auto">
-      <header className="h-14 flex items-center justify-between px-6 bg-card border-b border-white/5 sticky top-0 z-50">
+    <div className="flex-1 studio-screen animate-in slide-in-from-right duration-500 overflow-y-auto bg-black">
+      <header className="h-14 flex items-center justify-between px-6 bg-black border-b border-white/10 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <button onClick={() => setCurrentView('home')} className="studio-icon-btn"><ChevronLeft size={24} /></button>
-          <h2 className="font-bold uppercase tracking-widest text-sm">Studio Settings</h2>
+          <h2 className="font-bold uppercase tracking-widest text-sm text-white">Studio Settings</h2>
         </div>
         <div className="flex items-center gap-2">
-           {isAutoSaving && <span className="text-[8px] font-bold text-accent uppercase animate-pulse">Syncing...</span>}
-           <button onClick={() => saveProject()} className="studio-button bg-primary text-white"><Save size={14} /> Save Project</button>
+           {isAutoSaving && <span className="text-[8px] font-bold text-white/50 uppercase animate-pulse">Syncing...</span>}
+           <button onClick={() => saveProject()} className="studio-button bg-white text-black"><Save size={14} /> Save</button>
         </div>
       </header>
 
       <div className="max-w-4xl mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-8 pb-20">
-        {/* Left Col: Projects & Export */}
         <div className="space-y-8">
           <section className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-accent flex items-center gap-2">
-              <Briefcase size={16} /> Project Management
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-2">
+              <Briefcase size={16} /> Projects
             </h3>
-            <div className="studio-panel bg-card/50 p-4 space-y-4">
+            <div className="studio-panel bg-white/5 p-4 space-y-4">
                <div className="grid grid-cols-2 gap-3">
                  <button onClick={createNewProject} className="studio-button"><Plus size={14} /> New</button>
                  <button onClick={downloadProject} className="studio-button"><Download size={14} /> Export File</button>
                  <button onClick={() => fileInputRef.current?.click()} className="studio-button"><Upload size={14} /> Open File</button>
-                 <button onClick={() => saveVersion(versionName || `Snapshot ${new Date().toLocaleTimeString()}`)} className="studio-button bg-accent/20"><History size={14} /> Snapshot</button>
+                 <button onClick={() => saveVersion(versionName || `Snap ${new Date().toLocaleTimeString()}`)} className="studio-button"><History size={14} /> Snapshot</button>
                </div>
                <ScrollArea className="h-48 border-t border-white/5 pt-4">
                  <div className="space-y-2">
                    {projectList.map(p => (
-                     <div key={p.id} className={cn("p-2 rounded border border-white/5 flex items-center justify-between group", p.id === project.id ? "bg-primary/10 border-primary/50" : "bg-white/5")}>
+                     <div key={p.id} className={cn("p-2 rounded border border-white/5 flex items-center justify-between group", p.id === project.id ? "bg-white/10 border-white/50" : "bg-white/5")}>
                        <div className="cursor-pointer flex-1" onClick={() => loadProjectById(p.id)}>
                          <p className="text-[10px] font-bold uppercase">{p.name}</p>
                          <p className="text-[8px] opacity-40">{new Date(p.lastModified).toLocaleString()}</p>
@@ -210,10 +185,10 @@ export default function Home() {
           </section>
 
           <section className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-accent flex items-center gap-2">
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-2">
               <Video size={16} /> Render GIF
             </h3>
-            <div className="studio-panel bg-card/50 p-4 space-y-4">
+            <div className="studio-panel bg-white/5 p-4 space-y-4">
                <div className="space-y-3">
                  <div className="flex items-center justify-between"><Label className="text-[10px] uppercase opacity-60">Scale</Label>
                    <Select value={exportScale} onValueChange={setExportScale}>
@@ -222,7 +197,7 @@ export default function Home() {
                    </Select>
                  </div>
                  <div className="flex items-center justify-between"><Label className="text-[10px] uppercase opacity-60">Transparency</Label><Switch checked={exportTransparent} onCheckedChange={setExportTransparent} /></div>
-                 <Button onClick={() => exportToGif({ scale: parseFloat(exportScale), transparent: exportTransparent, startFrame: parseInt(exportStartFrame)-1, endFrame: parseInt(exportEndFrame)-1 })} className="w-full bg-accent text-black font-bold h-10">
+                 <Button onClick={() => exportToGif({ scale: parseFloat(exportScale), transparent: exportTransparent, startFrame: parseInt(exportStartFrame)-1, endFrame: parseInt(exportEndFrame)-1 })} className="w-full bg-white text-black font-bold h-10">
                    {isExporting ? <Loader2 className="animate-spin mr-2" /> : <Download size={14} className="mr-2" />} GENERATE GIF
                  </Button>
                </div>
@@ -230,13 +205,12 @@ export default function Home() {
           </section>
         </div>
 
-        {/* Right Col: Editor Prefs & Brushes */}
         <div className="space-y-8">
           <section className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-accent flex items-center gap-2">
-              <Zap size={16} /> Editor Preferences
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-2">
+              <Zap size={16} /> Preferences
             </h3>
-            <div className="studio-panel bg-card/50 p-6 space-y-6">
+            <div className="studio-panel bg-white/5 p-6 space-y-6">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between"><Label className="text-[10px] uppercase font-bold">Stabilizer</Label><Switch checked={stabilizationEnabled} onCheckedChange={setStabilizationEnabled} /></div>
@@ -244,11 +218,10 @@ export default function Home() {
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between"><Label className="text-[10px] uppercase font-bold">Grid Snap</Label><Switch checked={project.snapToGrid} onCheckedChange={(c) => setProject(p => ({...p, snapToGrid: c}))} /></div>
-                  <div className="flex items-center justify-between"><Label className="text-[10px] uppercase font-bold">Axis Snap</Label><Switch checked={project.snapToAngle} onCheckedChange={(c) => setProject(p => ({...p, snapToAngle: c}))} /></div>
                 </div>
               </div>
               <div className="pt-4 border-t border-white/5 space-y-4">
-                <Label className="text-[10px] uppercase opacity-40">Onion Skinning (Advanced)</Label>
+                <Label className="text-[10px] uppercase opacity-40 text-white">Onion Skinning</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1"><span className="text-[8px] uppercase">Before: {project.onionSkinBefore}</span><Slider value={[project.onionSkinBefore || 1]} min={1} max={5} onValueChange={([v]) => setProject(p => ({...p, onionSkinBefore: v}))} /></div>
                   <div className="space-y-1"><span className="text-[8px] uppercase">After: {project.onionSkinAfter}</span><Slider value={[project.onionSkinAfter || 1]} min={1} max={5} onValueChange={([v]) => setProject(p => ({...p, onionSkinAfter: v}))} /></div>
@@ -258,14 +231,13 @@ export default function Home() {
           </section>
 
           <section className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-accent flex items-center gap-2">
-              <Paintbrush size={16} /> Professional Brush Lab
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-2">
+              <Paintbrush size={16} /> Brush Lab
             </h3>
-            <div className="studio-panel bg-card/50 p-4 space-y-4">
+            <div className="studio-panel bg-white/5 p-4 space-y-4">
                <CustomBrushDialog onSave={saveSavedBrush} currentBrush={customBrushData} layers={currentFrame?.layers || []} width={project.width} height={project.height} />
                <div className="pt-4 border-t border-white/5 space-y-4">
                   <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Palette size={12} /><Label className="text-[10px] uppercase">Color Link</Label></div><Switch checked={customBrushColorLink} onCheckedChange={setCustomBrushColorLink} /></div>
-                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Stamp size={12} /><Label className="text-[10px] uppercase">Dynamic Stamping</Label></div><Switch checked={dynamicStampingEnabled} onCheckedChange={setDynamicStampingEnabled} /></div>
                </div>
             </div>
           </section>
@@ -275,47 +247,41 @@ export default function Home() {
   );
 
   const renderAudio = () => (
-    <div className="flex-1 studio-screen animate-in slide-in-from-top duration-500">
-       <header className="h-14 flex items-center justify-between px-6 bg-card border-b border-white/5 sticky top-0 z-50">
+    <div className="flex-1 studio-screen animate-in slide-in-from-top duration-500 bg-black">
+       <header className="h-14 flex items-center justify-between px-6 bg-black border-b border-white/10 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <button onClick={() => setCurrentView('home')} className="studio-icon-btn"><ChevronLeft size={24} /></button>
-          <h2 className="font-bold uppercase tracking-widest text-sm">Audio & Beat Sync</h2>
+          <h2 className="font-bold uppercase tracking-widest text-sm text-white">Audio Sync</h2>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => audioInputRef.current?.click()} className="studio-button"><Upload size={14} /> Import MP3</button>
+          <button onClick={() => audioInputRef.current?.click()} className="studio-button bg-white text-black"><Upload size={14} /> Import MP3</button>
         </div>
       </header>
 
       <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
-        <div className="studio-panel bg-card/50 p-6 flex flex-col gap-6">
+        <div className="studio-panel bg-white/5 p-6 flex flex-col gap-6">
           <AudioTimeline 
             audioData={project.audioData} metadata={project.audioMetadata} isPlaying={isPlaying} currentFrameIndex={currentFrameIndex} 
             totalFrames={project.frames.length} frames={project.frames} fps={project.fps} onRecord={(blob) => setAudio(blob, 'Mic Recording')} onRemove={removeAudio}
           />
           <div className="space-y-2">
-             <div className="flex items-center justify-between"><h4 className="text-[10px] font-bold uppercase opacity-40">Sync Timeline</h4><span className="text-[10px] text-accent font-bold">Beat sync active</span></div>
+             <div className="flex items-center justify-between"><h4 className="text-[10px] font-bold uppercase opacity-40">Timeline Sync</h4></div>
              <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
           </div>
         </div>
 
-        <section className="studio-panel bg-accent/5 p-6 space-y-4 border-accent/20">
-          <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2"><History size={16} /> Audio Preferences</h3>
+        <section className="studio-panel bg-white/5 p-6 space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-white/50">Audio Preferences</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="flex items-center justify-between bg-black/20 p-4 rounded-lg">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase">Scrub with Sound</p>
-                <p className="text-[8px] opacity-50">Play audio chunks while dragging the playhead</p>
-              </div>
+            <div className="flex items-center justify-between bg-black/40 p-4 rounded-lg border border-white/10">
+              <p className="text-[10px] font-bold uppercase">Scrub Audio</p>
               <Switch checked={project.scrubWithSound} onCheckedChange={(c) => setProject(p => ({...p, scrubWithSound: c}))} />
             </div>
-            <div className="flex items-center justify-between bg-black/20 p-4 rounded-lg">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase">Global FPS</p>
-                <p className="text-[8px] opacity-50">Adjust timing for the entire sequence</p>
-              </div>
+            <div className="flex items-center justify-between bg-black/40 p-4 rounded-lg border border-white/10">
+              <p className="text-[10px] font-bold uppercase">Project FPS</p>
               <div className="flex items-center gap-3">
                 <Slider value={[project.fps]} min={1} max={60} onValueChange={([v]) => setProject(p => ({...p, fps: v}))} className="w-24" />
-                <span className="text-[10px] font-mono text-accent">{project.fps}F</span>
+                <span className="text-[10px] font-mono text-white">{project.fps}F</span>
               </div>
             </div>
           </div>
@@ -325,7 +291,13 @@ export default function Home() {
   );
 
   return (
-    <main className="studio-screen">
+    <main className="studio-screen h-screen">
+      <div className="portrait-warning">
+        <RotateCw size={48} className="text-white mb-4 animate-spin-slow" />
+        <h2 className="text-xl font-bold uppercase tracking-widest mb-2">Rotate Device</h2>
+        <p className="opacity-50 text-sm">SketchFlow Studio works best in landscape mode.</p>
+      </div>
+
       {currentView === 'home' && renderHome()}
       {currentView === 'settings' && renderSettings()}
       {currentView === 'audio' && renderAudio()}
@@ -334,13 +306,13 @@ export default function Home() {
       <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadProject(f); }} accept=".sketchflow,.json" className="hidden" />
       <input type="file" ref={audioInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) setAudio(f, f.name); }} accept="audio/*" className="hidden" />
       
-      <footer className="h-6 bg-black border-t border-white/5 flex items-center justify-between px-4 fixed bottom-0 left-0 right-0 z-[60]">
+      <footer className="h-6 bg-black border-t border-white/10 flex items-center justify-between px-4 fixed bottom-0 left-0 right-0 z-[60]">
         <div className="flex items-center gap-4 text-[8px] font-bold uppercase opacity-40">
-           <span>Project: {project.name}</span>
-           <span>Status: {isAutoSaving ? 'Saving...' : 'Draft Ready'}</span>
+           <span>{project.name}</span>
+           <span>ID: {project.id.slice(0, 8)}</span>
         </div>
         <div className="text-[8px] font-bold uppercase opacity-40">
-           {project.frames.length} Frames @ {project.fps} FPS
+           {project.frames.length} F @ {project.fps} FPS
         </div>
       </footer>
     </main>
