@@ -22,7 +22,6 @@ import {
   Briefcase,
   Loader2,
   Zap,
-  Palette,
   RotateCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -104,12 +103,11 @@ export default function Home() {
         <aside className="w-12 bg-black border-r border-white/5 flex flex-col items-center py-2 shrink-0">
           <Toolbar 
             currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} 
-            moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} flip={() => {}} 
+            moveMode={moveMode} setMoveMode={setMoveMode} undo={undo} redo={redo} 
             canUndo={canUndo} canRedo={canRedo} color={color} 
-            savedBrushes={project.savedBrushes} brushPacks={project.brushPacks}
+            savedBrushes={project.savedBrushes} 
             customBrushData={customBrushData} setCustomBrushData={setCustomBrushData} deleteSavedBrush={deleteSavedBrush}
-            createBrushPack={createBrushPack} addBrushToPack={addBrushToPack} removeBrushFromPack={removeBrushFromPack}
-            deleteBrushPack={deleteBrushPack} exportBrush={exportBrush} exportBrushPack={exportBrushPack} importBrushPack={importBrushPack}
+            isMultiDrawEnabled={isMultiDrawEnabled} setIsMultiDrawEnabled={setIsMultiDrawEnabled}
           />
         </aside>
 
