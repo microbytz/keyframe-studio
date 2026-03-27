@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from 'react';
@@ -52,8 +53,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   };
 
   // Increased thumbnail size significantly for professional visibility
-  const baseWidth = 120;
-  const baseHeight = 75;
+  const baseWidth = 180;
+  const baseHeight = 110;
 
   return (
     <div className="w-full h-full flex flex-col gap-1">
