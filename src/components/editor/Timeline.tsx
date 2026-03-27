@@ -52,9 +52,9 @@ export const Timeline: React.FC<TimelineProps> = ({
     setDraggedIndex(null);
   };
 
-  // Increased thumbnail size significantly for professional visibility
-  const baseWidth = 180;
-  const baseHeight = 110;
+  // Increased thumbnail size for professional high-fidelity previews
+  const baseWidth = 240;
+  const baseHeight = 150;
 
   return (
     <div className="w-full h-full flex flex-col gap-1">
@@ -67,7 +67,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 flex gap-2 overflow-x-auto pb-2 px-2 scrollbar-none items-center">
+      <div className="flex-1 flex gap-4 overflow-x-auto pb-2 px-2 scrollbar-none items-center">
         {frames.map((frame, index) => {
           // Find first layer with an image, checking from top to bottom
           const previewLayer = [...frame.layers].find(l => l.imageData && l.visible);
@@ -89,8 +89,8 @@ export const Timeline: React.FC<TimelineProps> = ({
               }}
               className={cn(
                 "sketch-border bg-white cursor-pointer relative transition-all overflow-hidden flex items-center justify-center shrink-0 rounded-sm",
-                isActive ? "border-white/90 ring-2 ring-white/30 scale-105 z-10" : "opacity-60 hover:opacity-100",
-                isSelected && !isActive ? "border-white/50 bg-white" : "",
+                isActive ? "border-white/90 ring-2 ring-white/30 scale-105 z-10 shadow-xl" : "opacity-60 hover:opacity-100",
+                isSelected && !isActive ? "border-white/50" : "",
                 draggedIndex === index && "opacity-20 border-dashed"
               )}
             >
@@ -98,11 +98,11 @@ export const Timeline: React.FC<TimelineProps> = ({
               {previewLayer ? (
                 <img src={previewLayer.imageData} alt={`F${index + 1}`} className="max-w-full max-h-full object-contain pointer-events-none relative z-10" />
               ) : (
-                <span className="text-[8px] text-black/20 font-bold uppercase relative z-10">Empty</span>
+                <span className="text-[10px] text-black/20 font-bold uppercase relative z-10">Blank</span>
               )}
-              <div className="absolute bottom-0 right-0 text-[7px] px-1 font-bold bg-black/80 text-white rounded-tl-sm z-20">{index + 1}</div>
+              <div className="absolute bottom-0 right-0 text-[8px] px-1.5 py-0.5 font-bold bg-black/80 text-white rounded-tl-sm z-20">{index + 1}</div>
               {isActive && (
-                <div className="absolute top-0 left-0 right-0 h-1 bg-white/60 z-30" />
+                <div className="absolute top-0 left-0 right-0 h-1 bg-white/80 z-30" />
               )}
             </div>
           );

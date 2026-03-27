@@ -129,8 +129,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Bottom Dock - Increased height for larger professional timeline */}
-      <div className="h-44 bg-background border-t border-white/5 p-2 shrink-0">
+      {/* Bottom Dock - Enlarged for professional high-fidelity timeline */}
+      <div className="h-56 bg-background border-t border-white/5 p-2 shrink-0">
         <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
       </div>
     </div>
@@ -260,8 +260,8 @@ export default function Home() {
           />
           <div className="space-y-2 mt-4">
              <div className="flex items-center justify-between"><h4 className="text-[10px] font-bold uppercase opacity-20">Timeline Reference</h4></div>
-             {/* Timeline Ref is also larger now */}
-             <div className="h-44">
+             {/* Significantly larger timeline for easier audio sync */}
+             <div className="h-64">
                <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
              </div>
           </div>
@@ -276,7 +276,7 @@ export default function Home() {
             </div>
             <div className="flex items-center justify-between bg-white/5 p-4 rounded-lg border border-white/5">
               <p className="text-[10px] font-bold uppercase opacity-60">FPS: {project.fps}</p>
-              <Slider value={[project.fps]} min={1} max={60} onValueChange={([v]) => setProject(p => ({...p, fps: v}))} className="w-32" />
+              <Slider value={[project.fps]} min={1} max={60} onValueChange={([v]) => setProject(p => ({...v, fps: v}))} className="w-32" />
             </div>
           </div>
         </section>
