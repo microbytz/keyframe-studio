@@ -38,7 +38,7 @@ export function useAnimationState() {
   
   const [project, setProject] = useState<AnimationProject>({
     id: '', 
-    name: 'Untitled Sketch',
+    name: 'New Keyframe',
     frames: [],
     fps: INITIAL_FPS,
     width: CANVAS_WIDTH,
@@ -116,13 +116,16 @@ export function useAnimationState() {
   useEffect(() => {
     setMounted(true);
     const initializeProject = () => {
-      const registryStr = localStorage.getItem('sketchflow_registry');
+      const registryStr = localStorage.getItem('keyframe_registry') || localStorage.getItem('sketchflow_registry');
       if (registryStr) {
         try {
           const registry: ProjectListItem[] = JSON.parse(registryStr);
           if (registry.length > 0) {
             const lastId = registry[0].id;
-            const saved = localStorage.getItem(`sketchflow_draft_${lastId}`) || localStorage.getItem(`sketchflow_project_${lastId}`);
+            const saved = localStorage.getItem(`keyframe_draft_${lastId}`) || 
+                          localStorage.getItem(`keyframe_project_${lastId}`) ||
+                          localStorage.getItem(`sketchflow_draft_${lastId}`) || 
+                          localStorage.getItem(`sketchflow_project_${lastId}`);
             if (saved) {
               const loaded = JSON.parse(saved);
               setProject(loaded);
@@ -192,7 +195,7 @@ export function useAnimationState() {
 
   const refreshProjectList = useCallback(() => {
     if (typeof window === 'undefined') return;
-    const registry = localStorage.getItem('sketchflow_registry');
+    const registry = localStorage.getItem('keyframe_registry') || localStorage.getItem('sketchflow_registry');
     if (registry) {
       try {
         setProjectList(JSON.parse(registry));
@@ -207,10 +210,10 @@ export function useAnimationState() {
     try {
       if (isAuto) setIsAutoSaving(true);
       
-      const storageKey = isAuto ? `sketchflow_draft_${project.id}` : `sketchflow_project_${project.id}`;
+      const storageKey = isAuto ? `keyframe_draft_${project.id}` : `keyframe_project_${project.id}`;
       localStorage.setItem(storageKey, JSON.stringify(project));
       
-      const registryStr = localStorage.getItem('sketchflow_registry');
+      const registryStr = localStorage.getItem('keyframe_registry') || localStorage.getItem('sketchflow_registry');
       let registry: ProjectListItem[] = registryStr ? JSON.parse(registryStr) : [];
       
       const existingIdx = registry.findIndex(p => p.id === project.id);
@@ -223,13 +226,13 @@ export function useAnimationState() {
       }
       
       registry.sort((a, b) => b.lastModified - a.lastModified);
-      localStorage.setItem('sketchflow_registry', JSON.stringify(registry));
+      localStorage.setItem('keyframe_registry', JSON.stringify(registry));
       setProjectList(registry);
 
       if (!isAuto) {
         toast({
           title: "Project Saved!",
-          description: `"${project.name}" has been saved to your browser storage.`,
+          description: `"${project.name}" has been saved to your library.`,
         });
       }
       
@@ -242,7 +245,10 @@ export function useAnimationState() {
   }, [project, toast]);
 
   const loadProjectById = useCallback((id: string) => {
-    const saved = localStorage.getItem(`sketchflow_project_${id}`) || localStorage.getItem(`sketchflow_draft_${id}`);
+    const saved = localStorage.getItem(`keyframe_project_${id}`) || 
+                  localStorage.getItem(`keyframe_draft_${id}`) ||
+                  localStorage.getItem(`sketchflow_project_${id}`) ||
+                  localStorage.getItem(`sketchflow_draft_${id}`);
     if (!saved) return;
     
     try {
@@ -269,14 +275,16 @@ export function useAnimationState() {
   }, [updateHistoryState, toast]);
 
   const deleteProject = useCallback((id: string) => {
+    localStorage.removeItem(`keyframe_project_${id}`);
+    localStorage.removeItem(`keyframe_draft_${id}`);
     localStorage.removeItem(`sketchflow_project_${id}`);
     localStorage.removeItem(`sketchflow_draft_${id}`);
     
-    const registryStr = localStorage.getItem('sketchflow_registry');
+    const registryStr = localStorage.getItem('keyframe_registry') || localStorage.getItem('sketchflow_registry');
     if (registryStr) {
       let registry: ProjectListItem[] = JSON.parse(registryStr);
       registry = registry.filter(p => p.id !== id);
-      localStorage.setItem('sketchflow_registry', JSON.stringify(registry));
+      localStorage.setItem('keyframe_registry', JSON.stringify(registry));
       setProjectList(registry);
     }
     
@@ -287,7 +295,7 @@ export function useAnimationState() {
     const newFrame = createNewFrame();
     const newProject: AnimationProject = {
       id: Math.random().toString(36).substr(2, 9),
-      name: 'New Animation',
+      name: 'New Keyframe',
       frames: [newFrame],
       fps: INITIAL_FPS,
       width: CANVAS_WIDTH,
@@ -545,14 +553,14 @@ export function useAnimationState() {
     const versionId = Math.random().toString(36).substr(2, 9);
     const newVersionMeta: ProjectVersionMetadata = { id: versionId, name: name || `Snapshot ${Date.now()}`, timestamp: Date.now() };
     try {
-      localStorage.setItem(`sketchflow_vdata_${versionId}`, JSON.stringify(project.frames));
+      localStorage.setItem(`keyframe_vdata_${versionId}`, JSON.stringify(project.frames));
       setProject(prev => ({ ...prev, versions: [...(prev.versions || []), newVersionMeta] }));
       toast({ title: "Snapshot Created" });
     } catch (e) { toast({ variant: "destructive", title: "Storage Full" }); }
   }, [project, toast]);
 
   const loadVersion = useCallback((versionId: string) => {
-    const vdata = localStorage.getItem(`sketchflow_vdata_${versionId}`);
+    const vdata = localStorage.getItem(`keyframe_vdata_${versionId}`);
     if (vdata) {
       const frames = JSON.parse(vdata);
       setProject(prev => ({ ...prev, frames }));
@@ -562,7 +570,7 @@ export function useAnimationState() {
   }, [updateHistoryState, toast]);
 
   const deleteVersion = useCallback((versionId: string) => {
-    localStorage.removeItem(`sketchflow_vdata_${versionId}`);
+    localStorage.removeItem(`keyframe_vdata_${versionId}`);
     setProject(prev => ({ ...prev, versions: (prev.versions || []).filter(v => v.id !== versionId) }));
   }, []);
 
@@ -570,7 +578,7 @@ export function useAnimationState() {
     const data = JSON.stringify(project, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a'); link.href = url; link.download = `${project.name}.sketchflow`; link.click();
+    const link = document.createElement('a'); link.href = url; link.download = `${project.name}.keyframe`; link.click();
     toast({ title: "Project Downloaded" });
   }, [project, toast]);
 

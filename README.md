@@ -1,7 +1,7 @@
 
-# SketchFlow Studio
+# Keyframe Studio
 
-SketchFlow Studio is a hand-drawn 2D animation toolkit built with Next.js and React.
+Keyframe Studio is a hand-drawn 2D animation toolkit built with Next.js and React.
 
 ## Features
 

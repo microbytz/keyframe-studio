@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'SketchFlow Studio - 2D Animation',
-  description: 'Create hand-drawn 2D animations with SketchFlow Studio.',
+  title: 'Keyframe Studio - 2D Animation',
+  description: 'Create hand-drawn 2D animations with Keyframe Studio.',
 };
 
 export default function RootLayout({
