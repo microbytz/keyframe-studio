@@ -8,6 +8,7 @@ import { Toolbar } from '@/components/editor/Toolbar';
 import { Timeline } from '@/components/editor/Timeline';
 import { AudioTimeline } from '@/components/editor/AudioTimeline';
 import { CustomBrushDialog } from '@/components/editor/CustomBrushDialog';
+import { LayersPanel } from '@/components/editor/LayersPanel';
 import { 
   Settings, 
   Music, 
@@ -23,7 +24,8 @@ import {
   Briefcase,
   Loader2,
   Zap,
-  RotateCw
+  RotateCw,
+  Layers as LayersIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -55,6 +57,7 @@ export default function Home() {
   } = useAnimationState();
 
   const [currentView, setCurrentView] = useState<AppView>('home');
+  const [isLayersOpen, setIsLayersOpen] = useState(false);
   const [versionName, setVersionName] = useState('');
   const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +92,9 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button onClick={() => setIsLayersOpen(!isLayersOpen)} className={cn("studio-icon-btn", isLayersOpen && "text-white bg-white/10")}>
+            <LayersIcon size={18} />
+          </button>
           <button onClick={() => setCurrentView('audio')} className="studio-icon-btn relative">
             <Music size={18} />
             {project.audioData && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-white/50 rounded-full animate-pulse" />}
@@ -100,7 +106,7 @@ export default function Home() {
       </header>
 
       {/* Main Drawing Area - Horizontal Flex */}
-      <div className="flex-1 flex overflow-hidden bg-background">
+      <div className="flex-1 flex overflow-hidden bg-background relative">
         <aside className="w-12 bg-background border-r border-white/5 flex flex-col items-center py-2 shrink-0">
           <Toolbar 
             currentTool={tool} lastBrushTool={lastBrushTool} lastShapeTool={lastShapeTool} setTool={setTool} 
@@ -127,10 +133,49 @@ export default function Home() {
               />
           </div>
         </div>
+
+        {isLayersOpen && (
+          <LayersPanel 
+            layers={currentFrame?.layers || []} 
+            activeLayerId={activeLayerId}
+            onSetActive={setActiveLayerId}
+            onAdd={addLayer}
+            onCopy={copyLayer}
+            onPaste={pasteLayer}
+            hasCopiedLayer={hasCopiedLayer}
+            onDelete={deleteLayer}
+            onReorder={reorderLayers}
+            onToggleVisibility={(id) => {
+              const newFrames = [...project.frames];
+              const f = newFrames[currentFrameIndex];
+              f.layers = f.layers.map(l => l.id === id ? { ...l, visible: !l.visible } : l);
+              setProject({ ...project, frames: newFrames });
+            }}
+            onToggleLock={(id) => {
+              const newFrames = [...project.frames];
+              const f = newFrames[currentFrameIndex];
+              f.layers = f.layers.map(l => l.id === id ? { ...l, locked: !l.locked } : l);
+              setProject({ ...project, frames: newFrames });
+            }}
+            onOpacityChange={(id, val) => {
+              const newFrames = [...project.frames];
+              const f = newFrames[currentFrameIndex];
+              f.layers = f.layers.map(l => l.id === id ? { ...l, opacity: val } : l);
+              setProject({ ...project, frames: newFrames });
+            }}
+            onBlendModeChange={(id, mode) => {
+              const newFrames = [...project.frames];
+              const f = newFrames[currentFrameIndex];
+              f.layers = f.layers.map(l => l.id === id ? { ...l, blendMode: mode } : l);
+              setProject({ ...project, frames: newFrames });
+            }}
+            onClose={() => setIsLayersOpen(false)}
+          />
+        )}
       </div>
 
       {/* Bottom Dock - Enlarged for professional high-fidelity timeline */}
-      <div className="h-56 bg-background border-t border-white/5 p-2 shrink-0">
+      <div className="h-64 bg-background border-t border-white/5 p-2 shrink-0">
         <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
       </div>
     </div>

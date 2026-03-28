@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { Frame, FrameGroup } from '@/lib/types';
-import { Plus, Trash2, Copy, GripHorizontal, ZoomIn, ZoomOut, Clock } from 'lucide-react';
+import { Plus, Trash2, Copy, ZoomIn, ZoomOut, GripHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Slider } from '@/components/ui/slider';
 
@@ -52,24 +52,37 @@ export const Timeline: React.FC<TimelineProps> = ({
     setDraggedIndex(null);
   };
 
-  // Increased thumbnail size for professional high-fidelity previews
+  // Base dimensions for scaling
   const baseWidth = 240;
   const baseHeight = 150;
 
   return (
-    <div className="w-full h-full flex flex-col gap-1">
+    <div className="w-full h-full flex flex-col gap-2">
       <div className="flex items-center justify-between px-2 shrink-0">
-        <span className="text-[9px] font-bold uppercase tracking-widest text-white/50">Timeline</span>
-        <div className="flex items-center gap-1.5 scale-90">
-           <button onClick={duplicateFrame} className="studio-icon-btn p-1.5" title="Duplicate Selection"><Copy size={12} /></button>
-           <button onClick={deleteFrame} className="studio-icon-btn p-1.5 hover:text-red-400" title="Delete Selection"><Trash2 size={12} /></button>
-           <button onClick={addFrame} className="studio-icon-btn p-1.5 text-white/90 bg-white/10 border border-white/20" title="Add Frame"><Plus size={12} /></button>
+        <div className="flex items-center gap-4">
+          <span className="text-[9px] font-bold uppercase tracking-widest text-white/50">Timeline</span>
+          <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+            <ZoomOut size={12} className="text-white/30" />
+            <Slider 
+              value={[zoom]} 
+              min={0.5} 
+              max={1.5} 
+              step={0.1} 
+              onValueChange={([v]) => setZoom(v)} 
+              className="w-32 h-4"
+            />
+            <ZoomIn size={12} className="text-white/30" />
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+           <button onClick={duplicateFrame} className="studio-icon-btn p-1.5" title="Duplicate Selected"><Copy size={12} /></button>
+           <button onClick={deleteFrame} className="studio-icon-btn p-1.5 hover:text-red-400" title="Delete Selected"><Trash2 size={12} /></button>
+           <button onClick={addFrame} className="studio-icon-btn p-1.5 text-white/90 bg-white/10 border border-white/20" title="New Frame"><Plus size={12} /></button>
         </div>
       </div>
 
-      <div className="flex-1 flex gap-4 overflow-x-auto pb-2 px-2 scrollbar-none items-center">
+      <div className="flex-1 flex gap-4 overflow-x-auto pb-4 px-2 scrollbar-none items-center">
         {frames.map((frame, index) => {
-          // Find first layer with an image, checking from top to bottom
           const previewLayer = [...frame.layers].find(l => l.imageData && l.visible);
           const isSelected = selectedFrameIndices.includes(index);
           const isActive = currentFrameIndex === index;
@@ -98,7 +111,7 @@ export const Timeline: React.FC<TimelineProps> = ({
               {previewLayer ? (
                 <img src={previewLayer.imageData} alt={`F${index + 1}`} className="max-w-full max-h-full object-contain pointer-events-none relative z-10" />
               ) : (
-                <span className="text-[10px] text-black/20 font-bold uppercase relative z-10">Blank</span>
+                <span className="text-[10px] text-black/20 font-bold uppercase relative z-10">Empty</span>
               )}
               <div className="absolute bottom-0 right-0 text-[8px] px-1.5 py-0.5 font-bold bg-black/80 text-white rounded-tl-sm z-20">{index + 1}</div>
               {isActive && (
