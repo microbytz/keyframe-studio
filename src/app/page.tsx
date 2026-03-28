@@ -174,8 +174,8 @@ export default function Home() {
         )}
       </div>
 
-      {/* Bottom Dock - Enlarged for professional high-fidelity timeline */}
-      <div className="h-64 bg-background border-t border-white/5 p-2 shrink-0">
+      {/* Bottom Dock - Reduced height to expand canvas area */}
+      <div className="h-48 bg-background border-t border-white/5 p-2 shrink-0">
         <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
       </div>
     </div>
@@ -305,8 +305,8 @@ export default function Home() {
           />
           <div className="space-y-2 mt-4">
              <div className="flex items-center justify-between"><h4 className="text-[10px] font-bold uppercase opacity-20">Timeline Reference</h4></div>
-             {/* Significantly larger timeline for easier audio sync */}
-             <div className="h-64">
+             {/* Significantly larger timeline for easier audio sync, but slightly reduced to expand other areas */}
+             <div className="h-56">
                <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
              </div>
           </div>

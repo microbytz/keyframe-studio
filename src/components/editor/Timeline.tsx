@@ -52,9 +52,9 @@ export const Timeline: React.FC<TimelineProps> = ({
     setDraggedIndex(null);
   };
 
-  // Base dimensions for scaling
-  const baseWidth = 240;
-  const baseHeight = 150;
+  // Base dimensions for scaling - reduced height to maintain professional look in smaller dock
+  const baseWidth = 200;
+  const baseHeight = 120;
 
   return (
     <div className="w-full h-full flex flex-col gap-2">
