@@ -3,7 +3,6 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimationProject, ToolType, Frame, Layer, FrameGroup, MoveMode, SavedBrush, BrushPack, AudioMetadata, ProjectVersionMetadata } from '@/lib/types';
-import gifshot from 'gifshot';
 import { useToast } from "@/hooks/use-toast";
 
 const INITIAL_FPS = 12;
@@ -114,7 +113,6 @@ export function useAnimationState() {
   }, [updateHistoryState]);
 
   useEffect(() => {
-    setMounted(true);
     const initializeProject = () => {
       const registryStr = localStorage.getItem('keyframe_registry') || localStorage.getItem('sketchflow_registry');
       if (registryStr) {
@@ -131,6 +129,7 @@ export function useAnimationState() {
               setProject(loaded);
               historyRef.current = [loaded.frames];
               if (loaded.frames[0]) setActiveLayerId(loaded.frames[0].layers[0].id);
+              setMounted(true);
               return;
             }
           }
@@ -149,10 +148,13 @@ export function useAnimationState() {
       setActiveLayerId(initialFrame.layers[0].id);
       historyRef.current = [[initialFrame]];
       updateHistoryState();
+      setMounted(true);
     };
 
-    initializeProject();
+    // Use requestIdleCallback or a short timeout to ensure initial paint happens first
+    const timer = setTimeout(initializeProject, 10);
     refreshProjectList();
+    return () => clearTimeout(timer);
   }, []);
 
   const undo = useCallback(() => {
@@ -650,6 +652,10 @@ export function useAnimationState() {
 
   const exportToGif = useCallback(async (options: { scale: number, transparent: boolean, startFrame: number, endFrame: number }) => {
     setIsExporting(true);
+    
+    // Dynamic import to reduce initial bundle size
+    const gifshot = (await import('gifshot')).default;
+    
     const framesToExport = project.frames.slice(options.startFrame, options.endFrame + 1);
     const frameImages: string[] = [];
 

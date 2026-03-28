@@ -73,7 +73,14 @@ export default function Home() {
     if (project.frames.length > 0) setExportEndFrame(project.frames.length.toString());
   }, [project.frames.length]);
 
-  if (!mounted) return <div className="h-screen w-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-white" size={48} /></div>;
+  if (!mounted) {
+    return (
+      <div className="h-screen w-screen bg-background flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-2 border-white/10 border-t-white/80 rounded-full animate-spin mb-4" />
+        <h1 className="text-white/40 font-bold uppercase tracking-[0.3em] text-[10px]">Initialising Studio</h1>
+      </div>
+    );
+  }
 
   const currentFrame = project.frames[currentFrameIndex];
 
