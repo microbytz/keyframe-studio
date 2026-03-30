@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -35,6 +34,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+export const runtime = 'edge';
+
 type AppView = 'home' | 'settings' | 'audio';
 
 export default function Home() {
@@ -50,15 +51,13 @@ export default function Home() {
     addFrame, deleteFrame, duplicateFrame, reorderFrames,
     updateLayerData, updateFrameDuration, addLayer, copyLayer, pasteLayer, hasCopiedLayer, deleteLayer, reorderLayers,
     togglePlayback, toggleOnionSkin, saveProject, downloadProject, uploadProject, exportToGif, isExporting, setProject,
-    undo, redo, canUndo, canRedo, setCopiedLayerData,
+    undo, redo, canUndo, canRedo,
     saveVersion, loadVersion, deleteVersion, isAutoSaving, removeAudio, setAudio,
-    isMultiDrawEnabled, setIsMultiDrawEnabled, multiDrawRange, setMultiDrawRange, mounted,
-    createBrushPack, addBrushToPack, removeBrushFromPack, deleteBrushPack, exportBrush, exportBrushPack, importBrushPack
+    isMultiDrawEnabled, setIsMultiDrawEnabled, multiDrawRange, setMultiDrawRange, mounted
   } = useAnimationState();
 
   const [currentView, setCurrentView] = useState<AppView>('home');
   const [isLayersOpen, setIsLayersOpen] = useState(false);
-  const [versionName, setVersionName] = useState('');
   const canvasRef = useRef<SketchCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -212,7 +211,7 @@ export default function Home() {
                  <button onClick={createNewProject} className="studio-button"><Plus size={14} /> New</button>
                  <button onClick={downloadProject} className="studio-button"><Download size={14} /> Export</button>
                  <button onClick={() => fileInputRef.current?.click()} className="studio-button"><Upload size={14} /> Import</button>
-                 <button onClick={() => saveVersion(versionName || `Snap ${new Date().toLocaleTimeString()}`)} className="studio-button"><History size={14} /> Snapshot</button>
+                 <button onClick={() => saveVersion(`Snap ${new Date().toLocaleTimeString()}`)} className="studio-button"><History size={14} /> Snapshot</button>
                </div>
                <ScrollArea className="h-48 border-t border-white/5 pt-4">
                  <div className="space-y-2">
@@ -328,7 +327,7 @@ export default function Home() {
             </div>
             <div className="flex items-center justify-between bg-white/5 p-4 rounded-lg border border-white/5">
               <p className="text-[10px] font-bold uppercase opacity-60">FPS: {project.fps}</p>
-              <Slider value={[project.fps]} min={1} max={60} onValueChange={([v]) => setProject(p => ({...v, fps: v}))} className="w-32" />
+              <Slider value={[project.fps]} min={1} max={60} onValueChange={([v]) => setProject(p => ({...p, fps: v}))} className="w-32" />
             </div>
           </div>
         </section>

@@ -2,6 +2,8 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
+export const runtime = 'edge';
+
 export const metadata: Metadata = {
   title: 'Keyframe Studio - 2D Animation',
   description: 'Create hand-drawn 2D animations with Keyframe Studio.',
@@ -10,7 +12,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.HealthyNode;
 }>) {
   return (
     <html lang="en">
