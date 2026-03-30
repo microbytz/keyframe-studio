@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow that generates creative inspiration (character traits or scene ideas) based on user-provided keywords.
@@ -9,6 +10,9 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+
+// Configured for Cloudflare Edge Runtime
+export const runtime = 'edge';
 
 const AiCreativeInspirerInputSchema = z.object({
   keywords: z
