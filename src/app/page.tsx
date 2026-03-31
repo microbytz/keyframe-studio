@@ -48,7 +48,7 @@ export default function Home() {
     customBrushColorLink, setCustomBrushColorLink,
     customBrushData, setCustomBrushData, saveSavedBrush, deleteSavedBrush,
     addFrame, deleteFrame, duplicateFrame, reorderFrames,
-    updateLayerData, updateFrameDuration, addLayer, copyLayer, pasteLayer, hasCopiedLayer, deleteLayer, reorderFrames: reorderLayersInState, reorderLayers,
+    updateLayerData, updateFrameDuration, addLayer, copyLayer, pasteLayer, hasCopiedLayer, deleteLayer, reorderLayers,
     togglePlayback, toggleOnionSkin, saveProject, downloadProject, uploadProject, exportToGif, isExporting, setProject,
     undo, redo, canUndo, canRedo,
     saveVersion, loadVersion, deleteVersion, isAutoSaving, removeAudio, setAudio,
@@ -178,7 +178,20 @@ export default function Home() {
       </div>
 
       <div className="h-48 bg-background border-t border-white/5 p-2 shrink-0">
-        <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
+        <Timeline 
+          frames={project.frames} 
+          currentFrameIndex={currentFrameIndex} 
+          selectedFrameIndices={selectedFrameIndices} 
+          isPlaying={isPlaying}
+          fps={project.fps}
+          onSelectFrame={selectFrame} 
+          addFrame={addFrame} 
+          deleteFrame={deleteFrame} 
+          duplicateFrame={duplicateFrame} 
+          reorderFrames={reorderFrames}
+          togglePlayback={togglePlayback}
+          onFpsChange={(newFps) => setProject(p => ({ ...p, fps: newFps }))}
+        />
       </div>
     </div>
   );
@@ -308,7 +321,20 @@ export default function Home() {
           <div className="space-y-2 mt-4">
              <div className="flex items-center justify-between"><h4 className="text-[10px] font-bold uppercase opacity-20">Timeline Reference</h4></div>
              <div className="h-56">
-               <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
+               <Timeline 
+                  frames={project.frames} 
+                  currentFrameIndex={currentFrameIndex} 
+                  selectedFrameIndices={selectedFrameIndices} 
+                  isPlaying={isPlaying}
+                  fps={project.fps}
+                  onSelectFrame={selectFrame} 
+                  addFrame={addFrame} 
+                  deleteFrame={deleteFrame} 
+                  duplicateFrame={duplicateFrame} 
+                  reorderFrames={reorderFrames}
+                  togglePlayback={togglePlayback}
+                  onFpsChange={(newFps) => setProject(p => ({ ...p, fps: newFps }))}
+               />
              </div>
           </div>
         </div>

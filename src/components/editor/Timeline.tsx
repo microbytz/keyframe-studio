@@ -3,20 +3,40 @@
 
 import React, { useState } from 'react';
 import { Frame, FrameGroup } from '@/lib/types';
-import { Plus, Trash2, Copy, ZoomIn, ZoomOut, GripHorizontal } from 'lucide-react';
+import { 
+  Plus, 
+  Trash2, 
+  Copy, 
+  ZoomIn, 
+  ZoomOut, 
+  Play, 
+  Pause, 
+  Timer,
+  ChevronUp,
+  ChevronDown
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Slider } from '@/components/ui/slider';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface TimelineProps {
   frames: Frame[];
   groups?: FrameGroup[];
   currentFrameIndex: number;
   selectedFrameIndices: number[];
+  isPlaying: boolean;
+  fps: number;
   onSelectFrame: (index: number, multi?: boolean, range?: boolean) => void;
   addFrame: () => void;
   deleteFrame: () => void;
   duplicateFrame: () => void;
   reorderFrames: (startIndex: number, endIndex: number) => void;
+  togglePlayback: () => void;
+  onFpsChange: (fps: number) => void;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -24,11 +44,15 @@ export const Timeline: React.FC<TimelineProps> = ({
   groups = [],
   currentFrameIndex,
   selectedFrameIndices,
+  isPlaying,
+  fps,
   onSelectFrame,
   addFrame,
   deleteFrame,
   duplicateFrame,
   reorderFrames,
+  togglePlayback,
+  onFpsChange
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -52,7 +76,6 @@ export const Timeline: React.FC<TimelineProps> = ({
     setDraggedIndex(null);
   };
 
-  // Base dimensions for scaling - reduced height to maintain professional look in smaller dock
   const baseWidth = 200;
   const baseHeight = 120;
 
@@ -69,12 +92,56 @@ export const Timeline: React.FC<TimelineProps> = ({
               max={1.5} 
               step={0.1} 
               onValueChange={([v]) => setZoom(v)} 
-              className="w-32 h-4"
+              className="w-24 md:w-32 h-4"
             />
             <ZoomIn size={12} className="text-white/30" />
           </div>
         </div>
+
         <div className="flex items-center gap-1.5">
+           {/* Playback Button */}
+           <button 
+             onClick={togglePlayback} 
+             className={cn(
+               "studio-icon-btn p-1.5 transition-colors",
+               isPlaying ? "text-white bg-white/20 border border-white/30" : "hover:bg-white/10"
+             )}
+             title={isPlaying ? "Pause" : "Play Animation"}
+           >
+             {isPlaying ? <Pause size={12} /> : <Play size={12} className="ml-0.5" />}
+           </button>
+
+           {/* FPS Adjuster */}
+           <Popover>
+             <PopoverTrigger asChild>
+               <button className="studio-icon-btn p-1.5 flex items-center gap-1" title="Adjust FPS">
+                 <Timer size={12} />
+                 <span className="text-[9px] font-mono">{fps}</span>
+               </button>
+             </PopoverTrigger>
+             <PopoverContent className="w-40 studio-panel p-3 border-white/10 z-[100]" side="top" align="end">
+               <div className="space-y-3">
+                 <div className="flex justify-between items-center">
+                   <span className="text-[9px] font-bold uppercase opacity-40">Playback Speed</span>
+                   <span className="text-[10px] font-mono text-white">{fps} FPS</span>
+                 </div>
+                 <Slider 
+                   value={[fps]} 
+                   min={1} 
+                   max={60} 
+                   step={1} 
+                   onValueChange={([v]) => onFpsChange(v)} 
+                 />
+                 <div className="flex justify-between text-[8px] opacity-20 font-mono">
+                   <span>1</span>
+                   <span>60</span>
+                 </div>
+               </div>
+             </PopoverContent>
+           </Popover>
+
+           <div className="w-px h-4 bg-white/10 mx-1" />
+
            <button onClick={duplicateFrame} className="studio-icon-btn p-1.5" title="Duplicate Selected"><Copy size={12} /></button>
            <button onClick={deleteFrame} className="studio-icon-btn p-1.5 hover:text-red-400" title="Delete Selected"><Trash2 size={12} /></button>
            <button onClick={addFrame} className="studio-icon-btn p-1.5 text-white/90 bg-white/10 border border-white/20" title="New Frame"><Plus size={12} /></button>
