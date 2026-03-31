@@ -34,8 +34,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-export const runtime = 'edge';
-
 type AppView = 'home' | 'settings' | 'audio';
 
 export default function Home() {
@@ -49,7 +47,7 @@ export default function Home() {
     customBrushColorLink, setCustomBrushColorLink,
     customBrushData, setCustomBrushData, saveSavedBrush, deleteSavedBrush,
     addFrame, deleteFrame, duplicateFrame, reorderFrames,
-    updateLayerData, updateFrameDuration, addLayer, copyLayer, pasteLayer, hasCopiedLayer, deleteLayer, reorderLayers,
+    updateLayerData, updateFrameDuration, addLayer, copyLayer, pasteLayer, hasCopiedLayer, deleteLayer, reorderFrames: reorderLayersInState, reorderLayers,
     togglePlayback, toggleOnionSkin, saveProject, downloadProject, uploadProject, exportToGif, isExporting, setProject,
     undo, redo, canUndo, canRedo,
     saveVersion, loadVersion, deleteVersion, isAutoSaving, removeAudio, setAudio,
@@ -85,7 +83,6 @@ export default function Home() {
 
   const renderHome = () => (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-in fade-in duration-500">
-      {/* Home Header - Ultra Compact */}
       <header className="h-12 flex items-center justify-between px-4 bg-background border-b border-white/5 z-50 shrink-0">
         <div className="flex items-center gap-4 flex-1">
           <div className="w-8 h-8 studio-panel border-white/20 flex items-center justify-center p-0.5 relative" style={{ backgroundColor: color }}>
@@ -111,7 +108,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Drawing Area - Horizontal Flex */}
       <div className="flex-1 flex overflow-hidden bg-background relative">
         <aside className="w-12 bg-background border-r border-white/5 flex flex-col items-center py-2 shrink-0">
           <Toolbar 
@@ -180,7 +176,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Bottom Dock - Reduced height to expand canvas area */}
       <div className="h-48 bg-background border-t border-white/5 p-2 shrink-0">
         <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
       </div>
@@ -311,7 +306,6 @@ export default function Home() {
           />
           <div className="space-y-2 mt-4">
              <div className="flex items-center justify-between"><h4 className="text-[10px] font-bold uppercase opacity-20">Timeline Reference</h4></div>
-             {/* Significantly larger timeline for easier audio sync, but slightly reduced to expand other areas */}
              <div className="h-56">
                <Timeline frames={project.frames} currentFrameIndex={currentFrameIndex} selectedFrameIndices={selectedFrameIndices} onSelectFrame={selectFrame} addFrame={addFrame} deleteFrame={deleteFrame} duplicateFrame={duplicateFrame} reorderFrames={reorderFrames} />
              </div>
@@ -347,7 +341,6 @@ export default function Home() {
       {currentView === 'settings' && renderSettings()}
       {currentView === 'audio' && renderAudio()}
 
-      {/* Hidden Inputs */}
       <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadProject(f); }} accept=".sketchflow,.json" className="hidden" />
       <input type="file" ref={audioInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) setAudio(f, f.name); }} accept="audio/*" className="hidden" />
       
