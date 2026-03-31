@@ -2,6 +2,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'Keyframe Studio - 2D Animation',
@@ -19,6 +20,13 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+        
+        {/* Adsterra Social Bar Placeholder - Paste your script here */}
+        {/* <Script id="adsterra-social-bar" strategy="afterInteractive">
+          {`
+            // Paste your Adsterra Social Bar code here
+          `}
+        </Script> */}
       </head>
       <body className="font-body antialiased bg-background text-foreground selection:bg-accent/30">
         {children}
